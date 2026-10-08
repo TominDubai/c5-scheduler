@@ -11,7 +11,7 @@ export function Monogram() {
 export default async function Shell({ active, children, tools }: { active?: "board" | "list" | "estimation"; children: React.ReactNode; tools?: React.ReactNode }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const me = await getMe();
+  const me = await getMe().catch(() => ({ name: "", canEstimation: false, canProjects: false }));
   return (
     <>
       <header className="top">

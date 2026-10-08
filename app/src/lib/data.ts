@@ -4,7 +4,7 @@ import type { Project, Person, Contractor, Me } from "@/lib/model";
 export async function getProjects(): Promise<Project[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("projects_live").select("*").order("name");
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(`projects_live: ${error.message}`);
   return (data ?? []) as Project[];
 }
 export async function getProject(id: string): Promise<Project | null> {
@@ -30,7 +30,8 @@ export function pmCounts(projects: Project[]) {
 
 export async function getMe(): Promise<Me> {
   const supabase = await createClient();
-  const { data } = await supabase.rpc("me");
+  const { data, error } = await supabase.rpc("me");
+  if (error) throw new Error(`me(): ${error.message}`);
   const p = data as Person | null;
   return { name: p?.name ?? "", canEstimation: !!p?.can_edit_estimation, canProjects: !!p?.can_edit_projects };
 }

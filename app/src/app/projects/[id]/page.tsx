@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Shell from "@/components/Shell";
+import Failed from "@/components/Failed";
 import ProjectForm from "@/components/ProjectForm";
 import Variations from "@/components/Variations";
 import { getProject, getPeople, getContractors, getMe } from "@/lib/data";
@@ -9,7 +10,7 @@ import { STAGES, ORDER, LABEL, aed, fmtD, title, tone, delayText, type Variation
 
 export const dynamic = "force-dynamic";
 
-export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
+async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [p, people, contractors, me] = await Promise.all([getProject(id), getPeople(), getContractors(), getMe()]);
   if (!p) notFound();
@@ -82,4 +83,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       </div>
     </Shell>
   );
+}
+
+export default async function ProjectPage(props: Parameters<typeof Inner_ProjectPage>[0]) {
+  try { return await Inner_ProjectPage(props); }
+  catch (e) {
+    if (e && typeof e === "object" && "digest" in e && String((e as { digest?: string }).digest).startsWith("NEXT_")) throw e; // redirects / notFound pass through
+    return <Shell><Failed what="this project" error={e} /></Shell>;
+  }
 }

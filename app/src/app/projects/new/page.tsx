@@ -1,11 +1,12 @@
 import Link from "next/link";
 import Shell from "@/components/Shell";
+import Failed from "@/components/Failed";
 import ProjectForm from "@/components/ProjectForm";
 import { getPeople, getContractors } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewProjectPage() {
+async function Inner_NewProjectPage(_props?: undefined) {
   const [people, contractors] = await Promise.all([getPeople(), getContractors()]);
   return (
     <Shell>
@@ -16,4 +17,12 @@ export default async function NewProjectPage() {
       </div>
     </Shell>
   );
+}
+
+export default async function NewProjectPage(props: Parameters<typeof Inner_NewProjectPage>[0]) {
+  try { return await Inner_NewProjectPage(props); }
+  catch (e) {
+    if (e && typeof e === "object" && "digest" in e && String((e as { digest?: string }).digest).startsWith("NEXT_")) throw e; // redirects / notFound pass through
+    return <Shell><Failed what="the form" error={e} /></Shell>;
+  }
 }

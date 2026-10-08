@@ -1,4 +1,5 @@
 import Shell from "@/components/Shell";
+import Failed from "@/components/Failed";
 import EstimationBoard from "@/components/EstimationBoard";
 import EnquiryForm from "@/components/EnquiryForm";
 import { getProjects, getPeople, getContractors, getMe } from "@/lib/data";
@@ -7,7 +8,7 @@ import { aedS } from "@/lib/model";
 
 export const dynamic = "force-dynamic";
 
-export default async function EstimationPage() {
+async function Inner_EstimationPage(_props?: undefined) {
   const [all, people, contractors, me] = await Promise.all([getProjects(), getPeople(), getContractors(), getMe()]);
   const supabase = await createClient();
   const { data: nextNo } = await supabase.rpc("next_enquiry_no");
@@ -31,4 +32,12 @@ export default async function EstimationPage() {
       <main><EstimationBoard key={all.map((p) => p.updated_at).join()} projects={quotes} canEdit={me.canEstimation} /></main>
     </Shell>
   );
+}
+
+export default async function EstimationPage(props: Parameters<typeof Inner_EstimationPage>[0]) {
+  try { return await Inner_EstimationPage(props); }
+  catch (e) {
+    if (e && typeof e === "object" && "digest" in e && String((e as { digest?: string }).digest).startsWith("NEXT_")) throw e; // redirects / notFound pass through
+    return <Shell><Failed what="estimation" error={e} /></Shell>;
+  }
 }
