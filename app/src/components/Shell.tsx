@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions";
-import { getMe } from "@/lib/data";
+import { getMe, getUser } from "@/lib/data";
 import { title } from "@/lib/model";
 
 export function Monogram() {
@@ -9,9 +8,7 @@ export function Monogram() {
 }
 
 export default async function Shell({ active, children, tools }: { active?: "board" | "list" | "estimation"; children: React.ReactNode; tools?: React.ReactNode }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const me = await getMe().catch(() => ({ name: "", canEstimation: false, canProjects: false }));
+  const [user, me] = await Promise.all([getUser(), getMe().catch(() => ({ name: "", canEstimation: false, canProjects: false }))]);
   return (
     <>
       <header className="top">

@@ -12,13 +12,13 @@ export const dynamic = "force-dynamic";
 
 async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [p, people, contractors, me] = await Promise.all([getProject(id), getPeople(), getContractors(), getMe()]);
-  if (!p) notFound();
   const supabase = await createClient();
-  const [{ data: vos }, { data: hist }] = await Promise.all([
+  const [p, people, contractors, me, { data: vos }, { data: hist }] = await Promise.all([
+    getProject(id), getPeople(), getContractors(), getMe(),
     supabase.from("variations").select("*").eq("project_id", id).order("vo_no"),
     supabase.from("status_history").select("*, who:people(name)").eq("project_id", id).order("changed_at", { ascending: false }),
   ]);
+  if (!p) notFound();
   const t = tone(p);
   const canEdit = me.canProjects || (me.canEstimation && p.status === "QUOTE");
   const history = (hist ?? []) as (History & { who: { name: string } | null })[];

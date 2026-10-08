@@ -9,9 +9,8 @@ import { aedS } from "@/lib/model";
 export const dynamic = "force-dynamic";
 
 async function Inner_EstimationPage(_props?: undefined) {
-  const [all, people, contractors, me] = await Promise.all([getProjects(), getPeople(), getContractors(), getMe()]);
   const supabase = await createClient();
-  const { data: nextNo } = await supabase.rpc("next_enquiry_no");
+  const [all, people, contractors, me, { data: nextNo }] = await Promise.all([getProjects(), getPeople(), getContractors(), getMe(), supabase.rpc("next_enquiry_no")]);
   const quotes = all.filter((p) => p.status === "QUOTE");
   const open = quotes.filter((p) => p.quote_stage !== "SUBMITTED");
   const submitted = quotes.filter((p) => p.quote_stage === "SUBMITTED");
