@@ -1,6 +1,6 @@
 "use client";
 import { useActionState } from "react";
-import { ALL, QUOTE_STAGES, title, type Project, type Person, type Contractor } from "@/lib/model";
+import { ALL, QUOTE_STAGES, WAITING_ON, SCOPES, title, type Project, type Person, type Contractor } from "@/lib/model";
 import { saveProject, createProject } from "@/app/actions";
 
 type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean };
@@ -38,6 +38,11 @@ export default function ProjectForm({ project, people, contractors, estimationOn
         <select id="quote_stage" name="quote_stage" defaultValue={project?.quote_stage ?? "QUEUED"}>{QUOTE_STAGES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
       <div className="field"><label htmlFor="estimator_id">Estimator</label>
         <select id="estimator_id" name="estimator_id" defaultValue={v("estimator_id")}><option value="">—</option>{estimators.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
+      <div className="field"><label htmlFor="quote_type">Quote type</label><input id="quote_type" name="quote_type" defaultValue={v("quote_type")} placeholder="FULL QUOTE / KITCHEN / VO1 …" /></div>
+      <div className="field"><label>Scope</label><div className="checks">{SCOPES.map((s) => <label key={s}><input type="checkbox" name="scope" value={s} defaultChecked={(project?.scope ?? "").split(", ").includes(s)} /> {s}</label>)}</div></div>
+      <div className="field"><label htmlFor="waiting_on">Waiting on</label>
+        <select id="waiting_on" name="waiting_on" defaultValue={v("waiting_on")}><option value="">—</option>{WAITING_ON.map((w) => <option key={w} value={w}>{w}</option>)}</select></div>
+      <div className="field"><label htmlFor="raised_by">Raised by <small>(who sent it in)</small></label><input id="raised_by" name="raised_by" defaultValue={v("raised_by")} /></div>
       <div className="field"><label htmlFor="quoted_value">Quoted value (AED inc. VAT)</label><input id="quoted_value" name="quoted_value" inputMode="decimal" defaultValue={project?.quoted_value ?? ""} /></div>
       <div className="field"><label htmlFor="quote_due_date">Quote due</label><input id="quote_due_date" name="quote_due_date" type="date" defaultValue={v("quote_due_date")} /></div>
       <div className="field"><label htmlFor="quote_submitted_date">Quote submitted</label><input id="quote_submitted_date" name="quote_submitted_date" type="date" defaultValue={v("quote_submitted_date")} /></div>

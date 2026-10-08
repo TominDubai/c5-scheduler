@@ -13,7 +13,7 @@ export const ORDER: Record<Status, number> = Object.fromEntries(ALL.map(([k], i)
 
 export type QuoteStage = "QUEUED" | "PRICING" | "AWAITING_SUPPLIER" | "SUBMITTED";
 export const QUOTE_STAGES: [QuoteStage, string][] = [
-  ["QUEUED", "Queued"], ["PRICING", "Being priced"], ["AWAITING_SUPPLIER", "Waiting on suppliers"], ["SUBMITTED", "Submitted"],
+  ["QUEUED", "Queued"], ["PRICING", "Being priced"], ["AWAITING_SUPPLIER", "Waiting on info"], ["SUBMITTED", "Submitted"],
 ];
 export const QUOTE_LABEL: Record<QuoteStage, string> = Object.fromEntries(QUOTE_STAGES) as Record<QuoteStage, string>;
 
@@ -24,6 +24,7 @@ export type Project = {
   received_date: string | null; start_date: string | null; target_date: string | null; completed_date: string | null;
   signed_quote: number; notes: string | null; updated_at: string;
   quote_stage: QuoteStage; estimator_id: string | null; quoted_value: number | null; quote_submitted_date: string | null; quote_due_date: string | null; folder_path: string | null;
+  quote_type: string | null; scope: string | null; waiting_on: string | null; raised_by: string | null;
   // from projects_live
   contractor: string | null; pm: string | null; pm2: string | null; designer: string | null; estimator: string | null; days_since_enquiry: number | null;
   project_value: number; vo_count: number; days_to_completion: number | null; duration_days: number | null; days_delayed: number | null; status_since: string | null;
@@ -58,4 +59,13 @@ export function delayText(p: Pick<Project, "status" | "days_delayed">): string {
   if (d > 0) return `${d}d late`;
   if (d === 0) return "Due today";
   return `${-d}d left`;
+}
+
+export const WAITING_ON = ["Client info", "Designer info", "Metal quote", "Stone quote", "Glass quote", "Supplier quote", "Site measure", "Drawings", "Other"];
+export const SCOPES = ["Joinery", "Metalwork", "Stonework", "Glasswork", "Other"];
+/** days until a quote is due: null = no date; amber within 3 days, red when overdue */
+export function dueTone(due: string | null) {
+  if (!due) return null;
+  const d = Math.round((new Date(due).getTime() - Date.now()) / 86400000);
+  return { d, tone: d < 0 ? "crit" : d <= 3 ? "warn" : "ok" } as const;
 }

@@ -157,3 +157,12 @@ dt { color: var(--fg3); font-size: 12px; font-weight: 700; padding-top: 2px; } d
   .vo-form { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* pipeline fields */
+.qtype { display: inline-block; margin-left: 8px; padding: 1px 6px; border-radius: 4px; background: var(--bg3); color: var(--fg2); font: 600 11px var(--mono); letter-spacing: .02em; vertical-align: middle; }
+.due.warn { color: #a66a00; font-weight: 600; }
+.due.crit { color: #b3261e; font-weight: 600; }
+.waiting, .waiting-ro { margin-top: 8px; width: 100%; font: 12px var(--font); padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff8ee; color: #7a4f00; }
+.waiting-ro { border-style: dashed; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 6px 0; font: 13px var(--font); }
+.checks label { display: inline-flex; align-items: center; gap: 5px; }

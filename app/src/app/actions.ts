@@ -45,6 +45,10 @@ function projectFields(fd: FormData) {
   if (has("quote_submitted_date")) out.quote_submitted_date = nz(fd.get("quote_submitted_date"));
   if (has("quote_due_date")) out.quote_due_date = nz(fd.get("quote_due_date"));
   if (has("folder_path")) out.folder_path = nz(fd.get("folder_path"));
+  if (has("quote_type")) out.quote_type = nz(fd.get("quote_type"))?.toUpperCase() ?? null;
+  if (has("scope")) out.scope = fd.getAll("scope").map(String).filter(Boolean).join(", ") || null;
+  if (has("waiting_on")) out.waiting_on = nz(fd.get("waiting_on"));
+  if (has("raised_by")) out.raised_by = nz(fd.get("raised_by"))?.toUpperCase() ?? null;
   return out as { name?: string } & Record<string, unknown>;
 }
 
@@ -60,6 +64,14 @@ export async function setQuoteStage(id: string, quote_stage: QuoteStage) {
   const { error } = await supabase.from("projects").update(patch).eq("id", id);
   if (error) return { error: error.message };
   bust(id); return { ok: true };
+}
+
+export async function saveWaitingOn(id: string, waiting_on: string | null) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("projects").update({ waiting_on }).eq("id", id);
+  if (error) return { error: error.message };
+  bust(id);
+  return { ok: true };
 }
 
 export async function markWon(id: string) {
@@ -90,6 +102,8 @@ export async function createEnquiry(_prev: unknown, fd: FormData) {
     contractor_id: nz(fd.get("contractor_id")), estimator_id: nz(fd.get("estimator_id")),
     received_date: nz(fd.get("received_date")) ?? new Date().toISOString().slice(0, 10),
     quote_due_date: nz(fd.get("quote_due_date")), folder_path: nz(fd.get("folder_path")), notes: nz(fd.get("notes")),
+    quote_type: nz(fd.get("quote_type"))?.toUpperCase() ?? null, scope: fd.getAll("scope").map(String).filter(Boolean).join(", ") || null,
+    raised_by: nz(fd.get("raised_by"))?.toUpperCase() ?? null,
     status: "QUOTE", quote_stage: "QUEUED",
   }).select("id, enquiry_no").single();
   if (error) return { error: error.message };

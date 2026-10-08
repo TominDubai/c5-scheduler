@@ -8,7 +8,7 @@ import { aedS } from "@/lib/model";
 
 export const dynamic = "force-dynamic";
 
-async function Inner_EstimationPage(_props?: undefined) {
+async function Inner_EstimationPage() {
   const supabase = await createClient();
   const [all, people, contractors, me, { data: nextNo }] = await Promise.all([getProjects(), getPeople(), getContractors(), getMe(), supabase.rpc("next_enquiry_no")]);
   const quotes = all.filter((p) => p.status === "QUOTE");
@@ -33,8 +33,8 @@ async function Inner_EstimationPage(_props?: undefined) {
   );
 }
 
-export default async function EstimationPage(props: Parameters<typeof Inner_EstimationPage>[0]) {
-  try { return await Inner_EstimationPage(props); }
+export default async function EstimationPage() {
+  try { return await Inner_EstimationPage(); }
   catch (e) {
     if (e && typeof e === "object" && "digest" in e && String((e as { digest?: string }).digest).startsWith("NEXT_")) throw e; // redirects / notFound pass through
     return <Shell><Failed what="estimation" error={e} /></Shell>;
