@@ -19,7 +19,7 @@ button { font: inherit; }
 /* top bar */
 .top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 22px; flex-wrap: wrap; padding: 12px 24px; background: var(--bg2); border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; gap: 12px; color: var(--navy); }
-.mono { width: 34px; height: 34px; }
+.mono { width: 34px; height: 34px; object-fit: contain; }
 .wordmark { font-weight: 800; font-size: 17px; letter-spacing: -.01em; } .wordmark em { font-style: normal; color: var(--bronze); }
 .sub { color: var(--fg3); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .14em; margin-left: 2px; }
 .tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); }
@@ -128,6 +128,7 @@ dt { color: var(--fg3); font-size: 12px; font-weight: 700; padding-top: 2px; } d
 /* login */
 .login { margin: auto; width: min(420px, 100%); padding: 24px; display: flex; flex-direction: column; gap: 14px; }
 .login .panel { gap: 14px; padding: 28px; }
+.login .logo { width: min(260px, 70%); align-self: center; margin-bottom: 6px; }
 .login h1 { margin: 0; font: 800 22px var(--font); color: var(--navy); letter-spacing: -.02em; }
 .login p { margin: 0; color: var(--fg2); }
 

@@ -4,6 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Concept 5 Projects",
   description: "Concept 5 project pipeline — quotes to completion.",
+  icons: { icon: "/icon.png", apple: "/icon.png" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#FFFFFF" };
 

@@ -3,13 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions";
 
 export function Monogram() {
-  return (
-    <svg className="mono" viewBox="0 0 40 40" aria-label="Concept 5">
-      <rect x="1" y="1" width="38" height="38" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M24 12.5a8 8 0 1 0 0 15" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
-      <path d="M29 12h-7l-.9 7.2a5 5 0 1 1-1.6 6.4" fill="none" stroke="var(--bronze)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+  return <img className="mono" src="/c5-mark.png" alt="Concept 5" width={34} height={34} />;
 }
 
 export default async function Shell({ active, children, tools }: { active?: "board" | "list"; children: React.ReactNode; tools?: React.ReactNode }) {
