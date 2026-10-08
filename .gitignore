@@ -4,3 +4,5 @@ node_modules/
 *.png
 design/node_modules/
 design/package*.json
+
+!app/public/*.png
