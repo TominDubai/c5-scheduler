@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Shell from "@/components/Shell";
 import ProjectForm from "@/components/ProjectForm";
 import Variations from "@/components/Variations";
-import { getProject, getPeople, getContractors } from "@/lib/data";
+import { getProject, getPeople, getContractors, getMe } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { STAGES, ORDER, LABEL, aed, fmtD, title, tone, delayText, type Variation, type History } from "@/lib/model";
 
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [p, people, contractors] = await Promise.all([getProject(id), getPeople(), getContractors()]);
+  const [p, people, contractors, me] = await Promise.all([getProject(id), getPeople(), getContractors(), getMe()]);
   if (!p) notFound();
   const supabase = await createClient();
   const [{ data: vos }, { data: hist }] = await Promise.all([
@@ -19,6 +19,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     supabase.from("status_history").select("*, who:people(name)").eq("project_id", id).order("changed_at", { ascending: false }),
   ]);
   const t = tone(p);
+  const canEdit = me.canProjects || (me.canEstimation && p.status === "QUOTE");
   const history = (hist ?? []) as (History & { who: { name: string } | null })[];
   return (
     <Shell>
@@ -47,12 +48,23 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
               <dt>In this stage since</dt><dd>{fmtD(p.status_since)}</dd>
             </dl>
           </div>
-          <Variations projectId={p.id} signedQuote={p.signed_quote} vos={(vos ?? []) as Variation[]} />
+          <Variations projectId={p.id} signedQuote={p.signed_quote} vos={(vos ?? []) as Variation[]} canEdit={me.canProjects} />
         </div>
-        <div className="panel">
-          <h2>Edit project</h2>
-          <ProjectForm project={p} people={people} contractors={contractors} />
-        </div>
+        {canEdit ? (
+          <div className="panel">
+            <h2>Edit project</h2>
+            <ProjectForm project={p} people={people} contractors={contractors} estimationOnly={!me.canProjects} />
+          </div>
+        ) : (
+          <div className="panel"><h2>Details</h2><dl>
+            <dt>Enquiry no.</dt><dd>{p.enquiry_no ?? "—"}</dd>
+            <dt>Contractor</dt><dd>{p.contractor ?? "—"}</dd>
+            <dt>Estimator</dt><dd>{p.estimator ? title(p.estimator) : "—"}</dd>
+            <dt>Quoted value</dt><dd>{aed(p.quoted_value)}</dd>
+            <dt>Folder</dt><dd>{p.folder_path ?? "—"}</dd>
+            <dt>Notes</dt><dd>{p.notes ?? "—"}</dd>
+          </dl><p className="note">You can view this project but not edit it.</p></div>
+        )}
         <div className="panel">
           <h2>Status history</h2>
           {history.length === 0 ? <span style={{ color: "var(--fg3)" }}>No changes recorded yet.</span> : (

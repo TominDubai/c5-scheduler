@@ -22,28 +22,30 @@ export async function setStatus(id: string, status: Status) {
 }
 
 function projectFields(fd: FormData) {
-  return {
-    enquiry_no: nz(fd.get("enquiry_no")),
-    name: (nz(fd.get("name")) ?? "").toUpperCase(),
-    client: nz(fd.get("client"))?.toUpperCase() ?? null,
-    contractor_id: nz(fd.get("contractor_id")),
-    pm_id: nz(fd.get("pm_id")),
-    pm2_id: nz(fd.get("pm2_id")),
-    designer_id: nz(fd.get("designer_id")),
-    status: (nz(fd.get("status")) ?? "QUOTE") as Status,
-    received_date: nz(fd.get("received_date")),
-    start_date: nz(fd.get("start_date")),
-    target_date: nz(fd.get("target_date")),
-    completed_date: nz(fd.get("completed_date")),
-    signed_quote: num(fd.get("signed_quote")),
-    notes: nz(fd.get("notes")),
-    quote_stage: (nz(fd.get("quote_stage")) ?? "QUEUED") as QuoteStage,
-    estimator_id: nz(fd.get("estimator_id")),
-    quoted_value: fd.get("quoted_value") != null && nz(fd.get("quoted_value")) ? num(fd.get("quoted_value")) : null,
-    quote_submitted_date: nz(fd.get("quote_submitted_date")),
-    quote_due_date: nz(fd.get("quote_due_date")),
-    folder_path: nz(fd.get("folder_path")),
-  };
+  // Only fields present on the submitted form are touched (disabled inputs are not submitted).
+  const out: Record<string, unknown> = {};
+  const has = (k: string) => fd.has(k);
+  if (has("enquiry_no")) out.enquiry_no = nz(fd.get("enquiry_no"));
+  if (has("name")) out.name = (nz(fd.get("name")) ?? "").toUpperCase();
+  if (has("client")) out.client = nz(fd.get("client"))?.toUpperCase() ?? null;
+  if (has("contractor_id")) out.contractor_id = nz(fd.get("contractor_id"));
+  if (has("pm_id")) out.pm_id = nz(fd.get("pm_id"));
+  if (has("pm2_id")) out.pm2_id = nz(fd.get("pm2_id"));
+  if (has("designer_id")) out.designer_id = nz(fd.get("designer_id"));
+  if (has("status")) out.status = (nz(fd.get("status")) ?? "QUOTE") as Status;
+  if (has("received_date")) out.received_date = nz(fd.get("received_date"));
+  if (has("start_date")) out.start_date = nz(fd.get("start_date"));
+  if (has("target_date")) out.target_date = nz(fd.get("target_date"));
+  if (has("completed_date")) out.completed_date = nz(fd.get("completed_date"));
+  if (has("signed_quote")) out.signed_quote = num(fd.get("signed_quote"));
+  if (has("notes")) out.notes = nz(fd.get("notes"));
+  if (has("quote_stage")) out.quote_stage = (nz(fd.get("quote_stage")) ?? "QUEUED") as QuoteStage;
+  if (has("estimator_id")) out.estimator_id = nz(fd.get("estimator_id"));
+  if (has("quoted_value")) out.quoted_value = nz(fd.get("quoted_value")) ? num(fd.get("quoted_value")) : null;
+  if (has("quote_submitted_date")) out.quote_submitted_date = nz(fd.get("quote_submitted_date"));
+  if (has("quote_due_date")) out.quote_due_date = nz(fd.get("quote_due_date"));
+  if (has("folder_path")) out.folder_path = nz(fd.get("folder_path"));
+  return out as { name?: string } & Record<string, unknown>;
 }
 
 function bust(id?: string) {
@@ -98,7 +100,7 @@ export async function createEnquiry(_prev: unknown, fd: FormData) {
 export async function saveProject(id: string, _prev: unknown, fd: FormData) {
   const supabase = await createClient();
   const fields = projectFields(fd);
-  if (!fields.name) return { error: "Project name is required." };
+  if (fields.name === "") return { error: "Project name is required." };
   const { error } = await supabase.from("projects").update(fields).eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/board"); revalidatePath("/list"); revalidatePath(`/projects/${id}`);
@@ -109,7 +111,7 @@ export async function createProject(_prev: unknown, fd: FormData) {
   const supabase = await createClient();
   const fields = projectFields(fd);
   if (!fields.name) return { error: "Project name is required." };
-  const { data, error } = await supabase.from("projects").insert(fields).select("id").single();
+  const { data, error } = await supabase.from("projects").insert(fields as { name: string }).select("id").single();
   if (error) return { error: error.message };
   revalidatePath("/board"); revalidatePath("/list");
   redirect(`/projects/${data.id}`);

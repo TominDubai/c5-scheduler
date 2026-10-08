@@ -3,9 +3,10 @@ import { useActionState } from "react";
 import { ALL, QUOTE_STAGES, title, type Project, type Person, type Contractor } from "@/lib/model";
 import { saveProject, createProject } from "@/app/actions";
 
-type Props = { project?: Project | null; people: Person[]; contractors: Contractor[] };
+type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean };
 
-export default function ProjectForm({ project, people, contractors }: Props) {
+export default function ProjectForm({ project, people, contractors, estimationOnly = false }: Props) {
+  const lock = estimationOnly; // estimators: pricing fields only
   const action = project ? saveProject.bind(null, project.id) : createProject;
   const [state, formAction, pending] = useActionState(action, null as { error?: string; ok?: boolean; at?: string } | null);
   const pms = people.filter((p) => p.role === "PM" || p.role === "MANAGEMENT");
@@ -20,18 +21,18 @@ export default function ProjectForm({ project, people, contractors }: Props) {
       <div className="field"><label htmlFor="contractor_id">Main contractor</label>
         <select id="contractor_id" name="contractor_id" defaultValue={v("contractor_id")}><option value="">—</option>{contractors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
       <div className="field"><label htmlFor="status">Status</label>
-        <select id="status" name="status" defaultValue={project?.status ?? "QUOTE"}>{ALL.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+        <select id="status" name="status" disabled={lock} defaultValue={project?.status ?? "QUOTE"}>{ALL.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
       <div className="field"><label htmlFor="pm_id">Project manager <small>(assigned by Basim)</small></label>
-        <select id="pm_id" name="pm_id" defaultValue={v("pm_id")}><option value="">Unassigned</option>{pms.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
+        <select id="pm_id" name="pm_id" disabled={lock} defaultValue={v("pm_id")}><option value="">Unassigned</option>{pms.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
       <div className="field"><label htmlFor="pm2_id">Second PM (optional)</label>
-        <select id="pm2_id" name="pm2_id" defaultValue={v("pm2_id")}><option value="">—</option>{pms.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
+        <select id="pm2_id" name="pm2_id" disabled={lock} defaultValue={v("pm2_id")}><option value="">—</option>{pms.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
       <div className="field"><label htmlFor="designer_id">Designer <small>(assigned by Jinky)</small></label>
-        <select id="designer_id" name="designer_id" defaultValue={v("designer_id")}><option value="">—</option>{designers.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
-      <div className="field"><label htmlFor="signed_quote">Signed quote (AED inc. VAT)</label><input id="signed_quote" name="signed_quote" inputMode="decimal" defaultValue={project?.signed_quote ?? ""} /></div>
+        <select id="designer_id" name="designer_id" disabled={lock} defaultValue={v("designer_id")}><option value="">—</option>{designers.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
+      <div className="field"><label htmlFor="signed_quote">Signed quote (AED inc. VAT)</label><input id="signed_quote" name="signed_quote" disabled={lock} inputMode="decimal" defaultValue={project?.signed_quote ?? ""} /></div>
       <div className="field"><label htmlFor="received_date">Enquiry received</label><input id="received_date" name="received_date" type="date" defaultValue={v("received_date")} /></div>
-      <div className="field"><label htmlFor="start_date">Project start <small>(date payment received)</small></label><input id="start_date" name="start_date" type="date" defaultValue={v("start_date")} /></div>
-      <div className="field"><label htmlFor="target_date">Target completion <small>(contractor’s programme, joinery only)</small></label><input id="target_date" name="target_date" type="date" defaultValue={v("target_date")} /></div>
-      <div className="field"><label htmlFor="completed_date">Date completed</label><input id="completed_date" name="completed_date" type="date" defaultValue={v("completed_date")} /></div>
+      <div className="field"><label htmlFor="start_date">Project start <small>(date payment received)</small></label><input id="start_date" name="start_date" disabled={lock} type="date" defaultValue={v("start_date")} /></div>
+      <div className="field"><label htmlFor="target_date">Target completion <small>(contractor’s programme, joinery only)</small></label><input id="target_date" name="target_date" disabled={lock} type="date" defaultValue={v("target_date")} /></div>
+      <div className="field"><label htmlFor="completed_date">Date completed</label><input id="completed_date" name="completed_date" disabled={lock} type="date" defaultValue={v("completed_date")} /></div>
       <div className="field wide sep"><span className="sectionlabel">Pricing (Ramus)</span></div>
       <div className="field"><label htmlFor="quote_stage">Pricing stage</label>
         <select id="quote_stage" name="quote_stage" defaultValue={project?.quote_stage ?? "QUEUED"}>{QUOTE_STAGES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>

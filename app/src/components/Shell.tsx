@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions";
+import { getMe } from "@/lib/data";
+import { title } from "@/lib/model";
 
 export function Monogram() {
   return <img className="mono" src="/c5-mark.png" alt="Concept 5" width={34} height={34} />;
@@ -9,6 +11,7 @@ export function Monogram() {
 export default async function Shell({ active, children, tools }: { active?: "board" | "list" | "estimation"; children: React.ReactNode; tools?: React.ReactNode }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const me = await getMe();
   return (
     <>
       <header className="top">
@@ -20,8 +23,8 @@ export default async function Shell({ active, children, tools }: { active?: "boa
         </nav>
         <div className="tools">
           {tools}
-          <Link href="/projects/new" className="btn sm bronze">+ Project</Link>
-          {user && <form action={signOut}><button className="btn ghost sm" title={user.email ?? ""}>Sign out</button></form>}
+          {me.canProjects && <Link href="/projects/new" className="btn sm bronze">+ Project</Link>}
+          {user && <form action={signOut} className="userform"><span className="user">{title(me.name) || user.email}</span><button className="btn ghost sm" title={user.email ?? ""}>Sign out</button></form>}
         </div>
       </header>
       {children}

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { QUOTE_STAGES, aedS, fmtDShort, title, ini, type Project, type QuoteStage } from "@/lib/model";
 import { setQuoteStage, markWon, markLost } from "@/app/actions";
 
-export default function EstimationBoard({ projects }: { projects: Project[] }) {
+export default function EstimationBoard({ projects, canEdit }: { projects: Project[]; canEdit: boolean }) {
   const router = useRouter();
   const [rows, setRows] = useState(projects);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -13,7 +13,7 @@ export default function EstimationBoard({ projects }: { projects: Project[] }) {
   const [err, setErr] = useState<string | null>(null);
 
   function drop(stage: QuoteStage) {
-    if (!dragId) return;
+    if (!dragId || !canEdit) return;
     const p = rows.find((r) => r.id === dragId);
     setOver(null); setDragId(null);
     if (!p || p.quote_stage === stage) return;
@@ -45,13 +45,13 @@ export default function EstimationBoard({ projects }: { projects: Project[] }) {
               onDragOver={(e) => { e.preventDefault(); if (over !== k) setOver(k); }} onDragLeave={() => setOver(null)} onDrop={() => drop(k)}>
               <header><h2>{l}</h2><span className="count">{items.length}</span><span className="colval">{val ? aedS(val) : ""}</span></header>
               <div className="cards">
-                {items.length === 0 && <div className="empty">Drop an enquiry here</div>}
+                {items.length === 0 && <div className="empty">{canEdit ? "Drop an enquiry here" : "Nothing here"}</div>}
                 {items.map((p) => {
                   const age = p.days_since_enquiry ?? 0;
                   const t = k === "SUBMITTED" ? "done" : age > 21 ? "crit" : age > 10 ? "warn" : "ok";
                   const due = p.quote_due_date ? Math.round((new Date(p.quote_due_date).getTime() - Date.now()) / 86400000) : null;
                   return (
-                    <article key={p.id} className={`card ${t}${dragId === p.id ? " dragging" : ""}`} draggable
+                    <article key={p.id} className={`card ${t}${dragId === p.id ? " dragging" : ""}`} draggable={canEdit}
                       onDragStart={() => setDragId(p.id)} onDragEnd={() => { setDragId(null); setOver(null); }}
                       tabIndex={0} role="link" onClick={() => router.push(`/projects/${p.id}`)} onKeyDown={(e) => e.key === "Enter" && router.push(`/projects/${p.id}`)}>
                       <div className="card-top"><span className="enq">{p.enquiry_no ?? "—"}</span>
@@ -64,7 +64,7 @@ export default function EstimationBoard({ projects }: { projects: Project[] }) {
                       </div>
                       <div className="dates"><span>Received {fmtDShort(p.received_date)}</span>
                         <span>{due == null ? "No due date" : due < 0 ? `Due ${-due}d ago` : due === 0 ? "Due today" : `Due in ${due}d`}</span></div>
-                      {k === "SUBMITTED" && (
+                      {k === "SUBMITTED" && canEdit && (
                         <div className="decide" onClick={(e) => e.stopPropagation()}>
                           <button className="btn sm" onClick={() => decide(p, true)}>Won → Design</button>
                           <button className="btn sm danger" onClick={() => decide(p, false)}>Lost</button>

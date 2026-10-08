@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { STAGES, SIDE, aedS, fmtDShort, title, ini, tone, delayText, type Project, type Status } from "@/lib/model";
 import { setStatus } from "@/app/actions";
 
-export default function Board({ projects }: { projects: Project[] }) {
+export default function Board({ projects, canEdit }: { projects: Project[]; canEdit: boolean }) {
   const router = useRouter();
   const [rows, setRows] = useState(projects);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -13,7 +13,7 @@ export default function Board({ projects }: { projects: Project[] }) {
   const [err, setErr] = useState<string | null>(null);
 
   function drop(stage: Status) {
-    if (!dragId) return;
+    if (!dragId || !canEdit) return;
     const p = rows.find((r) => r.id === dragId);
     setOver(null); setDragId(null);
     if (!p || p.status === stage) return;
@@ -33,8 +33,8 @@ export default function Board({ projects }: { projects: Project[] }) {
         onDragOver={(e) => { e.preventDefault(); if (over !== k) setOver(k); }} onDragLeave={() => setOver(null)} onDrop={() => drop(k)}>
         <header><h2>{l}</h2><span className="count">{items.length}</span><span className="colval">{val ? aedS(val) : ""}</span></header>
         <div className="cards">
-          {items.length === 0 && <div className="empty">Drop a project here</div>}
-          {items.map((p) => <Card key={p.id} p={p} dragging={dragId === p.id} onDragStart={() => setDragId(p.id)} onDragEnd={() => { setDragId(null); setOver(null); }} />)}
+          {items.length === 0 && <div className="empty">{canEdit ? "Drop a project here" : "Nothing here"}</div>}
+          {items.map((p) => <Card key={p.id} p={p} canEdit={canEdit} dragging={dragId === p.id} onDragStart={() => setDragId(p.id)} onDragEnd={() => { setDragId(null); setOver(null); }} />)}
         </div>
       </section>
     );
@@ -48,11 +48,11 @@ export default function Board({ projects }: { projects: Project[] }) {
   );
 }
 
-function Card({ p, dragging, onDragStart, onDragEnd }: { p: Project; dragging: boolean; onDragStart: () => void; onDragEnd: () => void }) {
+function Card({ p, canEdit, dragging, onDragStart, onDragEnd }: { p: Project; canEdit: boolean; dragging: boolean; onDragStart: () => void; onDragEnd: () => void }) {
   const router = useRouter();
   const t = tone(p);
   return (
-    <article className={`card ${t}${dragging ? " dragging" : ""}`} draggable onDragStart={onDragStart} onDragEnd={onDragEnd}
+    <article className={`card ${t}${dragging ? " dragging" : ""}`} draggable={canEdit} onDragStart={onDragStart} onDragEnd={onDragEnd}
       tabIndex={0} role="link" onClick={() => router.push(`/projects/${p.id}`)} onKeyDown={(e) => e.key === "Enter" && router.push(`/projects/${p.id}`)}>
       <div className="card-top"><span className="enq">{p.enquiry_no ?? "—"}</span><span className={`pill ${t}`}>{delayText(p)}</span></div>
       <h3>{title(p.name)}</h3>

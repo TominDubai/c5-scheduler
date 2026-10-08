@@ -28,7 +28,8 @@ export type Project = {
   contractor: string | null; pm: string | null; pm2: string | null; designer: string | null; estimator: string | null; days_since_enquiry: number | null;
   project_value: number; vo_count: number; days_to_completion: number | null; duration_days: number | null; days_delayed: number | null; status_since: string | null;
 };
-export type Person = { id: string; name: string; full_name: string | null; role: string; email: string | null; whatsapp: string | null; is_active: boolean };
+export type Person = { id: string; name: string; full_name: string | null; role: string; email: string | null; whatsapp: string | null; is_active: boolean; can_edit_estimation: boolean; can_edit_projects: boolean };
+export type Me = { name: string; canEstimation: boolean; canProjects: boolean };
 export type Contractor = { id: string; name: string };
 export type Variation = { id: string; project_id: string; vo_no: number; description: string | null; value: number; approved_on: string | null };
 export type History = { id: string; from_status: Status | null; to_status: Status; changed_at: string; note: string | null; changed_by: string | null; who?: string | null };
