@@ -6,7 +6,7 @@ export function Monogram() {
   return <img className="mono" src="/c5-mark.png" alt="Concept 5" width={34} height={34} />;
 }
 
-export default async function Shell({ active, children, tools }: { active?: "board" | "list"; children: React.ReactNode; tools?: React.ReactNode }) {
+export default async function Shell({ active, children, tools }: { active?: "board" | "list" | "estimation"; children: React.ReactNode; tools?: React.ReactNode }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return (
@@ -14,6 +14,7 @@ export default async function Shell({ active, children, tools }: { active?: "boa
       <header className="top">
         <Link href="/board" className="brand"><Monogram /><span className="wordmark">Concept <em>5</em></span><span className="sub">Projects 2026</span></Link>
         <nav className="tabs">
+          <Link href="/estimation" className={"tab" + (active === "estimation" ? " on" : "")}>Estimation</Link>
           <Link href="/board" className={"tab" + (active === "board" ? " on" : "")}>Board</Link>
           <Link href="/list" className={"tab" + (active === "list" ? " on" : "")}>List</Link>
         </nav>

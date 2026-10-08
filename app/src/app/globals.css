@@ -125,6 +125,20 @@ dt { color: var(--fg3); font-size: 12px; font-weight: 700; padding-top: 2px; } d
 .hist .arrow { color: var(--fg3); }
 .hist .by { color: var(--fg3); }
 
+.field label small { font-weight: 600; color: var(--fg3); }
+.field.sep { padding-top: 6px; border-top: 1px solid var(--line); }
+.sectionlabel { font-size: 12px; font-weight: 800; color: var(--bronze); text-transform: uppercase; letter-spacing: .08em; }
+.decide { display: flex; gap: 6px; margin-top: 10px; }
+.newenq { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.newenq .hint { color: var(--fg3); font-size: 12px; font-weight: 600; } .newenq .hint b { font-family: var(--mono); color: var(--navy); }
+.newenq a { color: var(--bronze); font-weight: 700; }
+.enqform { flex-basis: 100%; }
+.enqform .form { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.enqform .field.wide { grid-column: span 2; }
+.enqform .actions { grid-column: 1 / -1; }
+@media (max-width: 900px) { .enqform .form { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 700px) { .enqform .form { grid-template-columns: 1fr; } .enqform .field.wide { grid-column: auto; } .newenq { margin-left: 0; flex-wrap: wrap; } }
+
 /* login */
 .login { margin: auto; width: min(420px, 100%); padding: 24px; display: flex; flex-direction: column; gap: 14px; }
 .login .panel { gap: 14px; padding: 28px; }

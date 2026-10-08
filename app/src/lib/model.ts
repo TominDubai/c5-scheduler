@@ -11,14 +11,21 @@ export const ALL = [...STAGES, ...SIDE];
 export const LABEL: Record<Status, string> = Object.fromEntries(ALL) as Record<Status, string>;
 export const ORDER: Record<Status, number> = Object.fromEntries(ALL.map(([k], i) => [k, i])) as Record<Status, number>;
 
+export type QuoteStage = "QUEUED" | "PRICING" | "AWAITING_SUPPLIER" | "SUBMITTED";
+export const QUOTE_STAGES: [QuoteStage, string][] = [
+  ["QUEUED", "Queued"], ["PRICING", "Being priced"], ["AWAITING_SUPPLIER", "Waiting on suppliers"], ["SUBMITTED", "Submitted"],
+];
+export const QUOTE_LABEL: Record<QuoteStage, string> = Object.fromEntries(QUOTE_STAGES) as Record<QuoteStage, string>;
+
 export type Project = {
   id: string; enquiry_no: string | null; name: string; client: string | null;
   contractor_id: string | null; pm_id: string | null; pm2_id: string | null; designer_id: string | null; technical_designer_id: string | null;
   status: Status; difficulty: number | null;
   received_date: string | null; start_date: string | null; target_date: string | null; completed_date: string | null;
   signed_quote: number; notes: string | null; updated_at: string;
+  quote_stage: QuoteStage; estimator_id: string | null; quoted_value: number | null; quote_submitted_date: string | null; quote_due_date: string | null; folder_path: string | null;
   // from projects_live
-  contractor: string | null; pm: string | null; pm2: string | null; designer: string | null;
+  contractor: string | null; pm: string | null; pm2: string | null; designer: string | null; estimator: string | null; days_since_enquiry: number | null;
   project_value: number; vo_count: number; days_to_completion: number | null; duration_days: number | null; days_delayed: number | null; status_since: string | null;
 };
 export type Person = { id: string; name: string; full_name: string | null; role: string; email: string | null; whatsapp: string | null; is_active: boolean };
