@@ -2,9 +2,9 @@ import { Suspense } from "react";
 import Shell from "@/components/Shell";
 import Failed from "@/components/Failed";
 import Summary from "@/components/Summary";
-import Filters, { applyFilters } from "@/components/Filters";
+import Filters from "@/components/Filters";
 import Board from "@/components/Board";
-import { getProjects, pmCounts, getMe } from "@/lib/data";
+import { getProjects, pmCounts, getMe, applyFilters } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
