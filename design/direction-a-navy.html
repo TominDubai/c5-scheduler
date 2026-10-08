@@ -1,0 +1,223 @@
+<title>C5 Projects — Navy</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+
+/* Layout: dark navy control-room. Sticky header, horizontal stage columns, dense cards; bronze = the one warm note. */
+:root{
+  --navy:#102C52; --bronze:#917764;
+  --bg:#0B1B33; --bg2:#102C52; --bg3:#17386A; --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.18);
+  --fg:#EAF0F8; --fg2:#A9B8CF; --fg3:#6F84A3;
+  --ok:#3FBF8A; --soon:#E6C35C; --warn:#F09A3E; --crit:#F0564E; --done:#5EA6E8;
+  --font:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  --r:6px; color-scheme:dark;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){ color-scheme:dark } }
+:root[data-theme="light"]{ color-scheme:dark }
+*{box-sizing:border-box} [hidden]{display:none!important} html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 var(--font);-webkit-font-smoothing:antialiased}
+.app{display:flex;flex-direction:column;height:100%;min-height:100%}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:10px 20px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;color:#fff}
+.mono{width:30px;height:30px;color:#fff}
+.wordmark{font-weight:600;letter-spacing:.02em;font-size:15px} .wordmark em{font-style:normal;color:var(--bronze)}
+.sub{color:var(--fg3);font-size:12px;text-transform:uppercase;letter-spacing:.12em;margin-left:4px}
+.tabs{display:flex;gap:2px;background:var(--bg);padding:3px;border-radius:var(--r)}
+.tab{background:none;border:0;color:var(--fg2);font:600 13px var(--font);padding:6px 14px;border-radius:4px;cursor:pointer}
+.tab.on{background:var(--bg3);color:#fff} .tab:focus-visible{outline:2px solid var(--bronze)}
+.tools{display:flex;gap:8px;margin-left:auto;flex:1;justify-content:flex-end;min-width:0}
+select,input[type=search]{background:var(--bg);border:1px solid var(--line2);color:var(--fg);font:13px var(--font);padding:7px 10px;border-radius:var(--r);min-width:0}
+input[type=search]{width:min(260px,100%)} select:focus,input:focus{outline:2px solid var(--bronze);outline-offset:1px}
+.summary{display:flex;gap:24px;align-items:center;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--line)}
+.stats{display:flex;gap:28px;flex-wrap:wrap}
+.stat{display:flex;flex-direction:column} .stat b{font:600 22px/1 var(--mono);font-variant-numeric:tabular-nums} .stat span{color:var(--fg3);font-size:11px;text-transform:uppercase;letter-spacing:.1em;margin-top:4px}
+.stat.crit b{color:var(--crit)}
+.pipe{display:flex;gap:2px;flex:1;min-width:220px;height:22px}
+.seg{display:flex;align-items:center;justify-content:center;border-radius:2px;background:var(--bg3);font:600 11px var(--mono);color:#fff;min-width:18px}
+.seg i{font-style:normal}
+.s-QUOTE{background:#3A4A66}.s-DESIGN_DRAWINGS{background:#2F5EA8}.s-PROD_DRAWINGS{background:#3E7AC9}.s-PRODUCTION{background:var(--bronze)}.s-INSTALLATION{background:#B38E5D}.s-SNAGGING{background:#8E6E8A}.s-COMPLETED{background:#2E8B63}.s-SITE_ON_HOLD{background:#7A3C3C}.s-LOST{background:#444}
+main{flex:1;min-height:0;display:flex}
+.board{display:flex;gap:12px;padding:16px 20px 24px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;width:100%}
+.col{flex:0 0 272px;scroll-snap-align:start;display:flex;flex-direction:column;background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:8px;max-height:100%}
+.col.side{opacity:.8}
+.col header{display:flex;align-items:baseline;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);position:sticky;top:0}
+.col h2{margin:0;font:600 12px var(--font);text-transform:uppercase;letter-spacing:.1em;color:var(--fg2)}
+.count{font:600 12px var(--mono);color:#fff;background:var(--bg3);padding:1px 7px;border-radius:10px}
+.colval{margin-left:auto;font:12px var(--mono);color:var(--bronze)}
+.cards{display:flex;flex-direction:column;gap:8px;padding:10px;overflow-y:auto}
+.empty{color:var(--fg3);font-size:12px;text-align:center;padding:18px 0}
+.card{flex:none;background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--fg3);border-radius:var(--r);padding:10px 12px;cursor:pointer;transition:border-color .15s,transform .15s}
+.card:hover,.card:focus-visible{border-color:var(--line2);transform:translateY(-1px);outline:none}
+.card.crit{border-left-color:var(--crit)}.card.warn{border-left-color:var(--warn)}.card.soon{border-left-color:var(--soon)}.card.ok{border-left-color:var(--ok)}.card.done{border-left-color:var(--done)}
+.card-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.enq{font:12px var(--mono);color:var(--fg3)}
+.card h3{margin:0 0 2px;font:600 13.5px/1.3 var(--font);color:#fff;text-wrap:balance}
+.client{color:var(--fg2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px}
+.who{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fg2)}
+.av{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--bg3);color:#fff;font:600 10px var(--mono)}
+.val{font:600 13px var(--mono);color:var(--bronze);font-variant-numeric:tabular-nums}
+.dates{display:flex;justify-content:space-between;margin-top:8px;font:11px var(--mono);color:var(--fg3)}
+.pill{font:600 11px var(--mono);padding:2px 7px;border-radius:3px;white-space:nowrap;background:rgba(255,255,255,.08);color:var(--fg2)}
+.pill.crit{background:rgba(240,86,78,.18);color:#FF8A84}.pill.warn{background:rgba(240,154,62,.18);color:#FFB870}.pill.soon{background:rgba(230,195,92,.16);color:#F2D684}.pill.ok{background:rgba(63,191,138,.16);color:#7EE0B5}.pill.done{background:rgba(94,166,232,.16);color:#9CC9F5}
+.listview{padding:16px 20px 24px;width:100%;overflow:auto}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:900px;font-size:13px}
+th{position:sticky;top:0;background:var(--bg2);text-align:left;font:600 11px var(--font);text-transform:uppercase;letter-spacing:.08em;color:var(--fg3);padding:10px 12px;border-bottom:1px solid var(--line2)}
+td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr[data-id]{cursor:pointer} tr[data-id]:hover td{background:rgba(255,255,255,.03)}
+td.name{font-weight:600;color:#fff} td i{color:var(--fg3)}
+.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.status{display:inline-block;font:600 11px var(--font);color:#fff;padding:2px 8px;border-radius:3px;white-space:nowrap}
+.detail{position:fixed;inset:0;background:rgba(5,12,25,.7);z-index:20;display:flex;align-items:flex-end;justify-content:center;padding:0;backdrop-filter:blur(2px)}
+.sheet{position:relative;background:var(--bg2);border:1px solid var(--line2);border-radius:12px 12px 0 0;width:min(640px,100%);max-height:90%;overflow:auto;padding:22px 22px calc(22px + env(safe-area-inset-bottom,0px))}
+@media(min-width:700px){.detail{align-items:center;padding:24px}.sheet{border-radius:12px}}
+.close{position:absolute;top:12px;right:12px;background:var(--bg3);border:0;color:#fff;width:32px;height:32px;border-radius:50%;font-size:20px;cursor:pointer}
+.sheet h2{margin:4px 0 2px;font:600 20px/1.25 var(--font);color:#fff;text-wrap:balance}
+.sheet .client{white-space:normal;margin:0 0 14px}
+.stagebar{display:flex;gap:3px;margin:0 0 16px}
+.stagebar span{flex:1;height:6px;border-radius:2px;background:var(--bg3);font-size:0}
+.stagebar span.on{background:var(--bronze)} .stagebar span.cur{background:#fff}
+dl{display:grid;grid-template-columns:max-content 1fr;gap:8px 18px;margin:0}
+dt{color:var(--fg3);font-size:12px;text-transform:uppercase;letter-spacing:.08em;padding-top:2px} dd{margin:0;font-variant-numeric:tabular-nums} dd small{color:var(--fg3)}
+.note{color:var(--fg3);font-size:12px;margin:18px 0 0}
+body.modal{overflow:hidden}
+@media(max-width:640px){
+  .top{gap:10px;padding:10px 16px} .sub{display:none} .tools{flex-basis:100%} .summary{padding:10px 16px;gap:14px} .stats{gap:18px} .stat b{font-size:18px}
+  .board{padding:12px 16px 20px;gap:10px;scroll-snap-type:x mandatory} .col{flex-basis:86vw} .listview{padding:12px 16px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+</style>
+<div class="app">
+  <header class="top">
+    <div class="brand"><svg class="mono" viewBox="0 0 40 40" aria-label="Concept 5"><rect x="1" y="1" width="38" height="38" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M24 12.5a8 8 0 1 0 0 15" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/><path d="M29 12h-7l-.9 7.2a5 5 0 1 1-1.6 6.4" fill="none" stroke="var(--bronze)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wordmark">Concept <em>5</em></span><span class="sub">Projects 2026</span></div>
+    <nav class="tabs"><button class="tab on" data-view="board">Board</button><button class="tab" data-view="list">List</button></nav>
+    <div class="tools"><select id="pm" aria-label="Filter by project manager"></select><input id="q" type="search" placeholder="Search projects…" aria-label="Search"></div>
+  </header>
+  <section class="summary"><div id="stats" class="stats"></div><div id="pipe" class="pipe" aria-label="Projects per stage"></div></section>
+  <main>
+    <div id="board" class="board"></div>
+    <div id="list" class="listview" hidden></div>
+  </main>
+  <div id="detail" class="detail" hidden></div>
+</div>
+<script>
+
+const DATA = [{"id" : 16, "enq" : "2243", "name" : "MEADOWS 2, STREET 12, V16", "client" : "SAM & JULIA", "contractor" : "MACS", "pm" : "DIPAK", "pm2" : null, "designer" : "JINKY", "status" : "SNAGGING", "received" : "2025-05-28", "start" : "2025-08-11", "target" : "2026-01-31", "completed" : null, "value" : 185923.50, "vos" : 2, "delay" : 250, "duration" : 423}, {"id" : 17, "enq" : "2298", "name" : "DUBAI HILLS, EMERALD HILLS VILLA 82", "client" : "NAGA ARCHITECTS/ NEAL SAHNI", "contractor" : "DIRECT", "pm" : "BASIM", "pm2" : null, "designer" : "JINKY", "status" : "SITE_ON_HOLD", "received" : "2025-09-10", "start" : "2025-09-26", "target" : "2025-12-06", "completed" : null, "value" : 175380.45, "vos" : 0, "delay" : 306, "duration" : 377}, {"id" : 18, "enq" : "2293", "name" : "PALM JUMEIRAH FROND G, V-G02", "client" : "FRANKLY BUILT CONTRACTING", "contractor" : "FBC", "pm" : "BASIM", "pm2" : null, "designer" : "JINKY", "status" : "SITE_ON_HOLD", "received" : "2025-09-04", "start" : "2025-06-16", "target" : "2026-02-28", "completed" : null, "value" : 1014285.71, "vos" : 0, "delay" : 222, "duration" : 479}, {"id" : 19, "enq" : "26-024", "name" : "JUMEIRAH ISLANDS CLUSTER 18 VILLA 3", "client" : "FRED & ADONIA", "contractor" : "MACS/7E", "pm" : "BASIM", "pm2" : null, "designer" : "MEGANA", "status" : "DESIGN_DRAWINGS", "received" : "2026-03-16", "start" : "2026-09-19", "target" : "2026-11-13", "completed" : null, "value" : 0.00, "vos" : 0, "delay" : -36, "duration" : 19}, {"id" : 20, "enq" : "26-091", "name" : "VICTORIA HEIGHTS NOVELIA VILLA 46", "client" : "JERRY AND NURIA", "contractor" : "GTS/7E", "pm" : "RICHARD", "pm2" : null, "designer" : "HAYDEE", "status" : "DESIGN_DRAWINGS", "received" : "2026-05-13", "start" : null, "target" : "2026-11-20", "completed" : null, "value" : 0.00, "vos" : 0, "delay" : -43, "duration" : null}, {"id" : 21, "enq" : "26-095", "name" : "JUMEIRAH ISLANDS CLUSTER 28 VILLA 13", "client" : "DR.JOY", "contractor" : "MACS/7E", "pm" : null, "pm2" : null, "designer" : null, "status" : "QUOTE", "received" : "2026-06-16", "start" : null, "target" : "2027-01-22", "completed" : null, "value" : 0.00, "vos" : 0, "delay" : -106, "duration" : null}, {"id" : 22, "enq" : "26-063", "name" : "JUMEIRAH GOLF ESTATES REDWOOD VILLA C19", "client" : "ZUBAIR SETH", "contractor" : "MACS/7E", "pm" : "RICHARD", "pm2" : null, "designer" : "ROBIN", "status" : "DESIGN_DRAWINGS", "received" : "2026-05-07", "start" : "2026-09-01", "target" : "2027-02-05", "completed" : null, "value" : 2186520.00, "vos" : 0, "delay" : -120, "duration" : 37}, {"id" : 23, "enq" : "26-105", "name" : "JUMEIRAH GOLF ESTATE, JOURI HILLS", "client" : "DIANA", "contractor" : "DIRECT", "pm" : null, "pm2" : null, "designer" : "JINKY", "status" : "QUOTE", "received" : "2026-07-03", "start" : null, "target" : null, "completed" : null, "value" : 0.00, "vos" : 0, "delay" : null, "duration" : null}, {"id" : 24, "enq" : "26-009", "name" : "TWIN VILLA, JUMEIRAH", "client" : "GHOBASH", "contractor" : "DIRECT", "pm" : null, "pm2" : null, "designer" : "ROBIN", "status" : "QUOTE", "received" : "2026-03-11", "start" : null, "target" : "2026-12-30", "completed" : null, "value" : 334512.60, "vos" : 3, "delay" : -83, "duration" : null}, {"id" : 25, "enq" : "2273", "name" : "JUMEIRAH GOLF ESTATE, WILDFLOWER, K37", "client" : "MONTROSE PROPERTIES", "contractor" : "MACS", "pm" : null, "pm2" : null, "designer" : null, "status" : "QUOTE", "received" : "2025-07-15", "start" : null, "target" : null, "completed" : null, "value" : 0.00, "vos" : 0, "delay" : null, "duration" : null}, {"id" : 26, "enq" : "2324", "name" : "JUMEIRAH GOLF ESTATE, FLAMETREE RIDGE D58", "client" : "MONTROSE PROPERTIES", "contractor" : "MACS", "pm" : "RICHARD", "pm2" : null, "designer" : "ROBIN", "status" : "QUOTE", "received" : "2025-10-30", "start" : null, "target" : null, "completed" : null, "value" : 0.00, "vos" : 0, "delay" : null, "duration" : null}, {"id" : 27, "enq" : "26-052", "name" : "WORLD TRADE CENTER, JUMEIRAH LIVING . UNIT 2511", "client" : "PEGAH / NZ PROJECT", "contractor" : "DIRECT", "pm" : "DIPAK", "pm2" : null, "designer" : "HITESH", "status" : "DESIGN_DRAWINGS", "received" : "2026-04-17", "start" : "2026-07-24", "target" : "2026-10-20", "completed" : null, "value" : 277515.00, "vos" : 0, "delay" : -12, "duration" : 76}, {"id" : 28, "enq" : "26-118", "name" : "JUMEIRAH GOLF ESATES,SANCTUARY FALLS VILLA 40", "client" : "IMAD & CHRIS", "contractor" : "MACS", "pm" : null, "pm2" : null, "designer" : null, "status" : "QUOTE", "received" : "2026-07-29", "start" : null, "target" : null, "completed" : null, "value" : 0.00, "vos" : 0, "delay" : null, "duration" : null}, {"id" : 29, "enq" : "26-133", "name" : "JUMEIRAH GOLF ESATES,, REDWOOD VILLA C34", "client" : "BANO", "contractor" : "DIRECT", "pm" : null, "pm2" : null, "designer" : "MEGANA", "status" : "QUOTE", "received" : "2026-08-18", "start" : null, "target" : null, "completed" : null, "value" : 0.00, "vos" : 0, "delay" : null, "duration" : null}, {"id" : 30, "enq" : "26-134", "name" : "JUMEIRAH ISLANDS CLUSTER 09 VILLA 14", "client" : "GTS- NO NAME", "contractor" : "GTS", "pm" : null, "pm2" : null, "designer" : null, "status" : "QUOTE", "received" : "2026-08-19", "start" : null, "target" : null, "completed" : null, "value" : 0.00, "vos" : 0, "delay" : null, "duration" : null}, {"id" : 31, "enq" : "2161", "name" : "SOBHA HARTLAND VILLA 35-T2", "client" : "AGON CAPITAL", "contractor" : "MACS", "pm" : "BASIM", "pm2" : null, "designer" : "JINKY", "status" : "PRODUCTION", "received" : "2024-10-09", "start" : "2025-10-16", "target" : "2026-08-01", "completed" : null, "value" : 990373.86, "vos" : 0, "delay" : 68, "duration" : 357}, {"id" : 32, "enq" : "2161", "name" : "SOBHA HARTLAND VILLA 36-T3", "client" : "AGON CAPITAL", "contractor" : "MACS", "pm" : "BASIM", "pm2" : null, "designer" : "JINKY", "status" : "PRODUCTION", "received" : "2024-10-09", "start" : "2025-10-16", "target" : "2026-08-22", "completed" : null, "value" : 990373.86, "vos" : 0, "delay" : 47, "duration" : 357}, {"id" : 33, "enq" : "2348", "name" : "MEADOWS 5, ST3, V1", "client" : "SANA", "contractor" : "BOLSOVER", "pm" : "JC", "pm2" : null, "designer" : "HAYDEE", "status" : "COMPLETED", "received" : "2025-11-25", "start" : "2026-02-02", "target" : "2026-08-14", "completed" : "2026-09-22", "value" : 920491.00, "vos" : 2, "delay" : 39, "duration" : 232}, {"id" : 34, "enq" : "2247", "name" : "AL BARRARI, JASMINE LEAF 3 VILLA 9", "client" : "HARMONY", "contractor" : "GTS", "pm" : "AKASH", "pm2" : null, "designer" : "JINKY", "status" : "INSTALLATION", "received" : "2025-07-25", "start" : "2026-01-22", "target" : "2026-08-31", "completed" : null, "value" : 3132940.00, "vos" : 4, "delay" : 38, "duration" : 259}, {"id" : 35, "enq" : "26-097", "name" : "MOHAMMAD BIN RASHID CITY-D1 V804", "client" : "VICTORIA", "contractor" : "MACS", "pm" : "AKASH", "pm2" : null, "designer" : "ROBIN", "status" : "SNAGGING", "received" : "2026-06-19", "start" : "2026-07-07", "target" : "2026-08-31", "completed" : "2026-09-11", "value" : 461699.12, "vos" : 1, "delay" : 11, "duration" : 66}, {"id" : 36, "enq" : "2161", "name" : "SOBHA HARTLAND VILLA 33-T1", "client" : "AGON CAPITAL", "contractor" : "GTS", "pm" : "BASIM", "pm2" : null, "designer" : "JINKY", "status" : "COMPLETED", "received" : "2024-10-09", "start" : "2025-10-16", "target" : "2026-06-20", "completed" : "2026-08-25", "value" : 810860.77, "vos" : 0, "delay" : 66, "duration" : 313}, {"id" : 37, "enq" : "2228", "name" : "MEADOWS 2, ST 9, V15", "client" : "MARIAM & MUBASHIR", "contractor" : "115", "pm" : "DIPAK", "pm2" : null, "designer" : "ROBIN", "status" : "INSTALLATION", "received" : "2026-01-10", "start" : "2026-01-21", "target" : "2026-06-30", "completed" : null, "value" : 1182434.50, "vos" : 2, "delay" : 100, "duration" : 260}, {"id" : 38, "enq" : "2161", "name" : "SOBHA HARTLAND VILLA 34-T1", "client" : "AGON CAPITAL", "contractor" : "GTS", "pm" : "BASIM", "pm2" : null, "designer" : "JINKY", "status" : "COMPLETED", "received" : "2024-10-09", "start" : "2025-10-16", "target" : "2026-07-04", "completed" : "2026-08-25", "value" : 810860.77, "vos" : 0, "delay" : 52, "duration" : 313}, {"id" : 39, "enq" : "2252", "name" : "JUMEIRAH GOLF ESTATE, WILDFLOWER, K36", "client" : "MONTROSE PROPERTIES", "contractor" : "MACS", "pm" : "RICHARD", "pm2" : null, "designer" : "ROBIN", "status" : "SNAGGING", "received" : "2025-06-18", "start" : "2026-01-23", "target" : "2026-07-18", "completed" : "2026-08-31", "value" : 996555.00, "vos" : 4, "delay" : 44, "duration" : 220}, {"id" : 40, "enq" : "26-021", "name" : "VICTORY HEIGHTS ESTELLA V12", "client" : "ASIM & ELAINE", "contractor" : "GTS", "pm" : "RICHARD", "pm2" : null, "designer" : "HAYDEE", "status" : "INSTALLATION", "received" : "2026-02-27", "start" : "2026-03-24", "target" : "2026-08-15", "completed" : "2026-09-22", "value" : 1020505.12, "vos" : 1, "delay" : 38, "duration" : 182}, {"id" : 41, "enq" : "2187", "name" : "PALM JUMEIRAH VILLA A-06", "client" : "PNV/ DELYAN", "contractor" : "MACS", "pm" : "JC", "pm2" : null, "designer" : "ROBIN", "status" : "INSTALLATION", "received" : "2025-01-08", "start" : "2025-11-17", "target" : "2026-08-15", "completed" : null, "value" : 1530375.00, "vos" : 0, "delay" : 54, "duration" : 325}, {"id" : 42, "enq" : "2336", "name" : "GOLDEN MILE 3 PENTHOUSE 3707 PAL JUMEIRAH", "client" : "LINDSEY RACHEL", "contractor" : "DIRECT", "pm" : "DIPAK", "pm2" : null, "designer" : "LOUIE", "status" : "COMPLETED", "received" : "2025-11-07", "start" : "2026-01-09", "target" : "2026-08-28", "completed" : "2026-08-07", "value" : 297187.73, "vos" : 3, "delay" : -21, "duration" : 210}, {"id" : 43, "enq" : "26-002", "name" : "DUBAI HILLS SIDRA 3 V120", "client" : "MICHELLE PURSEY", "contractor" : "DIRECT", "pm" : "AKASH", "pm2" : null, "designer" : "ANKITA", "status" : "COMPLETED", "received" : "2026-01-30", "start" : "2026-03-18", "target" : "2026-10-02", "completed" : "2026-10-02", "value" : 255495.34, "vos" : 2, "delay" : 0, "duration" : 198}, {"id" : 44, "enq" : "2271", "name" : "ARABIAN RANCHES, SAHEEL1 ST 3 VILLA 5", "client" : "UFUK", "contractor" : "DIRECT", "pm" : "AKASH", "pm2" : null, "designer" : "CATH", "status" : "INSTALLATION", "received" : "2025-10-13", "start" : "2026-05-21", "target" : "2026-08-08", "completed" : null, "value" : 104475.00, "vos" : 0, "delay" : 61, "duration" : 140}, {"id" : 45, "enq" : "2161", "name" : "SOBHA HARTLAND VILLA 42-T1", "client" : "AGON CAPITAL", "contractor" : "GTS", "pm" : "BASIM", "pm2" : null, "designer" : "JINKY", "status" : "DESIGN_DRAWINGS", "received" : "2024-10-09", "start" : "2025-10-16", "target" : "2026-08-15", "completed" : null, "value" : 810860.77, "vos" : 0, "delay" : 54, "duration" : 357}, {"id" : 46, "enq" : "26-011", "name" : "MEADOWS 05 STREET 03 V43", "client" : "CLAIRE", "contractor" : "MACS", "pm" : "DIPAK", "pm2" : null, "designer" : "PREM", "status" : "PRODUCTION", "received" : "2026-03-05", "start" : "2026-03-23", "target" : "2026-08-19", "completed" : null, "value" : 452340.00, "vos" : 2, "delay" : 50, "duration" : 199}, {"id" : 47, "enq" : "26-068", "name" : "JUMEIRAH PARK DISTRICT 9 VILLA 21", "client" : "ATITH NAIK/ SUNRISE VALLEY LLC", "contractor" : "BOLSOVER", "pm" : "JC", "pm2" : null, "designer" : "HAYDEE", "status" : "COMPLETED", "received" : "2026-05-14", "start" : "2026-07-17", "target" : "2026-08-31", "completed" : "2026-09-22", "value" : 91140.00, "vos" : 0, "delay" : 22, "duration" : 67}, {"id" : 48, "enq" : "26-059", "name" : "PALM JUMEIRAH, MARINA RESIDENCE 4 APT 1306", "client" : "ELIAS  & SANDRA", "contractor" : "GTS", "pm" : "DIPAK", "pm2" : null, "designer" : "ANKITA", "status" : "PRODUCTION", "received" : "2026-04-04", "start" : "2026-05-22", "target" : "2026-09-02", "completed" : null, "value" : 768475.01, "vos" : 2, "delay" : 36, "duration" : 139}, {"id" : 49, "enq" : "2161", "name" : "SOBHA HARTLAND VILLA 44-T2", "client" : "AGON CAPITAL", "contractor" : "GTS", "pm" : "BASIM", "pm2" : null, "designer" : "JINKY", "status" : "DESIGN_DRAWINGS", "received" : "2024-10-09", "start" : "2025-10-16", "target" : "2026-10-03", "completed" : null, "value" : 990373.86, "vos" : 0, "delay" : 5, "duration" : 357}, {"id" : 50, "enq" : "2161", "name" : "SOBHA HARTLAND VILLA 37-T1", "client" : "AGON CAPITAL", "contractor" : "GTS", "pm" : "BASIM", "pm2" : null, "designer" : "JINKY", "status" : "DESIGN_DRAWINGS", "received" : "2024-10-09", "start" : "2025-10-16", "target" : "2026-09-19", "completed" : null, "value" : 810860.77, "vos" : 0, "delay" : 19, "duration" : 357}, {"id" : 51, "enq" : "2161", "name" : "SOBHA HARTLAND VILLA 43-T3", "client" : "AGON CAPITAL", "contractor" : "GTS", "pm" : "BASIM", "pm2" : null, "designer" : "JINKY", "status" : "DESIGN_DRAWINGS", "received" : "2024-10-09", "start" : "2025-10-16", "target" : "2026-10-17", "completed" : null, "value" : 990373.86, "vos" : 0, "delay" : -9, "duration" : 357}, {"id" : 52, "enq" : "26-001", "name" : "JUMEIRAH ISLANDS , THE MANSIONS V15", "client" : "NAEEM", "contractor" : "GTS", "pm" : "RICHARD", "pm2" : null, "designer" : "ANKITA", "status" : "PRODUCTION", "received" : "2026-02-09", "start" : "2026-05-22", "target" : "2026-10-31", "completed" : null, "value" : 570486.00, "vos" : 0, "delay" : -23, "duration" : 139}, {"id" : 53, "enq" : "26-038", "name" : "ONE ZABEEL, THE RESIDENCES, APT 5004", "client" : "SALEH/\nROMARA RENOVATIONS", "contractor" : "ROMARA (OLD LCI)", "pm" : "BASIM", "pm2" : null, "designer" : "MEGANA", "status" : "DESIGN_DRAWINGS", "received" : "2026-03-20", "start" : "2026-05-08", "target" : "2026-09-30", "completed" : null, "value" : 948064.48, "vos" : 0, "delay" : 8, "duration" : 153}, {"id" : 54, "enq" : "2161", "name" : "SOBHA HARTLAND VILLA 41-T1", "client" : "AGON CAPITAL", "contractor" : "GTS", "pm" : "BASIM", "pm2" : null, "designer" : "JINKY", "status" : "DESIGN_DRAWINGS", "received" : "2024-10-09", "start" : "2025-10-16", "target" : "2026-10-10", "completed" : null, "value" : 810860.77, "vos" : 0, "delay" : -2, "duration" : 357}, {"id" : 55, "enq" : "2161", "name" : "SOBHA HARTLAND VILLA 40-T2", "client" : "AGON CAPITAL", "contractor" : "GTS", "pm" : "BASIM", "pm2" : null, "designer" : "JINKY", "status" : "DESIGN_DRAWINGS", "received" : "2024-10-09", "start" : "2025-10-16", "target" : "2026-10-24", "completed" : null, "value" : 990373.86, "vos" : 0, "delay" : -16, "duration" : 357}, {"id" : 56, "enq" : "26-109", "name" : "TEMPO- PADEL & WELLNESS CLUB AL QUOZ DXB", "client" : "GABRIELLA/ ADAM", "contractor" : "DIRECT/LA BASA", "pm" : "BASIM", "pm2" : "AKASH", "designer" : "HAYDEE", "status" : "DESIGN_DRAWINGS", "received" : "2025-12-10", "start" : "2026-07-25", "target" : "2026-10-30", "completed" : null, "value" : 973035.00, "vos" : 0, "delay" : -22, "duration" : 75}, {"id" : 57, "enq" : "2161", "name" : "SOBHA HARTLAND VILLA 39-T3", "client" : "AGON CAPITAL", "contractor" : "GTS", "pm" : "BASIM", "pm2" : null, "designer" : "JINKY", "status" : "DESIGN_DRAWINGS", "received" : "2024-10-09", "start" : "2025-10-16", "target" : "2026-11-07", "completed" : null, "value" : 990373.86, "vos" : 0, "delay" : -30, "duration" : 357}, {"id" : 58, "enq" : "26-051", "name" : "JUMEIRAH PARK C35 D6", "client" : "DINA", "contractor" : "MACS", "pm" : "JC", "pm2" : null, "designer" : "MEGANA", "status" : "DESIGN_DRAWINGS", "received" : "2026-04-17", "start" : "2026-06-30", "target" : "2026-11-09", "completed" : null, "value" : 639135.00, "vos" : 0, "delay" : -32, "duration" : 100}, {"id" : 59, "enq" : "26-041", "name" : "AL BARARI, LUNARIA, V-27", "client" : "MARK", "contractor" : "GTS", "pm" : "AKASH", "pm2" : null, "designer" : "MEGANA", "status" : "DESIGN_DRAWINGS", "received" : "2026-03-30", "start" : "2026-05-21", "target" : "2026-11-16", "completed" : null, "value" : 1278319.88, "vos" : 0, "delay" : -39, "duration" : 140}, {"id" : 60, "enq" : "26-045", "name" : "MIRADOR, STREET 1 VILLA 14", "client" : "STUART & DEMI", "contractor" : "GTS", "pm" : "AKASH", "pm2" : null, "designer" : "ROBIN", "status" : "DESIGN_DRAWINGS", "received" : "2026-04-13", "start" : "2026-05-08", "target" : "2026-11-17", "completed" : null, "value" : 678120.14, "vos" : 0, "delay" : -40, "duration" : 153}, {"id" : 61, "enq" : "2161", "name" : "SOBHA HARTLAND VILLA 38-T1", "client" : "AGON CAPITAL", "contractor" : "GTS", "pm" : "BASIM", "pm2" : null, "designer" : "JINKY", "status" : "DESIGN_DRAWINGS", "received" : "2024-10-09", "start" : "2025-10-16", "target" : "2026-11-21", "completed" : null, "value" : 810860.77, "vos" : 0, "delay" : -44, "duration" : 357}, {"id" : 62, "enq" : "26-093", "name" : "DUBAI HILLS, VILLA 78", "client" : "SIDHANT KOTHARI / ELE INTERIORS", "contractor" : "MACS/ELE", "pm" : "JC", "pm2" : null, "designer" : "ANKITA", "status" : "DESIGN_DRAWINGS", "received" : "2026-06-19", "start" : "2026-07-11", "target" : "2026-11-07", "completed" : null, "value" : 1486330.65, "vos" : 0, "delay" : -30, "duration" : 89}, {"id" : 63, "enq" : "2356", "name" : "SOBHA RESERVE V622", "client" : "ISSIAR DIA", "contractor" : "DIRECT", "pm" : "AKASH", "pm2" : null, "designer" : "ANKITA", "status" : "DESIGN_DRAWINGS", "received" : "2026-01-22", "start" : "2026-02-20", "target" : null, "completed" : null, "value" : 1032465.00, "vos" : 0, "delay" : null, "duration" : 230}, {"id" : 64, "enq" : "2291", "name" : "MEADOWS 09 STREET 11 VILLA 11", "client" : "RICHARD", "contractor" : "DIRECT", "pm" : "DIPAK", "pm2" : null, "designer" : "HITESH", "status" : "DESIGN_DRAWINGS", "received" : "2025-08-28", "start" : "2026-04-20", "target" : null, "completed" : null, "value" : 242970.00, "vos" : 1, "delay" : null, "duration" : 171}, {"id" : 65, "enq" : "26-117", "name" : "JUMEIRAH ISLANDS CLUSTER 43 VILLA 06", "client" : "YOLANDA", "contractor" : "GTS", "pm" : "AFTAB", "pm2" : null, "designer" : "HITESH", "status" : "DESIGN_DRAWINGS", "received" : "2026-07-22", "start" : "2026-07-24", "target" : "2026-09-18", "completed" : null, "value" : 73920.00, "vos" : 0, "delay" : 20, "duration" : 76}, {"id" : 66, "enq" : "26-114", "name" : "YAS ISLAND ABU DHABI", "client" : "ORO VERDE", "contractor" : "BOLSOVER", "pm" : "BASIM", "pm2" : null, "designer" : "HAYDEE", "status" : "DESIGN_DRAWINGS", "received" : "2026-07-21", "start" : "2026-07-30", "target" : "2026-09-18", "completed" : null, "value" : 258930.00, "vos" : 0, "delay" : 20, "duration" : 70}]
+;
+const STAGES = [["QUOTE", "Quote"], ["DESIGN_DRAWINGS", "Design drawings"], ["PROD_DRAWINGS", "Prod drawings"], ["PRODUCTION", "Production"], ["INSTALLATION", "Installation"], ["SNAGGING", "Snagging"], ["COMPLETED", "Completed"]]; const SIDE = [["SITE_ON_HOLD", "Site on hold"], ["LOST", "Lost"]];
+const LABEL = Object.fromEntries([...STAGES,...SIDE]);
+const ORDER = Object.fromEntries([...STAGES,...SIDE].map(([k],i)=>[k,i]));
+const aed = v => 'AED ' + Math.round(v).toLocaleString('en-GB');
+const aedS = v => v>=1e6 ? (v/1e6).toFixed(2)+'M' : v>=1e3 ? Math.round(v/1e3)+'k' : String(Math.round(v));
+const fmtD = d => d ? new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '—';
+const ini = n => n ? n.split(/[\s\/]+/).map(s=>s[0]).join('').slice(0,2) : '—';
+const title = s => s ? s.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()) : '—';
+const done = p => p.status==='COMPLETED';
+function delayClass(p){ if(done(p)) return 'done'; if(p.delay==null) return 'none'; if(p.delay>30) return 'crit'; if(p.delay>0) return 'warn'; if(p.delay>-14) return 'soon'; return 'ok'; }
+function delayText(p){ if(p.delay==null) return done(p)?'Done':'No target'; if(done(p)) return p.delay>0?`Done ${p.delay}d late`:p.delay<0?`Done ${-p.delay}d early`:'Done on target'; if(p.delay>0) return `${p.delay}d late`; if(p.delay===0) return 'Due today'; return `${-p.delay}d left`; }
+
+const state = { view: 'board', pm: '', q: '' };
+const $ = s => document.querySelector(s);
+
+function filtered(){
+  return DATA.filter(p => (!state.pm || p.pm===state.pm || p.pm2===state.pm) &&
+    (!state.q || (p.name+' '+(p.client||'')+' '+(p.enq||'')).toLowerCase().includes(state.q)));
+}
+
+function card(p){
+  const dc = delayClass(p);
+  return `<article class="card ${dc}" data-id="${p.id}" tabindex="0">
+    <div class="card-top"><span class="enq">${p.enq||'—'}</span><span class="pill ${dc}">${delayText(p)}</span></div>
+    <h3>${title(p.name)}</h3>
+    <div class="client">${title(p.client)}${p.contractor?` · ${p.contractor}`:''}</div>
+    <div class="card-foot">
+      <span class="who"><b class="av">${ini(p.pm)}</b>${p.pm?title(p.pm):'No PM'}${p.pm2?` + ${title(p.pm2)}`:''}</span>
+      <span class="val">${p.value?aedS(p.value):'—'}</span>
+    </div>
+    <div class="dates"><span>Start ${fmtD(p.start)}</span><span>Target ${fmtD(p.target)}</span></div>
+  </article>`;
+}
+
+function renderBoard(){
+  const rows = filtered();
+  const cols = [...STAGES, ...SIDE].map(([k,l]) => {
+    const items = rows.filter(p=>p.status===k).sort((a,b)=>(b.delay??-9e9)-(a.delay??-9e9));
+    const val = items.reduce((s,p)=>s+(p.value||0),0);
+    return `<section class="col ${k==='SITE_ON_HOLD'||k==='LOST'?'side':''}" data-stage="${k}">
+      <header><h2>${l}</h2><span class="count">${items.length}</span><span class="colval">${val?aedS(val):''}</span></header>
+      <div class="cards">${items.map(card).join('')||'<div class="empty">Nothing here</div>'}</div></section>`;
+  });
+  $('#board').innerHTML = cols.join('');
+}
+
+function renderList(){
+  const rows = filtered().sort((a,b)=>ORDER[a.status]-ORDER[b.status] || (b.delay??-9e9)-(a.delay??-9e9));
+  $('#list').innerHTML = `<div class="tablewrap"><table>
+   <thead><tr><th>Enq</th><th>Project</th><th>Client</th><th>Status</th><th>PM</th><th>Designer</th><th class="num">Start</th><th class="num">Target</th><th class="num">Delay</th><th class="num">Value</th></tr></thead>
+   <tbody>${rows.map(p=>`<tr class="${delayClass(p)}" data-id="${p.id}">
+     <td class="enq">${p.enq||'—'}</td><td class="name">${title(p.name)}</td><td>${title(p.client)}</td>
+     <td><span class="status s-${p.status}">${LABEL[p.status]}</span></td>
+     <td>${p.pm?title(p.pm):'<i>unassigned</i>'}${p.pm2?' + '+title(p.pm2):''}</td><td>${p.designer?title(p.designer):'—'}</td>
+     <td class="num">${fmtD(p.start)}</td><td class="num">${fmtD(p.target)}</td>
+     <td class="num"><span class="pill ${delayClass(p)}">${delayText(p)}</span></td>
+     <td class="num">${p.value?aed(p.value):'—'}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+function renderSummary(){
+  const live = DATA.filter(p=>!['COMPLETED','LOST'].includes(p.status));
+  const late = live.filter(p=>p.delay>0 && p.status!=='SITE_ON_HOLD');
+  const total = DATA.reduce((s,p)=>s+(p.value||0),0);
+  $('#stats').innerHTML = `
+    <div class="stat"><b>${live.length}</b><span>live projects</span></div>
+    <div class="stat crit"><b>${late.length}</b><span>past target</span></div>
+    <div class="stat"><b>${aedS(total)}</b><span>pipeline value</span></div>
+    <div class="stat"><b>${DATA.filter(p=>p.status==='QUOTE').length}</b><span>in quote</span></div>`;
+  const seg = STAGES.map(([k,l])=>{const n=DATA.filter(p=>p.status===k).length; return `<span class="seg s-${k}" style="flex:${Math.max(n,0.35)}" title="${l}: ${n}"><i>${n}</i></span>`;}).join('');
+  $('#pipe').innerHTML = seg;
+  const pms = [...new Set(DATA.map(p=>p.pm).filter(Boolean))].sort();
+  $('#pm').innerHTML = '<option value="">All PMs</option>' + pms.map(n=>`<option value="${n}">${title(n)} (${DATA.filter(p=>p.pm===n||p.pm2===n).length})</option>`).join('');
+}
+
+function openDetail(id){
+  const p = DATA.find(x=>x.id==id); if(!p) return;
+  const d = $('#detail');
+  d.innerHTML = `<div class="sheet">
+    <button class="close" id="closeBtn" aria-label="Close">×</button>
+    <span class="enq">${p.enq||'—'}</span><h2>${title(p.name)}</h2>
+    <p class="client">${title(p.client)}${p.contractor?` · via ${p.contractor}`:''}</p>
+    <div class="stagebar">${STAGES.map(([k,l])=>`<span class="${ORDER[k]<=ORDER[p.status]?'on':''} ${k===p.status?'cur':''}">${l}</span>`).join('')}</div>
+    <dl>
+      <dt>Status</dt><dd><span class="status s-${p.status}">${LABEL[p.status]}</span> <span class="pill ${delayClass(p)}">${delayText(p)}</span></dd>
+      <dt>Project manager</dt><dd>${p.pm?title(p.pm):'Unassigned'}${p.pm2?' + '+title(p.pm2):''}</dd>
+      <dt>Designer</dt><dd>${p.designer?title(p.designer):'—'}</dd>
+      <dt>Enquiry received</dt><dd>${fmtD(p.received)}</dd>
+      <dt>Project start</dt><dd>${fmtD(p.start)}</dd>
+      <dt>Target completion</dt><dd>${fmtD(p.target)}</dd>
+      <dt>Completed</dt><dd>${fmtD(p.completed)}</dd>
+      <dt>Duration so far</dt><dd>${p.duration!=null?p.duration+' days':'—'}</dd>
+      <dt>Project value</dt><dd>${p.value?aed(p.value):'—'} <small>inc. VAT · ${p.vos} VO${p.vos==1?'':'s'}</small></dd>
+    </dl>
+    <p class="note">Editing, VO list and status history come with the real app. This page is read-only.</p>
+  </div>`;
+  d.hidden = false; document.body.classList.add('modal');
+  $('#closeBtn').onclick = closeDetail;
+}
+function closeDetail(){ $('#detail').hidden = true; document.body.classList.remove('modal'); }
+
+function render(){ renderBoard(); renderList(); $('#board').hidden = state.view!=='board'; $('#list').hidden = state.view!=='list';
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.view===state.view)); }
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('.tab'); if(t){ state.view = t.dataset.view; render(); try{localStorage.setItem('c5view',state.view)}catch{} return; }
+  const c = e.target.closest('[data-id]'); if(c){ openDetail(c.dataset.id); return; }
+  if(e.target.id==='detail') closeDetail();
+});
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeDetail(); if(e.key==='Enter' && e.target.closest('[data-id]')) openDetail(e.target.closest('[data-id]').dataset.id); });
+$('#pm').addEventListener('change', e => { state.pm = e.target.value; render(); });
+$('#q').addEventListener('input', e => { state.q = e.target.value.trim().toLowerCase(); render(); });
+try{ state.view = localStorage.getItem('c5view') || 'board'; }catch{}
+renderSummary(); render();
+
+</script>
