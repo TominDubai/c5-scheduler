@@ -34,11 +34,11 @@ export default function LoginForm() {
 
   if (step === "code") return (
     <form onSubmit={verify} className="form" style={{ gridTemplateColumns: "1fr" }}>
-      <p style={{ margin: 0 }}>We’ve emailed a 6-digit code to <b>{email}</b>. It’s valid for an hour.</p>
+      <p style={{ margin: 0 }}>We’ve emailed a sign-in code to <b>{email}</b>. It’s valid for an hour.</p>
       <div className="field"><label htmlFor="code">Code</label>
-        <input id="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required autoFocus value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} style={{ fontSize: 22, letterSpacing: ".3em", fontFamily: "var(--mono)" }} /></div>
+        <input id="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,8}" maxLength={8} required autoFocus value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} style={{ fontSize: 22, letterSpacing: ".3em", fontFamily: "var(--mono)" }} /></div>
       <div className="actions">
-        <button className="btn" disabled={busy || code.length !== 6}>{busy ? "Checking…" : "Sign in"}</button>
+        <button className="btn" disabled={busy || code.length < 6}>{busy ? "Checking…" : "Sign in"}</button>
         <button type="button" className="btn ghost" onClick={() => { setStep("email"); setCode(""); setMsg(""); }}>Use a different email</button>
         {msg && <span className="msg err">{msg}</span>}
       </div>
