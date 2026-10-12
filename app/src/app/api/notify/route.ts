@@ -20,7 +20,10 @@ async function handle(req: NextRequest, dryRun: boolean) {
     const result = await runNotifications({ dryRun });
     return NextResponse.json({ ok: true, dryRun, ...result });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
+    // on failure, show the shape of each secret (prefix + length only) so a mis-pasted key is obvious
+    const shape = (v?: string) => v ? `${v.trim().slice(0, 10)}… (${v.length} chars${v !== v.trim() ? ", has whitespace" : ""})` : "MISSING";
+    const env = { NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "MISSING", SUPABASE_SERVICE_ROLE_KEY: shape(process.env.SUPABASE_SERVICE_ROLE_KEY), RESEND_API_KEY: shape(process.env.RESEND_API_KEY) };
+    return NextResponse.json({ ok: false, error: (e as Error).message, env }, { status: 500 });
   }
 }
 
