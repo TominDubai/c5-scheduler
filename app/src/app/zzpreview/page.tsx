@@ -1,4 +1,0 @@
-import TeamTable from "@/components/TeamTable";
-const P = (name: string, role: string, email: string | null, act = true, cp = false, ce = false) => ({ id: name, name, full_name: name === "BASIM" ? "Basim Ali" : null, role, email, whatsapp: name === "JINKY" ? "+971501234567" : null, is_active: act, can_edit_projects: cp, can_edit_estimation: ce });
-const people = [P("TOM","MANAGEMENT","tom@concept-5.com",true,true), P("DARREN","MANAGEMENT","darren@concept-5.com",true,true), P("AKASH","PM",null), P("BASIM","PM",null), P("JC","PM",null), P("ALYSSA","DESIGNER",null), P("ROBIN","DESIGNER",null,false), P("JINKY","DESIGNER","jinky@concept-5.com",true,true,true), P("RAMUS","ESTIMATOR","ramus@concept-5.com",true,false,true), P("JEAN","ADMIN","jean@concept-5.com",true,true,true)];
-export default function Preview() { return <main><TeamTable people={people} canEdit /></main>; }

@@ -10,7 +10,7 @@ type State = { error?: string; ok?: boolean; at?: string } | null;
 function Row({ p, canEdit }: { p: Person; canEdit: boolean }) {
   const [state, action, pending] = useActionState(savePerson.bind(null, p.id), null as State);
   const [dirty, setDirty] = useState(false);
-  const flags = [p.can_edit_projects && "projects", p.can_edit_estimation && "estimation"].filter(Boolean).join(" + ");
+  const flags = [p.can_edit_projects && "projects", p.can_edit_estimation && "estimation", p.can_manage_team && "team"].filter(Boolean).join(" + ");
   if (!canEdit) return (
     <tr className={p.is_active ? "" : "off"}>
       <td className="name">{title(p.name)}</td><td>{p.full_name ?? "—"}</td><td>{p.email ?? <i>no email</i>}</td><td>{p.whatsapp ?? "—"}</td><td><span className="pill">{flags || "view"}</span></td><td>{p.is_active ? "Active" : "Left"}</td><td />

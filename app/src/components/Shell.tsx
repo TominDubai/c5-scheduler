@@ -8,7 +8,7 @@ export function Monogram() {
 }
 
 export default async function Shell({ active, children, tools }: { active?: "board" | "list" | "estimation" | "team"; children: React.ReactNode; tools?: React.ReactNode }) {
-  const [user, me] = await Promise.all([getUser(), getMe().catch(() => ({ name: "", canEstimation: false, canProjects: false }))]);
+  const [user, me] = await Promise.all([getUser(), getMe().catch(() => ({ name: "", canEstimation: false, canProjects: false, canTeam: false }))]);
   return (
     <>
       <header className="top">
@@ -17,7 +17,7 @@ export default async function Shell({ active, children, tools }: { active?: "boa
           <Link href="/estimation" className={"tab" + (active === "estimation" ? " on" : "")}>Estimation</Link>
           <Link href="/board" className={"tab" + (active === "board" ? " on" : "")}>Board</Link>
           <Link href="/list" className={"tab" + (active === "list" ? " on" : "")}>List</Link>
-          {me.canProjects && <Link href="/team" className={"tab" + (active === "team" ? " on" : "")}>Team</Link>}
+          <Link href="/team" className={"tab" + (active === "team" ? " on" : "")}>Team</Link>
         </nav>
         <div className="tools">
           {tools}

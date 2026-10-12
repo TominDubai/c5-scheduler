@@ -22,9 +22,9 @@ async function Inner_TeamPage() {
           <div className={`stat${noEmail.length ? " crit" : ""}`}><b>{noEmail.length}</b><span>without an email — get no updates</span></div>
           <div className="stat"><b>{active.filter((p) => p.whatsapp).length}</b><span>with WhatsApp</span></div>
         </div>
-        <p className="note teamnote">Anyone with an email here can sign in and gets an update email when their projects change. Permissions (who can edit what) are set by an administrator.</p>
+        <p className="note teamnote">Anyone with an email here can sign in and gets an update email when their projects change. Team members are added and edited by Tom, Darren and Jinky; permissions (who can edit what) are set by an administrator.</p>
       </section>
-      <main><TeamTable people={people} canEdit={me.canProjects} /></main>
+      <main><TeamTable people={people} canEdit={me.canTeam} /></main>
     </Shell>
   );
 }

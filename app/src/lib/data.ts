@@ -34,7 +34,7 @@ export const getMe = cache(async function getMe(): Promise<Me> {
   const { data, error } = await supabase.rpc("me");
   if (error) throw new Error(`me(): ${error.message}`);
   const p = data as Person | null;
-  return { name: p?.name ?? "", canEstimation: !!p?.can_edit_estimation, canProjects: !!p?.can_edit_projects };
+  return { name: p?.name ?? "", canEstimation: !!p?.can_edit_estimation, canProjects: !!p?.can_edit_projects, canTeam: !!p?.can_manage_team };
 });
 
 export function applyFilters<T extends { name: string; client: string | null; enquiry_no: string | null; pm: string | null; pm2: string | null }>(rows: T[], sp: { pm?: string; q?: string }) {
