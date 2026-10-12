@@ -148,3 +148,33 @@ export async function deleteVariation(projectId: string, id: string) {
   revalidatePath(`/projects/${projectId}`); revalidatePath("/board"); revalidatePath("/list");
   return { ok: true };
 }
+
+// ---------- team ----------
+const ROLES = ["PM", "DESIGNER", "TECHNICAL_DESIGNER", "ESTIMATOR", "MANAGEMENT", "ADMIN"];
+const email = (v: FormDataEntryValue | null) => { const s = nz(v)?.toLowerCase() ?? null; if (s && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) throw new Error("That email address doesn't look right."); return s; };
+const phone = (v: FormDataEntryValue | null) => { const s = nz(v)?.replace(/[\s\-()]/g, "") ?? null; if (s && !/^\+?\d{7,15}$/.test(s)) throw new Error("WhatsApp number should be digits only, e.g. +9715xxxxxxx"); return s; };
+
+export async function savePerson(id: string, _prev: unknown, fd: FormData) {
+  const supabase = await createClient();
+  try {
+    const patch = { full_name: nz(fd.get("full_name")), email: email(fd.get("email")), whatsapp: phone(fd.get("whatsapp")), is_active: fd.get("is_active") === "on" };
+    const { error } = await supabase.from("people").update(patch).eq("id", id);
+    if (error) return { error: error.message.includes("people_email_key") ? "Another person already has that email." : error.message };
+  } catch (e) { return { error: (e as Error).message }; }
+  revalidatePath("/team");
+  return { ok: true, at: new Date().toISOString() };
+}
+
+export async function addPerson(_prev: unknown, fd: FormData) {
+  const supabase = await createClient();
+  const name = (nz(fd.get("name")) ?? "").toUpperCase();
+  const role = nz(fd.get("role")) ?? "";
+  if (!name) return { error: "Short name is required (the name shown on cards, e.g. BASIM)." };
+  if (!ROLES.includes(role)) return { error: "Pick a role." };
+  try {
+    const { error } = await supabase.from("people").insert({ name, role, full_name: nz(fd.get("full_name")), email: email(fd.get("email")), whatsapp: phone(fd.get("whatsapp")) });
+    if (error) return { error: error.message.includes("people_name_key") ? `${name} already exists.` : error.message.includes("people_email_key") ? "Another person already has that email." : error.message };
+  } catch (e) { return { error: (e as Error).message }; }
+  revalidatePath("/team");
+  return { ok: true, at: new Date().toISOString() };
+}

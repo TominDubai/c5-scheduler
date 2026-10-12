@@ -166,3 +166,16 @@ dt { color: var(--fg3); font-size: 12px; font-weight: 700; padding-top: 2px; } d
 .waiting-ro { border-style: dashed; }
 .checks { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 6px 0; font: 13px var(--font); }
 .checks label { display: inline-flex; align-items: center; gap: 5px; }
+
+/* team page */
+.teamnote { max-width: 520px; }
+.team table { min-width: 860px; }
+.team td { padding: 7px 10px; } .team td.name { padding-left: 14px; }
+.team td input, .team td select { width: 100%; border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+.team input.missing { border-color: var(--crit); background: #FBEFEE; }
+.team input.upper { text-transform: uppercase; }
+.team tr.group td { padding: 14px 14px 6px; font: 800 11px var(--font); color: var(--bronze); text-transform: uppercase; letter-spacing: .08em; border-bottom: 0; }
+.team tr.off td { color: var(--fg3); } .team tr.off td.name { color: var(--fg3); }
+.team td.save { white-space: nowrap; } .team td.save form { display: flex; align-items: center; gap: 8px; }
+.team .check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; } .team .check input { width: auto; }
+.team tr.addrow td { background: var(--bg); border-top: 2px solid var(--line2); }
