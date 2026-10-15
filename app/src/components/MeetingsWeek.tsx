@@ -1,9 +1,9 @@
 "use client";
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { saveMeeting, cancelMeeting } from "@/app/actions";
-import { addDays, fmtDay, fmtDayLong, hm, mins, title as tc, DAY_START, DAY_END, WEEK_DAYS, LOCATION_LABEL, type Meeting, type MeetingLocation } from "@/lib/model";
+import { addDays, fmtDay, fmtDayLong, hm, mins, title as tc, DAY_START, DAY_END, GRID_START, GRID_END, WEEK_DAYS, LOCATION_LABEL, type Meeting, type MeetingLocation } from "@/lib/model";
 
 type PersonLite = { id: string; name: string; role: string };
 type ProjectLite = { id: string; name: string; enquiry_no: string | null };
@@ -28,7 +28,7 @@ function layout(ms: Meeting[]) {
 }
 
 function Block({ m, onOpen, pos }: { m: Meeting; onOpen: () => void; pos: { col: number; cols: number } }) {
-  const top = ((mins(m.start_time) - DAY_START * 60) / 60) * HOUR;
+  const top = ((mins(m.start_time) - GRID_START * 60) / 60) * HOUR;
   const h = Math.max(((mins(m.end_time) - mins(m.start_time)) / 60) * HOUR, 22);
   const w = 100 / pos.cols;
   return (
@@ -101,15 +101,17 @@ export default function MeetingsWeek({ start, meetings, people, projects, today 
   const [draft, setDraft] = useState<Draft | null>(null);
   const days = useMemo(() => Array.from({ length: WEEK_DAYS }, (_, i) => addDays(start, i)), [start]);
   const byDay = useMemo(() => { const m = new Map<string, Meeting[]>(); for (const x of meetings) m.set(x.meeting_date, [...(m.get(x.meeting_date) ?? []), x]); return m; }, [meetings]);
-  const hours = Array.from({ length: DAY_END - DAY_START + 1 }, (_, i) => DAY_START + i);
+  const hours = Array.from({ length: GRID_END - GRID_START + 1 }, (_, i) => GRID_START + i);
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => { scroller.current?.scrollTo({ top: (DAY_START - GRID_START) * HOUR - 6 }); }, [start]); // open on the working day
   const roomN = meetings.filter((m) => m.location === "ROOM").length;
   const close = (saved?: boolean) => { setDraft(null); if (saved) router.refresh(); };
 
   const slotClick = (day: string, lane: MeetingLocation, e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
-    const y = e.nativeEvent.offsetY; const startMin = DAY_START * 60 + Math.floor(y / HOUR * 2) * 30; // snap to 30 min
+    const y = e.nativeEvent.offsetY; const startMin = GRID_START * 60 + Math.floor(y / HOUR * 2) * 30; // snap to 30 min
     const t = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-    setDraft({ meeting_date: day, location: lane, start_time: t(startMin), end_time: t(Math.min(startMin + 60, DAY_END * 60)) });
+    setDraft({ meeting_date: day, location: lane, start_time: t(startMin), end_time: t(Math.min(startMin + 60, GRID_END * 60)) });
   };
 
   return (
@@ -124,16 +126,18 @@ export default function MeetingsWeek({ start, meetings, people, projects, today 
       </div>
 
       {/* desktop: week grid */}
-      <div className="mgrid" style={{ gridTemplateColumns: `48px repeat(${WEEK_DAYS}, minmax(0, 1fr))` }}>
+      <div className="mgrid" ref={scroller} style={{ gridTemplateColumns: `48px repeat(${WEEK_DAYS}, minmax(0, 1fr))` }}>
         <div className="maxis mhead" />
         {days.map((d) => <div key={d} className={"mhead" + (d === today ? " today" : "")}><b>{fmtDay(d).split(" ")[0]}</b><span>{fmtDay(d).replace(/^\w+ /, "")}</span><div className="lanes"><em>Room</em><em>Site</em></div></div>)}
-        <div className="maxis">{hours.map((h) => <span key={h} style={{ top: (h - DAY_START) * HOUR }}>{String(h).padStart(2, "0")}:00</span>)}</div>
+        <div className="maxis">{hours.map((h) => <span key={h} style={{ top: (h - GRID_START) * HOUR }}>{String(h).padStart(2, "0")}:00</span>)}</div>
         {days.map((d) => {
           const ms = byDay.get(d) ?? [];
           const lanes: MeetingLocation[] = ["ROOM", "SITE"];
           return (
-            <div key={d} className={"mday" + (d === today ? " today" : "")} style={{ height: (DAY_END - DAY_START) * HOUR }}>
-              {hours.slice(1).map((h) => <i key={h} className="hline" style={{ top: (h - DAY_START) * HOUR }} />)}
+            <div key={d} className={"mday" + (d === today ? " today" : "")} style={{ height: (GRID_END - GRID_START) * HOUR }}>
+              <i className="offhours" style={{ top: 0, height: (DAY_START - GRID_START) * HOUR }} />
+              <i className="offhours" style={{ top: (DAY_END - GRID_START) * HOUR, height: (GRID_END - DAY_END) * HOUR }} />
+              {hours.slice(1).map((h) => <i key={h} className="hline" style={{ top: (h - GRID_START) * HOUR }} />)}
               {lanes.map((lane) => { const lm = ms.filter((m) => m.location === lane); const pos = layout(lm); return (
                 <div key={lane} className={`mlane ${lane.toLowerCase()}`} onClick={(e) => slotClick(d, lane, e)} title={`Click to book: ${LOCATION_LABEL[lane]}`}>
                   {lm.map((m) => <Block key={m.id} m={m} pos={pos.get(m.id)!} onOpen={() => setDraft(m)} />)}

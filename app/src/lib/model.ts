@@ -83,8 +83,10 @@ export type Meeting = {
 };
 /** Working week: Monday to Saturday, 08:00–18:00 Dubai. */
 export const WEEK_DAYS = 6;
-export const DAY_START = 8;
+export const DAY_START = 8;   // working hours, shaded and where the grid opens
 export const DAY_END = 18;
+export const GRID_START = 6;  // the grid itself runs 06:00–22:00 so early or late meetings still fit
+export const GRID_END = 22;
 export const hm = (t: string | null | undefined) => (t ?? "").slice(0, 5);          // "09:30:00" -> "09:30"
 export const mins = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + (m || 0); };
 /** YYYY-MM-DD for today in Dubai, whatever the server's clock zone */

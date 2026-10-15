@@ -187,14 +187,15 @@ dt { color: var(--fg3); font-size: 12px; font-weight: 700; padding-top: 2px; } d
 .mlegend { display: inline-flex; align-items: center; gap: 6px; font: 600 12px var(--font); color: var(--fg3); margin-left: 6px; }
 .mlegend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-left: 10px; } .mlegend i:first-child { margin-left: 0; }
 .mlegend i.room { background: var(--bronze); } .mlegend i.site { background: #3C6CB5; }
-.mgrid { display: grid; gap: 0 6px; background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); padding: 0 10px 14px; overflow: hidden; }
-.mhead { padding: 12px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 1px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.mgrid { display: grid; gap: 0 6px; align-content: start; background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); padding: 0 10px 14px; overflow-y: auto; max-height: calc(100vh - 190px); min-height: 420px; scrollbar-gutter: stable; }
+.mhead { position: sticky; top: 0; z-index: 3; background: var(--bg2); padding: 12px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 1px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
 .mhead b { font: 800 13px var(--font); color: var(--fg2); text-transform: uppercase; letter-spacing: .08em; } .mhead span { font: 700 13px var(--font); color: var(--navy); }
 .mhead.today b, .mhead.today span { color: var(--bronze); }
 .mhead .lanes { display: flex; width: 100%; margin-top: 6px; } .mhead .lanes em { flex: 1; font: 700 10px var(--font); color: var(--fg3); font-style: normal; text-transform: uppercase; letter-spacing: .08em; text-align: center; }
 .maxis { position: relative; } .maxis span { position: absolute; right: 6px; transform: translateY(-50%); font: 600 11px var(--mono); color: var(--fg3); }
 .mday { position: relative; display: flex; gap: 3px; border-left: 1px solid var(--line); }
 .mday.today { background: #FBF7F1; }
+.mday .offhours { position: absolute; left: 0; right: 0; background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(16,44,82,.035) 6px 7px); pointer-events: none; }
 .mday .hline { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line); pointer-events: none; }
 .mlane { position: relative; flex: 1; min-width: 0; cursor: cell; }
 .mlane.site { border-left: 1px dotted var(--line2); }
