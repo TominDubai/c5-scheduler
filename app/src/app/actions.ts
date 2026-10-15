@@ -178,3 +178,65 @@ export async function addPerson(_prev: unknown, fd: FormData) {
   revalidatePath("/team");
   return { ok: true, at: new Date().toISOString() };
 }
+
+// ---------- meetings ----------
+import { hm, type MeetingLocation } from "@/lib/model";
+const fmtWhen = (t: string) => hm(t);
+
+function bustMeetings(projectId?: string | null, ...dates: (string | null | undefined)[]) {
+  revalidatePath("/meetings"); revalidatePath("/board");
+  if (projectId) revalidatePath(`/projects/${projectId}`);
+  void dates;
+}
+
+/** "Room taken 11:00–12:00 — Basim, Sobha Reserve V622" for the overlapping booking(s), or null. */
+async function roomClash(date: string, start: string, end: string, excludeId: string | null) {
+  const supabase = await createClient();
+  let q = supabase.from("meetings_live").select("id, title, start_time, end_time, attendees, project_name").eq("meeting_date", date).eq("location", "ROOM").eq("cancelled", false).lt("start_time", end).gt("end_time", start);
+  if (excludeId) q = q.neq("id", excludeId);
+  const { data } = await q;
+  if (!data?.length) return null;
+  return "Room taken " + data.map((m) => `${fmtWhen(m.start_time)}–${fmtWhen(m.end_time)} — ${(m.attendees as string[]).map((a: string) => a.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())).join(", ") || m.title}${m.project_name ? `, ${m.project_name}` : ""}`).join("; ");
+}
+
+export async function saveMeeting(id: string | null, _prev: unknown, fd: FormData) {
+  const supabase = await createClient();
+  const title = nz(fd.get("title"));
+  const meeting_date = nz(fd.get("meeting_date"));
+  const start_time = nz(fd.get("start_time"));
+  const end_time = nz(fd.get("end_time"));
+  const location = (nz(fd.get("location")) ?? "ROOM") as MeetingLocation;
+  if (!title) return { error: "Give the meeting a title." };
+  if (!meeting_date || !start_time || !end_time) return { error: "Date, start and end are required." };
+  if (end_time <= start_time) return { error: "The end time must be after the start time." };
+  if (location === "ROOM") { const clash = await roomClash(meeting_date, start_time, end_time, id); if (clash) return { error: clash }; }
+
+  const row = { title, meeting_date, start_time, end_time, location, project_id: nz(fd.get("project_id")), notes: nz(fd.get("notes")) };
+  const attendees = fd.getAll("attendees").map(String).filter(Boolean);
+  let meetingId = id;
+  if (id) {
+    const { error } = await supabase.from("meetings").update(row).eq("id", id);
+    if (error) return { error: error.code === "23P01" ? (await roomClash(meeting_date, start_time, end_time, id)) ?? "The room is already booked then." : error.message };
+    // sync attendees: add the new ones, remove the dropped ones (the trigger logs each change)
+    const { data: cur } = await supabase.from("meeting_attendees").select("person_id").eq("meeting_id", id);
+    const have = new Set((cur ?? []).map((r) => r.person_id as string));
+    const add = attendees.filter((a) => !have.has(a)); const drop = [...have].filter((a) => !attendees.includes(a));
+    if (add.length) await supabase.from("meeting_attendees").insert(add.map((person_id) => ({ meeting_id: id, person_id })));
+    if (drop.length) await supabase.from("meeting_attendees").delete().eq("meeting_id", id).in("person_id", drop);
+  } else {
+    const { data, error } = await supabase.from("meetings").insert(row).select("id").single();
+    if (error) return { error: error.code === "23P01" ? (await roomClash(meeting_date, start_time, end_time, null)) ?? "The room is already booked then." : error.message };
+    meetingId = data.id as string;
+    if (attendees.length) await supabase.from("meeting_attendees").insert(attendees.map((person_id) => ({ meeting_id: meetingId, person_id })));
+  }
+  bustMeetings(row.project_id);
+  return { ok: true, id: meetingId, at: new Date().toISOString() };
+}
+
+export async function cancelMeeting(id: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("meetings").update({ cancelled: true }).eq("id", id).select("project_id").single();
+  if (error) return { error: error.message };
+  bustMeetings(data?.project_id);
+  return { ok: true };
+}

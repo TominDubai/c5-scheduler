@@ -47,3 +47,17 @@ export const getUser = cache(async function getUser() {
   const { data: { user } } = await supabase.auth.getUser();
   return user;
 });
+
+// ---------- meetings ----------
+import type { Meeting } from "@/lib/model";
+export async function getMeetings(from: string, to: string): Promise<Meeting[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("meetings_live").select("*").eq("cancelled", false).gte("meeting_date", from).lte("meeting_date", to).order("meeting_date").order("start_time");
+  if (error) throw new Error(`meetings_live: ${error.message}`);
+  return (data ?? []) as Meeting[];
+}
+export async function getProjectMeetings(projectId: string): Promise<Meeting[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("meetings_live").select("*").eq("cancelled", false).eq("project_id", projectId).order("meeting_date", { ascending: false }).order("start_time").limit(20);
+  return (data ?? []) as Meeting[];
+}

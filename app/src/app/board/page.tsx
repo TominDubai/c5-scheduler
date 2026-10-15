@@ -4,6 +4,7 @@ import Failed from "@/components/Failed";
 import Summary from "@/components/Summary";
 import Filters from "@/components/Filters";
 import Board from "@/components/Board";
+import TodayMeetings from "@/components/TodayMeetings";
 import { getProjects, pmCounts, getMe, applyFilters } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ async function Inner_BoardPage({ searchParams }: { searchParams: Promise<{ pm?: 
   return (
     <Shell active="board" tools={<Suspense><Filters pms={pmCounts(all)} /></Suspense>}>
       <Summary projects={all} />
+      <TodayMeetings />
       <main><Board key={JSON.stringify(sp) + all.map((p) => p.updated_at).join()} projects={rows} canEdit={me.canProjects} /></main>
     </Shell>
   );

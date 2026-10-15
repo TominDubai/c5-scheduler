@@ -4,17 +4,17 @@ import Shell from "@/components/Shell";
 import Failed from "@/components/Failed";
 import ProjectForm from "@/components/ProjectForm";
 import Variations from "@/components/Variations";
-import { getProject, getPeople, getContractors, getMe } from "@/lib/data";
+import { getProject, getPeople, getContractors, getMe, getProjectMeetings } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import { STAGES, ORDER, LABEL, aed, fmtD, title, tone, delayText, type Variation, type History } from "@/lib/model";
+import { STAGES, ORDER, LABEL, aed, fmtD, title, tone, delayText, hm, fmtDay, todayDubai, LOCATION_LABEL, type Variation, type History } from "@/lib/model";
 
 export const dynamic = "force-dynamic";
 
 async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const [p, people, contractors, me, { data: vos }, { data: hist }] = await Promise.all([
-    getProject(id), getPeople(), getContractors(), getMe(),
+  const [p, people, contractors, me, meetings, { data: vos }, { data: hist }] = await Promise.all([
+    getProject(id), getPeople(), getContractors(), getMe(), getProjectMeetings(id),
     supabase.from("variations").select("*").eq("project_id", id).order("vo_no"),
     supabase.from("status_history").select("*, who:people(name)").eq("project_id", id).order("changed_at", { ascending: false }),
   ]);
@@ -77,6 +77,22 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
                   <span className="by">{h.who?.name ? `by ${title(h.who.name)}` : h.note ?? ""}</span>
                 </li>
               ))}
+            </ul>
+          )}
+        </div>
+        <div className="panel">
+          <h2>Meetings</h2>
+          {meetings.length === 0 ? <span style={{ color: "var(--fg3)" }}>No meetings for this project yet. <Link href="/meetings" style={{ color: "var(--bronze)", fontWeight: 700 }}>Book one →</Link></span> : (
+            <ul className="hist">
+              {meetings.map((m) => { const past = m.meeting_date < todayDubai(); return (
+                <li key={m.id} style={past ? { opacity: .6 } : undefined}>
+                  <time>{fmtDay(m.meeting_date)}</time>
+                  <span className="enq">{hm(m.start_time)}–{hm(m.end_time)}</span>
+                  <Link href={`/meetings?w=${m.meeting_date}`} style={{ fontWeight: 700, color: "var(--navy)" }}>{m.title}</Link>
+                  <span className={`pill ${m.location === "ROOM" ? "soon" : "done"}`}>{LOCATION_LABEL[m.location]}</span>
+                  <span className="by">{m.attendees.map(title).join(", ")}</span>
+                </li>
+              ); })}
             </ul>
           )}
         </div>
