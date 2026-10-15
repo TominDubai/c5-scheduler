@@ -129,11 +129,11 @@ begin
 end $$;
 create trigger trg_attendee_change_log after insert or delete on meeting_attendees for each row execute function log_attendee_changes();
 
--- ---------- 07:30 Dubai "your meetings today" (Sun–Thu). Dubai is UTC+4 with no DST, so 03:30 UTC. ----------
+-- ---------- 07:30 Dubai "your meetings today" (Mon–Sat). Dubai is UTC+4 with no DST, so 03:30 UTC. ----------
 select cron.unschedule(jobid) from cron.job where jobname = 'scheduler-meetings-today';
 select cron.schedule(
   'scheduler-meetings-today',
-  '30 3 * * 0-4',
+  '30 3 * * 1-6',
   $job$
   select net.http_post(
     url     := 'https://c5-scheduler.vercel.app/api/notify/daily',

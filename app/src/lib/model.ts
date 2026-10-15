@@ -81,8 +81,8 @@ export type Meeting = {
   project_name: string | null; enquiry_no: string | null; created_by_name: string | null; updated_by_name: string | null;
   attendee_ids: string[]; attendees: string[];
 };
-/** Working week: Sunday to Thursday, 08:00–18:00 Dubai. */
-export const WEEK_DAYS = 5;
+/** Working week: Monday to Saturday, 08:00–18:00 Dubai. */
+export const WEEK_DAYS = 6;
 export const DAY_START = 8;
 export const DAY_END = 18;
 export const hm = (t: string | null | undefined) => (t ?? "").slice(0, 5);          // "09:30:00" -> "09:30"
@@ -90,10 +90,10 @@ export const mins = (t: string) => { const [h, m] = t.split(":").map(Number); re
 /** YYYY-MM-DD for today in Dubai, whatever the server's clock zone */
 export const todayDubai = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
 export const addDays = (iso: string, n: number) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
-/** the Sunday that starts the working week containing `iso` (Fri/Sat roll forward to the coming week) */
+/** the Monday that starts the working week containing `iso` (a Sunday rolls forward to the coming week) */
 export function weekStart(iso: string) {
   const dow = new Date(iso + "T00:00:00Z").getUTCDay(); // 0 = Sun
-  return dow <= 4 ? addDays(iso, -dow) : addDays(iso, 7 - dow);
+  return dow === 0 ? addDays(iso, 1) : addDays(iso, 1 - dow);
 }
 export const fmtDay = (iso: string) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 export const fmtDayLong = (iso: string) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
