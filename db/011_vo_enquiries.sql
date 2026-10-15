@@ -63,7 +63,7 @@ begin
   if e.id is null then raise exception 'Enquiry not found'; end if;
   if e.status <> 'QUOTE' then raise exception 'That enquiry is no longer a quote'; end if;
   if e.parent_project_id is null then raise exception 'Pick which project this VO belongs to first'; end if;
-  if coalesce(e.quoted_value, 0) <= 0 then raise exception 'Enter the quoted value before marking it won'; end if;
+  if coalesce(e.quoted_value, 0) = 0 then raise exception 'Enter the quoted value before marking it won (a credit is a minus figure)'; end if;
 
   select coalesce(max(vo_no), 0) + 1 into n from variations where project_id = e.parent_project_id;
   insert into variations(project_id, vo_no, description, value, approved_on, source_enquiry_id)
