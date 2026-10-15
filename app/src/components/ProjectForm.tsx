@@ -3,9 +3,9 @@ import { useActionState } from "react";
 import { ALL, QUOTE_STAGES, WAITING_ON, SCOPES, title, type Project, type Person, type Contractor } from "@/lib/model";
 import { saveProject, createProject } from "@/app/actions";
 
-type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean };
+type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean; liveProjects?: Pick<Project, "id" | "name" | "enquiry_no">[] };
 
-export default function ProjectForm({ project, people, contractors, estimationOnly = false }: Props) {
+export default function ProjectForm({ project, people, contractors, estimationOnly = false, liveProjects }: Props) {
   const lock = estimationOnly; // estimators: pricing fields only
   const action = project ? saveProject.bind(null, project.id) : createProject;
   const [state, formAction, pending] = useActionState(action, null as { error?: string; ok?: boolean; at?: string } | null);
@@ -39,6 +39,10 @@ export default function ProjectForm({ project, people, contractors, estimationOn
       <div className="field"><label htmlFor="estimator_id">Estimator</label>
         <select id="estimator_id" name="estimator_id" defaultValue={v("estimator_id")}><option value="">—</option>{estimators.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
       <div className="field"><label htmlFor="quote_type">Quote type</label><input id="quote_type" name="quote_type" defaultValue={v("quote_type")} placeholder="FULL QUOTE / KITCHEN / VO1 …" /></div>
+      {liveProjects && project?.status === "QUOTE" && (
+        <div className="field"><label htmlFor="parent_project_id">This is a VO for</label>
+          <select id="parent_project_id" name="parent_project_id" defaultValue={v("parent_project_id")}><option value="">— not a VO —</option>{liveProjects.filter((p) => p.id !== project?.id).map((p) => <option key={p.id} value={p.id}>{p.enquiry_no ? `${p.enquiry_no} · ` : ""}{title(p.name)}</option>)}</select></div>
+      )}
       <div className="field"><label>Scope</label><div className="checks">{SCOPES.map((s) => <label key={s}><input type="checkbox" name="scope" value={s} defaultChecked={(project?.scope ?? "").split(", ").includes(s)} /> {s}</label>)}</div></div>
       <div className="field"><label htmlFor="waiting_on">Waiting on</label>
         <select id="waiting_on" name="waiting_on" defaultValue={v("waiting_on")}><option value="">—</option>{WAITING_ON.map((w) => <option key={w} value={w}>{w}</option>)}</select></div>

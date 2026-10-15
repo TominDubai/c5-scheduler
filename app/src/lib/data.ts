@@ -2,16 +2,29 @@ import { createClient } from "@/lib/supabase/server";
 import { cache } from "react";
 import type { Project, Person, Contractor, Me } from "@/lib/model";
 
+/** parent links live on the projects table (the view predates the column); stitch them on here */
+async function withParents(rows: Project[]): Promise<Project[]> {
+  const supabase = await createClient();
+  const { data: links } = await supabase.from("projects").select("id, parent_project_id").not("parent_project_id", "is", null);
+  const parentOf = new Map((links ?? []).map((l) => [l.id as string, l.parent_project_id as string]));
+  const byId = new Map(rows.map((p) => [p.id, p]));
+  const missing = [...new Set([...parentOf.values()])].filter((id) => !byId.has(id));
+  const extra = missing.length ? (await supabase.from("projects").select("id, name, enquiry_no").in("id", missing)).data ?? [] : [];
+  const names = new Map<string, { name: string; enquiry_no: string | null }>([...rows.map((p) => [p.id, { name: p.name, enquiry_no: p.enquiry_no }] as const), ...extra.map((e) => [e.id as string, { name: e.name as string, enquiry_no: e.enquiry_no as string | null }] as const)]);
+  return rows.map((p) => { const pid = parentOf.get(p.id) ?? null; const par = pid ? names.get(pid) : null; return { ...p, parent_project_id: pid, parent_name: par?.name ?? null, parent_enquiry_no: par?.enquiry_no ?? null }; });
+}
+/** every project except enquiries already folded into a parent as a VO */
 export const getProjects = cache(async function getProjects(): Promise<Project[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("projects_live").select("*").order("name");
+  const { data, error } = await supabase.from("projects_live").select("*").neq("status", "MERGED").order("name");
   if (error) throw new Error(`projects_live: ${error.message}`);
-  return (data ?? []) as Project[];
+  return withParents((data ?? []) as Project[]);
 });
 export async function getProject(id: string): Promise<Project | null> {
   const supabase = await createClient();
   const { data } = await supabase.from("projects_live").select("*").eq("id", id).maybeSingle();
-  return (data as Project) ?? null;
+  if (!data) return null;
+  return (await withParents([data as Project]))[0];
 }
 export const getPeople = cache(async function getPeople(): Promise<Person[]> {
   const supabase = await createClient();

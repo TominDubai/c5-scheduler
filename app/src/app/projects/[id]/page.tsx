@@ -4,7 +4,7 @@ import Shell from "@/components/Shell";
 import Failed from "@/components/Failed";
 import ProjectForm from "@/components/ProjectForm";
 import Variations from "@/components/Variations";
-import { getProject, getPeople, getContractors, getMe, getProjectMeetings } from "@/lib/data";
+import { getProject, getPeople, getContractors, getMe, getProjectMeetings, getProjects } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { STAGES, ORDER, LABEL, aed, fmtD, title, tone, delayText, hm, fmtDay, todayDubai, LOCATION_LABEL, type Variation, type History } from "@/lib/model";
 
@@ -13,8 +13,8 @@ export const dynamic = "force-dynamic";
 async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const [p, people, contractors, me, meetings, { data: vos }, { data: hist }] = await Promise.all([
-    getProject(id), getPeople(), getContractors(), getMe(), getProjectMeetings(id),
+  const [p, people, contractors, me, meetings, all, { data: vos }, { data: hist }] = await Promise.all([
+    getProject(id), getPeople(), getContractors(), getMe(), getProjectMeetings(id), getProjects(),
     supabase.from("variations").select("*").eq("project_id", id).order("vo_no"),
     supabase.from("status_history").select("*, who:people(name)").eq("project_id", id).order("changed_at", { ascending: false }),
   ]);
@@ -22,6 +22,8 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
   const t = tone(p);
   const canEdit = me.canProjects || (me.canEstimation && p.status === "QUOTE");
   const history = (hist ?? []) as (History & { who: { name: string } | null })[];
+  const live = all.filter((x) => !["QUOTE", "LOST", "COMPLETED", "MERGED"].includes(x.status)).map((x) => ({ id: x.id, name: x.name, enquiry_no: x.enquiry_no }));
+  const voNo = p.status === "MERGED" ? (await supabase.from("variations").select("vo_no").eq("source_enquiry_id", p.id).maybeSingle()).data?.vo_no ?? null : null;
   return (
     <Shell>
       <div className="page">
@@ -30,6 +32,13 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
           <div><h1>{title(p.name)}</h1><div className="client">{title(p.client)}{p.contractor ? ` · via ${p.contractor}` : ""}</div></div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}><span className={`status s-${p.status}`}>{LABEL[p.status]}</span><span className={`pill ${t}`}>{delayText(p)}</span></div>
         </div>
+        {p.parent_project_id && (
+          <div className={`vobanner${p.status === "MERGED" ? " done" : ""}`}>
+            {p.status === "MERGED"
+              ? <>Won — added as <b>VO{voNo ?? ""}</b> on <Link href={`/projects/${p.parent_project_id}`}>{title(p.parent_name)}</Link>. This enquiry is closed.</>
+              : <>VO enquiry for <Link href={`/projects/${p.parent_project_id}`}>{title(p.parent_name)}</Link>{p.parent_enquiry_no ? ` (${p.parent_enquiry_no})` : ""} — when it's won it becomes the next VO on that project.</>}
+          </div>
+        )}
         <div>
           <div className="stagebar">{STAGES.map(([k]) => <span key={k} className={(ORDER[k] <= ORDER[p.status] && ORDER[p.status] <= ORDER.COMPLETED ? "on " : "") + (k === p.status ? "cur" : "")} />)}</div>
           <div className="stagebar-labels">{STAGES.map(([k, l]) => <span key={k}>{l}</span>)}</div>
@@ -54,7 +63,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
         {canEdit ? (
           <div className="panel">
             <h2>Edit project</h2>
-            <ProjectForm project={p} people={people} contractors={contractors} estimationOnly={!me.canProjects} />
+            <ProjectForm project={p} people={people} contractors={contractors} estimationOnly={!me.canProjects} liveProjects={live} />
           </div>
         ) : (
           <div className="panel"><h2>Details</h2><dl>

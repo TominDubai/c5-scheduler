@@ -1,10 +1,11 @@
 "use client";
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { title, SCOPES, type Person, type Contractor } from "@/lib/model";
+import { title, SCOPES, type Person, type Contractor, type Project } from "@/lib/model";
 import { createEnquiry } from "@/app/actions";
 
-export default function EnquiryForm({ nextNo, people, contractors }: { nextNo: string; people: Person[]; contractors: Contractor[] }) {
+export default function EnquiryForm({ nextNo, people, contractors, liveProjects }: { nextNo: string; people: Person[]; contractors: Contractor[]; liveProjects: Pick<Project, "id" | "name" | "enquiry_no" | "client">[] }) {
+  const [parent, setParent] = useState("");
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState<string | null>(null); // last success already acknowledged
   const [state, formAction, pending] = useActionState(createEnquiry, null as { error?: string; ok?: boolean; enquiry_no?: string; id?: string } | null);
@@ -27,6 +28,13 @@ export default function EnquiryForm({ nextNo, people, contractors }: { nextNo: s
         <div className="field"><label htmlFor="estimator_id">Estimator</label>
           <select id="estimator_id" name="estimator_id" defaultValue={estimators.find((p) => p.name === "RAMUS")?.id ?? ""}><option value="">—</option>{estimators.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
         <div className="field"><label htmlFor="quote_type">Quote type</label><input id="quote_type" name="quote_type" list="quote-types" placeholder="FULL QUOTE / KITCHEN / VO1 …" /><datalist id="quote-types"><option value="FULL QUOTE" /><option value="KITCHEN" /><option value="VO1" /><option value="VO2" /><option value="ADDTL" /><option value="REVISED" /></datalist></div>
+        <div className="field wide"><label htmlFor="parent_project_id">This is a VO for <small>(leave blank for a new project)</small></label>
+          <select id="parent_project_id" name="parent_project_id" value={parent} onChange={(e) => setParent(e.target.value)} className={parent ? "vo-on" : ""}>
+            <option value="">— not a VO, it's a new project —</option>
+            {liveProjects.map((p) => <option key={p.id} value={p.id}>{p.enquiry_no ? `${p.enquiry_no} · ` : ""}{title(p.name)}{p.client ? ` (${title(p.client)})` : ""}</option>)}
+          </select>
+          {parent && <small className="hint">When this is won it's added as the next VO on that project — no new project is created.</small>}
+        </div>
         <div className="field"><label>Scope</label><div className="checks">{SCOPES.map((s) => <label key={s}><input type="checkbox" name="scope" value={s} defaultChecked={s === "Joinery"} /> {s}</label>)}</div></div>
         <div className="field"><label htmlFor="raised_by">Raised by <small>(who sent it in)</small></label><input id="raised_by" name="raised_by" placeholder="e.g. AFTAB" /></div>
         <div className="field"><label htmlFor="quote_due_date">Quote due</label><input id="quote_due_date" name="quote_due_date" type="date" /></div>

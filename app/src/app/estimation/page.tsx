@@ -12,6 +12,7 @@ async function Inner_EstimationPage() {
   const supabase = await createClient();
   const [all, people, contractors, me, { data: nextNo }] = await Promise.all([getProjects(), getPeople(), getContractors(), getMe(), supabase.rpc("next_enquiry_no")]);
   const quotes = all.filter((p) => p.status === "QUOTE");
+  const live = all.filter((p) => !["QUOTE", "LOST", "COMPLETED", "MERGED"].includes(p.status)).map((p) => ({ id: p.id, name: p.name, enquiry_no: p.enquiry_no, client: p.client }));
   const open = quotes.filter((p) => p.quote_stage !== "SUBMITTED");
   const submitted = quotes.filter((p) => p.quote_stage === "SUBMITTED");
   const oldest = open.reduce((m, p) => Math.max(m, p.days_since_enquiry ?? 0), 0);
@@ -26,7 +27,7 @@ async function Inner_EstimationPage() {
           <div className={`stat${oldest > 21 ? " crit" : ""}`}><b>{oldest}d</b><span>oldest open enquiry</span></div>
           <div className="stat"><b>{wonThisYear}</b><span>won this year</span></div>
         </div>
-        {me.canEstimation && <EnquiryForm nextNo={(nextNo as string) ?? ""} people={people} contractors={contractors} />}
+        {me.canEstimation && <EnquiryForm nextNo={(nextNo as string) ?? ""} people={people} contractors={contractors} liveProjects={live} />}
       </section>
       <main><EstimationBoard key={all.map((p) => p.updated_at).join()} projects={quotes} canEdit={me.canEstimation} /></main>
     </Shell>

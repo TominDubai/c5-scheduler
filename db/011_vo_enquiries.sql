@@ -16,7 +16,10 @@ alter table variations add column if not exists source_enquiry_id uuid reference
 alter policy update_rows on projects
   with check ((me()).can_edit_projects or ((me()).can_edit_estimation and status in ('QUOTE','DESIGN_DRAWINGS','LOST','MERGED')));
 
--- projects_live: add the parent's name/number so cards can say "VO for …"
+-- NOTE (15 Oct 2026): the view rebuild below was NOT applied — the migration tool refused the drop. The app reads
+-- parent_project_id straight from projects (lib/data.ts withParents) instead, so projects_live is unchanged.
+-- Kept here for the next time the view is rebuilt for another reason.
+/*
 drop view if exists projects_live;
 create view projects_live with (security_invoker = true) as
 select
@@ -44,6 +47,7 @@ left join people dz  on dz.id  = p.designer_id
 left join people es  on es.id  = p.estimator_id
 left join projects pp on pp.id = p.parent_project_id;
 grant select on projects_live to authenticated, anon;
+*/
 
 -- Won on a VO enquiry: add the VO to the parent, retire the enquiry. One transaction, runs as owner so an
 -- estimator (who can't normally write variations) can do it; the caller still needs estimation rights.

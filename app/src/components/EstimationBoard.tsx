@@ -58,6 +58,7 @@ export default function EstimationBoard({ projects, canEdit }: { projects: Proje
                       <div className="card-top"><span className="enq">{p.enquiry_no ?? "—"}</span>
                         <span className={`pill ${t}`}>{k === "SUBMITTED" ? `Sent ${fmtDShort(p.quote_submitted_date)}` : `${age}d in`}</span></div>
                       <h3>{title(p.name)}{p.quote_type && <span className="qtype">{p.quote_type}</span>}</h3>
+                      {p.parent_name && <div className="vofor">VO for <b>{title(p.parent_name)}</b>{p.parent_enquiry_no ? ` (${p.parent_enquiry_no})` : ""}</div>}
                       <div className="client">{title(p.client)}{p.contractor ? ` · ${p.contractor}` : ""}</div>
                       <div className="card-foot">
                         <span className="who"><b className="av">{ini(p.estimator)}</b>{p.estimator ? title(p.estimator) : "No estimator"}</span>
@@ -71,7 +72,7 @@ export default function EstimationBoard({ projects, canEdit }: { projects: Proje
                         : <div className="waiting-ro">{p.waiting_on ? `Waiting on ${p.waiting_on.toLowerCase()}` : "Waiting on…"}</div>)}
                       {k === "SUBMITTED" && canEdit && (
                         <div className="decide" onClick={(e) => e.stopPropagation()}>
-                          <button className="btn sm" onClick={() => decide(p, true)}>Won → Design</button>
+                          <button className="btn sm" onClick={() => decide(p, true)}>{p.parent_project_id ? "Won → add VO" : "Won → Design"}</button>
                           <button className="btn sm danger" onClick={() => decide(p, false)}>Lost</button>
                         </div>
                       )}

@@ -244,3 +244,9 @@ dt { color: var(--fg3); font-size: 12px; font-weight: 700; padding-top: 2px; } d
   .mform { grid-template-columns: 1fr; } .mdim { padding: 12px; align-items: flex-start; }
   .todaystrip { padding: 4px 16px 2px; }
 }
+
+/* VO enquiries */
+.vofor { margin: 4px 0 2px; font: 600 12px var(--font); color: var(--bronze); } .vofor b { color: var(--navy); }
+.vobanner { padding: 10px 14px; border-radius: 8px; background: #FBF4EC; border: 1px solid #E8D9C8; font-size: 13px; color: var(--fg2); } .vobanner a { color: var(--bronze); font-weight: 700; } .vobanner b { color: var(--navy); }
+.vobanner.done { background: #DDF3E8; border-color: #BFE3D0; color: #1E6B49; }
+select.vo-on { border-color: var(--bronze); background: #FBF4EC; font-weight: 700; }

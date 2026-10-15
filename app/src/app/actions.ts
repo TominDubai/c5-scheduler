@@ -49,6 +49,7 @@ function projectFields(fd: FormData) {
   if (has("scope")) out.scope = fd.getAll("scope").map(String).filter(Boolean).join(", ") || null;
   if (has("waiting_on")) out.waiting_on = nz(fd.get("waiting_on"));
   if (has("raised_by")) out.raised_by = nz(fd.get("raised_by"))?.toUpperCase() ?? null;
+  if (has("parent_project_id")) out.parent_project_id = nz(fd.get("parent_project_id"));
   return out as { name?: string } & Record<string, unknown>;
 }
 
@@ -76,7 +77,14 @@ export async function saveWaitingOn(id: string, waiting_on: string | null) {
 
 export async function markWon(id: string) {
   const supabase = await createClient();
-  const { data: p } = await supabase.from("projects").select("signed_quote, quoted_value").eq("id", id).single();
+  const { data: p } = await supabase.from("projects").select("signed_quote, quoted_value, parent_project_id").eq("id", id).single();
+  if (p?.parent_project_id) {
+    // a VO enquiry: becomes the next VO on its parent project, enquiry retired (db/011 win_as_vo)
+    const { data: voNo, error } = await supabase.rpc("win_as_vo", { enquiry: id });
+    if (error) return { error: error.message };
+    bust(id); revalidatePath(`/projects/${p.parent_project_id}`);
+    return { ok: true, vo_no: voNo as number, parent: p.parent_project_id as string };
+  }
   const patch: Record<string, unknown> = { status: "DESIGN_DRAWINGS", quote_stage: "SUBMITTED" };
   if (p && !(p.signed_quote > 0) && p.quoted_value) patch.signed_quote = p.quoted_value;
   const { error } = await supabase.from("projects").update(patch).eq("id", id);
@@ -104,6 +112,7 @@ export async function createEnquiry(_prev: unknown, fd: FormData) {
     quote_due_date: nz(fd.get("quote_due_date")), folder_path: nz(fd.get("folder_path")), notes: nz(fd.get("notes")),
     quote_type: nz(fd.get("quote_type"))?.toUpperCase() ?? null, scope: fd.getAll("scope").map(String).filter(Boolean).join(", ") || null,
     raised_by: nz(fd.get("raised_by"))?.toUpperCase() ?? null,
+    parent_project_id: nz(fd.get("parent_project_id")),
     status: "QUOTE", quote_stage: "QUEUED",
   }).select("id, enquiry_no").single();
   if (error) return { error: error.message };

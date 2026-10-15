@@ -1,13 +1,14 @@
 export type Status =
   | "QUOTE" | "DESIGN_DRAWINGS" | "PROD_DRAWINGS" | "PRODUCTION"
-  | "INSTALLATION" | "SNAGGING" | "COMPLETED" | "SITE_ON_HOLD" | "LOST";
+  | "INSTALLATION" | "SNAGGING" | "COMPLETED" | "SITE_ON_HOLD" | "LOST" | "MERGED";
 
 export const STAGES: [Status, string][] = [
   ["QUOTE", "Quote"], ["DESIGN_DRAWINGS", "Design drawings"], ["PROD_DRAWINGS", "Prod drawings"],
   ["PRODUCTION", "Production"], ["INSTALLATION", "Installation"], ["SNAGGING", "Snagging"], ["COMPLETED", "Completed"],
 ];
 export const SIDE: [Status, string][] = [["SITE_ON_HOLD", "Site on hold"], ["LOST", "Lost"]];
-export const ALL = [...STAGES, ...SIDE];
+/** MERGED = a VO enquiry that was won and folded into its parent project; never shown as a column */
+export const ALL: [Status, string][] = [...STAGES, ...SIDE, ["MERGED", "Added as VO"]];
 export const LABEL: Record<Status, string> = Object.fromEntries(ALL) as Record<Status, string>;
 export const ORDER: Record<Status, number> = Object.fromEntries(ALL.map(([k], i) => [k, i])) as Record<Status, number>;
 
@@ -27,12 +28,14 @@ export type Project = {
   quote_type: string | null; scope: string | null; waiting_on: string | null; raised_by: string | null;
   // from projects_live
   contractor: string | null; pm: string | null; pm2: string | null; designer: string | null; estimator: string | null; days_since_enquiry: number | null;
+  // VO enquiries: which live project this quote belongs to (filled in by getProjects from the projects table)
+  parent_project_id: string | null; parent_name: string | null; parent_enquiry_no: string | null;
   project_value: number; vo_count: number; days_to_completion: number | null; duration_days: number | null; days_delayed: number | null; status_since: string | null;
 };
 export type Person = { id: string; name: string; full_name: string | null; role: string; email: string | null; whatsapp: string | null; is_active: boolean; can_edit_estimation: boolean; can_edit_projects: boolean; can_manage_team: boolean };
 export type Me = { name: string; canEstimation: boolean; canProjects: boolean; canTeam: boolean };
 export type Contractor = { id: string; name: string };
-export type Variation = { id: string; project_id: string; vo_no: number; description: string | null; value: number; approved_on: string | null };
+export type Variation = { id: string; project_id: string; vo_no: number; description: string | null; value: number; approved_on: string | null; source_enquiry_id?: string | null };
 export type History = { id: string; from_status: Status | null; to_status: Status; changed_at: string; note: string | null; changed_by: string | null; who?: string | null };
 
 export const aed = (v: number | null | undefined) => v ? "AED " + Math.round(v).toLocaleString("en-GB") : "—";
