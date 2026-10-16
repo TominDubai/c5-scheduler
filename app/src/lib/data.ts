@@ -2,23 +2,32 @@ import { createClient } from "@/lib/supabase/server";
 import { cache } from "react";
 import type { Project, Person, Contractor, Me } from "@/lib/model";
 
-/** parent links live on the projects table (the view predates the column); stitch them on here */
+type Extra = { id: string; parent_project_id: string | null; deleted_at: string | null; deleted_reason: string | null; deleted_by: string | null };
+/** parent links and removal stamps live on the projects table (the view predates those columns); stitch them on here */
 async function withParents(rows: Project[]): Promise<Project[]> {
   const supabase = await createClient();
-  const { data: links } = await supabase.from("projects").select("id, parent_project_id").not("parent_project_id", "is", null);
-  const parentOf = new Map((links ?? []).map((l) => [l.id as string, l.parent_project_id as string]));
+  const { data: ex } = await supabase.from("projects").select("id, parent_project_id, deleted_at, deleted_reason, deleted_by:people!projects_deleted_by_fkey(name)").in("id", rows.map((r) => r.id));
+  const extras = new Map(((ex ?? []) as unknown as (Omit<Extra, "deleted_by"> & { deleted_by: { name: string } | null })[]).map((e) => [e.id, { ...e, deleted_by: e.deleted_by?.name ?? null } as Extra]));
+  const parentOf = new Map([...extras.values()].filter((e) => e.parent_project_id).map((e) => [e.id, e.parent_project_id as string]));
   const byId = new Map(rows.map((p) => [p.id, p]));
   const missing = [...new Set([...parentOf.values()])].filter((id) => !byId.has(id));
   const extra = missing.length ? (await supabase.from("projects").select("id, name, enquiry_no").in("id", missing)).data ?? [] : [];
   const names = new Map<string, { name: string; enquiry_no: string | null }>([...rows.map((p) => [p.id, { name: p.name, enquiry_no: p.enquiry_no }] as const), ...extra.map((e) => [e.id as string, { name: e.name as string, enquiry_no: e.enquiry_no as string | null }] as const)]);
-  return rows.map((p) => { const pid = parentOf.get(p.id) ?? null; const par = pid ? names.get(pid) : null; return { ...p, parent_project_id: pid, parent_name: par?.name ?? null, parent_enquiry_no: par?.enquiry_no ?? null }; });
+  return rows.map((p) => { const pid = parentOf.get(p.id) ?? null; const par = pid ? names.get(pid) : null; const e = extras.get(p.id); return { ...p, parent_project_id: pid, parent_name: par?.name ?? null, parent_enquiry_no: par?.enquiry_no ?? null, deleted_at: e?.deleted_at ?? null, deleted_reason: e?.deleted_reason ?? null, deleted_by: e?.deleted_by ?? null }; });
 }
-/** every project except enquiries already folded into a parent as a VO */
-export const getProjects = cache(async function getProjects(): Promise<Project[]> {
+async function allProjects(): Promise<Project[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("projects_live").select("*").neq("status", "MERGED").order("name");
   if (error) throw new Error(`projects_live: ${error.message}`);
   return withParents((data ?? []) as Project[]);
+}
+/** every live project: not merged into a parent as a VO, not removed */
+export const getProjects = cache(async function getProjects(): Promise<Project[]> {
+  return (await allProjects()).filter((p) => !p.deleted_at);
+});
+/** projects someone has removed — shown only on the List's "Removed" view, where they can be restored */
+export const getRemovedProjects = cache(async function getRemovedProjects(): Promise<Project[]> {
+  return (await allProjects()).filter((p) => !!p.deleted_at).sort((a, b) => (b.deleted_at! < a.deleted_at! ? -1 : 1));
 });
 export async function getProject(id: string): Promise<Project | null> {
   const supabase = await createClient();

@@ -250,3 +250,4 @@ dt { color: var(--fg3); font-size: 12px; font-weight: 700; padding-top: 2px; } d
 .vobanner { padding: 10px 14px; border-radius: 8px; background: #FBF4EC; border: 1px solid #E8D9C8; font-size: 13px; color: var(--fg2); } .vobanner a { color: var(--bronze); font-weight: 700; } .vobanner b { color: var(--navy); }
 .vobanner.done { background: #DDF3E8; border-color: #BFE3D0; color: #1E6B49; }
 select.vo-on { border-color: var(--bronze); background: #FBF4EC; font-weight: 700; }
+.vobanner.removed { background: #FBE3E1; border-color: #F1C7C3; color: #7A2A25; } .vobanner.removed b { color: #9E2B25; }

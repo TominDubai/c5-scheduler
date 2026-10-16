@@ -30,6 +30,8 @@ export type Project = {
   contractor: string | null; pm: string | null; pm2: string | null; designer: string | null; estimator: string | null; days_since_enquiry: number | null;
   // VO enquiries: which live project this quote belongs to (filled in by getProjects from the projects table)
   parent_project_id: string | null; parent_name: string | null; parent_enquiry_no: string | null;
+  // soft delete (filled in by getProjects from the projects table): removed projects stay in the database but leave every screen
+  deleted_at: string | null; deleted_reason: string | null; deleted_by: string | null;
   project_value: number; vo_count: number; days_to_completion: number | null; duration_days: number | null; days_delayed: number | null; status_since: string | null;
 };
 export type Person = { id: string; name: string; full_name: string | null; role: string; email: string | null; whatsapp: string | null; is_active: boolean; can_edit_estimation: boolean; can_edit_projects: boolean; can_manage_team: boolean };

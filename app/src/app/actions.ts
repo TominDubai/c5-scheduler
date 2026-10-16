@@ -158,6 +158,25 @@ export async function deleteVariation(projectId: string, id: string) {
   return { ok: true };
 }
 
+// ---------- remove / restore (soft delete, db/012) ----------
+export async function removeProject(id: string, _prev: unknown, fd: FormData) {
+  const supabase = await createClient();
+  const reason = nz(fd.get("reason"));
+  if (!reason) return { error: "Say why it's being removed (e.g. duplicate, entered by mistake, test)." };
+  const { error } = await supabase.from("projects").update({ deleted_at: new Date().toISOString(), deleted_reason: reason }).eq("id", id);
+  if (error) return { error: error.message };
+  bust(id); revalidatePath("/meetings");
+  redirect("/list?show=removed");
+}
+
+export async function restoreProject(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("projects").update({ deleted_at: null }).eq("id", id);
+  if (error) return { error: error.message };
+  bust(id); revalidatePath("/meetings");
+  return { ok: true };
+}
+
 // ---------- team ----------
 const ROLES = ["PM", "DESIGNER", "TECHNICAL_DESIGNER", "ESTIMATOR", "MANAGEMENT", "ADMIN"];
 const email = (v: FormDataEntryValue | null) => { const s = nz(v)?.toLowerCase() ?? null; if (s && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) throw new Error("That email address doesn't look right."); return s; };

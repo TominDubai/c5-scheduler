@@ -53,6 +53,8 @@ function describe(c: Change): string {
   const vo = (s: string | null) => { const [d, v] = (s ?? "").split(" | "); return `${d || "no description"} (${fmtAed(v ?? null)})`; };
   switch (c.kind) {
     case "created": return "New project created";
+    case "removed": return `Project removed from the board — ${c.new_value ?? "no reason given"}`;
+    case "restored": return "Project restored to the board";
     case "meeting_created": return "You've been added to this meeting";
     case "meeting_cancelled": return "Meeting cancelled";
     case "meeting_restored": return "Meeting is back on";

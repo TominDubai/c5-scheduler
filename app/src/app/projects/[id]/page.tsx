@@ -4,6 +4,7 @@ import Shell from "@/components/Shell";
 import Failed from "@/components/Failed";
 import ProjectForm from "@/components/ProjectForm";
 import Variations from "@/components/Variations";
+import RemoveProject, { RemovedBanner } from "@/components/RemoveProject";
 import { getProject, getPeople, getContractors, getMe, getProjectMeetings, getProjects } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { STAGES, ORDER, LABEL, aed, fmtD, title, tone, delayText, hm, fmtDay, todayDubai, LOCATION_LABEL, byEnq, type Variation, type History } from "@/lib/model";
@@ -20,7 +21,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
   ]);
   if (!p) notFound();
   const t = tone(p);
-  const canEdit = me.canProjects || (me.canEstimation && p.status === "QUOTE");
+  const canEdit = !p.deleted_at && (me.canProjects || (me.canEstimation && p.status === "QUOTE"));
   const history = (hist ?? []) as (History & { who: { name: string } | null })[];
   const live = all.filter((x) => !["QUOTE", "LOST", "COMPLETED", "MERGED"].includes(x.status)).sort(byEnq).map((x) => ({ id: x.id, name: x.name, enquiry_no: x.enquiry_no }));
   const voNo = p.status === "MERGED" ? (await supabase.from("variations").select("vo_no").eq("source_enquiry_id", p.id).maybeSingle()).data?.vo_no ?? null : null;
@@ -32,6 +33,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
           <div><h1>{title(p.name)}</h1><div className="client">{title(p.client)}{p.contractor ? ` · via ${p.contractor}` : ""}</div></div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}><span className={`status s-${p.status}`}>{LABEL[p.status]}</span><span className={`pill ${t}`}>{delayText(p)}</span></div>
         </div>
+        {p.deleted_at && <RemovedBanner project={p} canManage={me.canTeam} />}
         {p.parent_project_id && (
           <div className={`vobanner${p.status === "MERGED" ? " done" : ""}`}>
             {p.status === "MERGED"
@@ -58,7 +60,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
               <dt>In this stage since</dt><dd>{fmtD(p.status_since)}</dd>
             </dl>
           </div>
-          <Variations projectId={p.id} signedQuote={p.signed_quote} vos={(vos ?? []) as Variation[]} canEdit={me.canProjects} />
+          <Variations projectId={p.id} signedQuote={p.signed_quote} vos={(vos ?? []) as Variation[]} canEdit={me.canProjects && !p.deleted_at} />
         </div>
         {canEdit ? (
           <div className="panel">
@@ -73,7 +75,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
             <dt>Quoted value</dt><dd>{aed(p.quoted_value)}</dd>
             <dt>Folder</dt><dd>{p.folder_path ?? "—"}</dd>
             <dt>Notes</dt><dd>{p.notes ?? "—"}</dd>
-          </dl><p className="note">You can view this project but not edit it.</p></div>
+          </dl><p className="note">{p.deleted_at ? "This project has been removed; restore it to edit." : "You can view this project but not edit it."}</p></div>
         )}
         <div className="panel">
           <h2>Status history</h2>
@@ -105,6 +107,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
             </ul>
           )}
         </div>
+        {me.canTeam && !p.deleted_at && <RemoveProject project={p} />}
       </div>
     </Shell>
   );
