@@ -2,7 +2,7 @@ import Shell from "@/components/Shell";
 import Failed from "@/components/Failed";
 import MeetingsWeek from "@/components/MeetingsWeek";
 import { getMeetings, getPeople, getProjects } from "@/lib/data";
-import { addDays, todayDubai, weekStart, WEEK_DAYS } from "@/lib/model";
+import { addDays, todayDubai, weekStart, WEEK_DAYS, byEnq } from "@/lib/model";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,7 @@ async function Inner_MeetingsPage({ searchParams }: { searchParams: Promise<{ w?
   const start = weekStart(/^\d{4}-\d{2}-\d{2}$/.test(w ?? "") ? (w as string) : today);
   const end = addDays(start, WEEK_DAYS - 1);
   const [meetings, people, projects] = await Promise.all([getMeetings(start, end), getPeople(), getProjects()]);
-  const live = projects.filter((p) => !["COMPLETED", "LOST"].includes(p.status)).map((p) => ({ id: p.id, name: p.name, enquiry_no: p.enquiry_no }));
+  const live = projects.filter((p) => !["COMPLETED", "LOST"].includes(p.status)).sort(byEnq).map((p) => ({ id: p.id, name: p.name, enquiry_no: p.enquiry_no }));
   return (
     <Shell active="meetings">
       <main>

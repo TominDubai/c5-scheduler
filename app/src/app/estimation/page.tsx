@@ -4,7 +4,7 @@ import EstimationBoard from "@/components/EstimationBoard";
 import EnquiryForm from "@/components/EnquiryForm";
 import { getProjects, getPeople, getContractors, getMe } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import { aedS } from "@/lib/model";
+import { aedS, byEnq } from "@/lib/model";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,7 @@ async function Inner_EstimationPage() {
   const supabase = await createClient();
   const [all, people, contractors, me, { data: nextNo }] = await Promise.all([getProjects(), getPeople(), getContractors(), getMe(), supabase.rpc("next_enquiry_no")]);
   const quotes = all.filter((p) => p.status === "QUOTE");
-  const live = all.filter((p) => !["QUOTE", "LOST", "COMPLETED", "MERGED"].includes(p.status)).map((p) => ({ id: p.id, name: p.name, enquiry_no: p.enquiry_no, client: p.client }));
+  const live = all.filter((p) => !["QUOTE", "LOST", "COMPLETED", "MERGED"].includes(p.status)).sort(byEnq).map((p) => ({ id: p.id, name: p.name, enquiry_no: p.enquiry_no, client: p.client }));
   const open = quotes.filter((p) => p.quote_stage !== "SUBMITTED");
   const submitted = quotes.filter((p) => p.quote_stage === "SUBMITTED");
   const oldest = open.reduce((m, p) => Math.max(m, p.days_since_enquiry ?? 0), 0);

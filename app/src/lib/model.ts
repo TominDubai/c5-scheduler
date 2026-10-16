@@ -102,3 +102,13 @@ export function weekStart(iso: string) {
 }
 export const fmtDay = (iso: string) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 export const fmtDayLong = (iso: string) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+
+/** Sort key for enquiry numbers so pickers run chronologically: old plain numbers (2243) first, then YY-NNN (26-024…); no number last. */
+export function enqKey(no: string | null | undefined): number {
+  if (!no) return Number.MAX_SAFE_INTEGER;
+  const m = no.trim().match(/^(\d{2})-(\d{1,4})/);
+  if (m) return (2000 + parseInt(m[1], 10)) * 10000 + parseInt(m[2], 10);
+  const n = parseInt(no.replace(/\D/g, ""), 10);
+  return isNaN(n) ? Number.MAX_SAFE_INTEGER - 1 : n;
+}
+export const byEnq = <T extends { enquiry_no: string | null; name: string }>(a: T, b: T) => enqKey(a.enquiry_no) - enqKey(b.enquiry_no) || a.name.localeCompare(b.name);

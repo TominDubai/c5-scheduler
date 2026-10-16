@@ -6,7 +6,7 @@ import ProjectForm from "@/components/ProjectForm";
 import Variations from "@/components/Variations";
 import { getProject, getPeople, getContractors, getMe, getProjectMeetings, getProjects } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import { STAGES, ORDER, LABEL, aed, fmtD, title, tone, delayText, hm, fmtDay, todayDubai, LOCATION_LABEL, type Variation, type History } from "@/lib/model";
+import { STAGES, ORDER, LABEL, aed, fmtD, title, tone, delayText, hm, fmtDay, todayDubai, LOCATION_LABEL, byEnq, type Variation, type History } from "@/lib/model";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
   const t = tone(p);
   const canEdit = me.canProjects || (me.canEstimation && p.status === "QUOTE");
   const history = (hist ?? []) as (History & { who: { name: string } | null })[];
-  const live = all.filter((x) => !["QUOTE", "LOST", "COMPLETED", "MERGED"].includes(x.status)).map((x) => ({ id: x.id, name: x.name, enquiry_no: x.enquiry_no }));
+  const live = all.filter((x) => !["QUOTE", "LOST", "COMPLETED", "MERGED"].includes(x.status)).sort(byEnq).map((x) => ({ id: x.id, name: x.name, enquiry_no: x.enquiry_no }));
   const voNo = p.status === "MERGED" ? (await supabase.from("variations").select("vo_no").eq("source_enquiry_id", p.id).maybeSingle()).data?.vo_no ?? null : null;
   return (
     <Shell>
