@@ -65,11 +65,11 @@ function Form({ draft, people, projects, onClose }: { draft: Draft; people: Pers
         <div className="field wide">
           <label>Where</label>
           <div className="segs">
-            {(["ROOM", "SITE"] as MeetingLocation[]).map((l) => (
+            {(["ROOM", "SITE", "ONLINE"] as MeetingLocation[]).map((l) => (
               <label key={l} className={"seg2" + (loc === l ? " on" : "")}><input type="radio" name="location" value={l} checked={loc === l} onChange={() => setLoc(l)} />{LOCATION_LABEL[l]}</label>
             ))}
           </div>
-          <small className="hint">{loc === "ROOM" ? "The room can't be double-booked — you'll be told if it's taken." : "Put the site address in the notes."}</small>
+          <small className="hint">{loc === "ROOM" ? "The room can't be double-booked — you'll be told if it's taken." : loc === "SITE" ? "Put the site address in the notes." : "Put the Teams / Zoom / Meet link in the notes."}</small>
         </div>
         <div className="field"><label>Date</label><input type="date" name="meeting_date" defaultValue={draft.meeting_date} required /></div>
         <div className="field times"><label>Time</label><div><input type="time" name="start_time" defaultValue={hm(draft.start_time) || "09:00"} step={900} required /><span>to</span><input type="time" name="end_time" defaultValue={hm(draft.end_time) || "10:00"} step={900} required /></div></div>
@@ -83,7 +83,7 @@ function Form({ draft, people, projects, onClose }: { draft: Draft; people: Pers
             ))}
           </div>
         </div>
-        <div className="field wide"><label>Notes <small>{loc === "SITE" ? "site address, what it's about" : "agenda, what it's about"}</small></label><textarea name="notes" rows={3} defaultValue={draft.notes ?? ""} /></div>
+        <div className="field wide"><label>Notes <small>{loc === "SITE" ? "site address, what it's about" : loc === "ONLINE" ? "meeting link, what it's about" : "agenda, what it's about"}</small></label><textarea name="notes" rows={3} defaultValue={draft.notes ?? ""} /></div>
         <div className="actions">
           <button className="btn bronze" disabled={pending}>{pending ? "Saving…" : draft.id ? "Save changes" : "Book it"}</button>
           <button type="button" className="btn ghost" onClick={() => onClose()}>Close</button>
@@ -105,6 +105,8 @@ export default function MeetingsWeek({ start, meetings, people, projects, today 
   const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => { scroller.current?.scrollTo({ top: (DAY_START - GRID_START) * HOUR - 6 }); }, [start]); // open on the working day
   const roomN = meetings.filter((m) => m.location === "ROOM").length;
+  const siteN = meetings.filter((m) => m.location === "SITE").length;
+  const onlineN = meetings.length - roomN - siteN;
   const close = (saved?: boolean) => { setDraft(null); if (saved) router.refresh(); };
 
   const slotClick = (day: string, lane: MeetingLocation, e: React.MouseEvent<HTMLDivElement>) => {
@@ -121,25 +123,25 @@ export default function MeetingsWeek({ start, meetings, people, projects, today 
         <Link href="/meetings" className="btn ghost sm">This week</Link>
         <Link href={`/meetings?w=${addDays(start, 7)}`} className="btn ghost sm">Next ›</Link>
         <h2>{fmtDay(days[0])} – {fmtDay(days[days.length - 1])}</h2>
-        <span className="mlegend"><i className="room" /> Meeting room · {roomN} booked <i className="site" /> On site · {meetings.length - roomN}</span>
+        <span className="mlegend"><i className="room" /> Meeting room · {roomN} booked <i className="site" /> On site · {siteN} <i className="online" /> Online · {onlineN}</span>
         <button className="btn bronze sm" style={{ marginLeft: "auto" }} onClick={() => setDraft({ meeting_date: days.includes(today) ? today : days[0], location: "ROOM" })}>+ Meeting</button>
       </div>
 
       {/* desktop: week grid */}
       <div className="mgrid" ref={scroller} style={{ gridTemplateColumns: `48px repeat(${WEEK_DAYS}, minmax(0, 1fr))` }}>
         <div className="maxis mhead" />
-        {days.map((d) => <div key={d} className={"mhead" + (d === today ? " today" : "")}><b>{fmtDay(d).split(" ")[0]}</b><span>{fmtDay(d).replace(/^\w+ /, "")}</span><div className="lanes"><em>Room</em><em>Site</em></div></div>)}
+        {days.map((d) => <div key={d} className={"mhead" + (d === today ? " today" : "")}><b>{fmtDay(d).split(" ")[0]}</b><span>{fmtDay(d).replace(/^\w+ /, "")}</span><div className="lanes"><em>Room</em><em>Site / online</em></div></div>)}
         <div className="maxis">{hours.map((h) => <span key={h} style={{ top: (h - GRID_START) * HOUR }}>{String(h).padStart(2, "0")}:00</span>)}</div>
         {days.map((d) => {
           const ms = byDay.get(d) ?? [];
-          const lanes: MeetingLocation[] = ["ROOM", "SITE"];
+          const lanes: MeetingLocation[] = ["ROOM", "SITE"]; // the second lane also carries ONLINE meetings
           return (
             <div key={d} className={"mday" + (d === today ? " today" : "")} style={{ height: (GRID_END - GRID_START) * HOUR }}>
               <i className="offhours" style={{ top: 0, height: (DAY_START - GRID_START) * HOUR }} />
               <i className="offhours" style={{ top: (DAY_END - GRID_START) * HOUR, height: (GRID_END - DAY_END) * HOUR }} />
               {hours.slice(1).map((h) => <i key={h} className="hline" style={{ top: (h - GRID_START) * HOUR }} />)}
-              {lanes.map((lane) => { const lm = ms.filter((m) => m.location === lane); const pos = layout(lm); return (
-                <div key={lane} className={`mlane ${lane.toLowerCase()}`} onClick={(e) => slotClick(d, lane, e)} title={`Click to book: ${LOCATION_LABEL[lane]}`}>
+              {lanes.map((lane) => { const lm = ms.filter((m) => lane === "ROOM" ? m.location === "ROOM" : m.location !== "ROOM"); const pos = layout(lm); return (
+                <div key={lane} className={`mlane ${lane.toLowerCase()}`} onClick={(e) => slotClick(d, lane, e)} title={lane === "ROOM" ? "Click to book the meeting room" : "Click to add a site or online meeting"}>
                   {lm.map((m) => <Block key={m.id} m={m} pos={pos.get(m.id)!} onOpen={() => setDraft(m)} />)}
                 </div>
               ); })}

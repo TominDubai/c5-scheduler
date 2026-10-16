@@ -12,8 +12,8 @@ const MAX_AGE_MS = 7 * 24 * 3600 * 1000; // never email about something older th
 type Change = { id: number; project_id: string | null; meeting_id: string | null; kind: string; field: string | null; old_value: string | null; new_value: string | null; changed_by: string | null; changed_at: string };
 type Proj = { id: string; enquiry_no: string | null; name: string; client: string | null; status: Status; pm_id: string | null; pm2_id: string | null; designer_id: string | null; estimator_id: string | null };
 type Person = { id: string; name: string; full_name: string | null; email: string | null; is_active: boolean };
-type Meet = { id: string; title: string; project_id: string | null; project_name: string | null; location: "ROOM" | "SITE"; meeting_date: string; start_time: string; end_time: string; notes: string | null; cancelled: boolean; created_by: string | null; attendee_ids: string[]; attendees: string[] };
-const LOC: Record<string, string> = { ROOM: "Meeting room", SITE: "On site" };
+type Meet = { id: string; title: string; project_id: string | null; project_name: string | null; location: "ROOM" | "SITE" | "ONLINE"; meeting_date: string; start_time: string; end_time: string; notes: string | null; cancelled: boolean; created_by: string | null; attendee_ids: string[]; attendees: string[] };
+const LOC: Record<string, string> = { ROOM: "Meeting room", SITE: "On site", ONLINE: "Online" };
 const hm = (t: string) => t.slice(0, 5);
 const fmtDay = (iso: string) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 const tc = (n: string) => n.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());

@@ -98,7 +98,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
                   <time>{fmtDay(m.meeting_date)}</time>
                   <span className="enq">{hm(m.start_time)}–{hm(m.end_time)}</span>
                   <Link href={`/meetings?w=${m.meeting_date}`} style={{ fontWeight: 700, color: "var(--navy)" }}>{m.title}</Link>
-                  <span className={`pill ${m.location === "ROOM" ? "soon" : "done"}`}>{LOCATION_LABEL[m.location]}</span>
+                  <span className={`pill ${m.location === "ROOM" ? "soon" : m.location === "SITE" ? "done" : ""}`}>{LOCATION_LABEL[m.location]}</span>
                   <span className="by">{m.attendees.map(title).join(", ")}</span>
                 </li>
               ); })}

@@ -74,8 +74,8 @@ export function dueTone(due: string | null) {
 }
 
 // ---------- meetings ----------
-export type MeetingLocation = "ROOM" | "SITE";
-export const LOCATION_LABEL: Record<MeetingLocation, string> = { ROOM: "Meeting room", SITE: "On site" };
+export type MeetingLocation = "ROOM" | "SITE" | "ONLINE";
+export const LOCATION_LABEL: Record<MeetingLocation, string> = { ROOM: "Meeting room", SITE: "On site", ONLINE: "Online" };
 export type Meeting = {
   id: string; title: string; project_id: string | null; location: MeetingLocation;
   meeting_date: string; start_time: string; end_time: string; notes: string | null; cancelled: boolean;

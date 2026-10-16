@@ -6,6 +6,7 @@ set search_path = scheduler, public;
 create extension if not exists btree_gist with schema extensions;
 
 create type meeting_location as enum ('ROOM', 'SITE');
+-- 16 Oct 2026 (asked for by the team): alter type meeting_location add value if not exists 'ONLINE';  -- applied live
 
 create table meetings (
   id            uuid primary key default gen_random_uuid(),
