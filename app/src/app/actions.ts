@@ -166,7 +166,7 @@ export async function removeProject(id: string, _prev: unknown, fd: FormData) {
   const { error } = await supabase.from("projects").update({ deleted_at: new Date().toISOString(), deleted_reason: reason }).eq("id", id);
   if (error) return { error: error.message };
   bust(id); revalidatePath("/meetings");
-  redirect("/list?show=removed");
+  redirect(`/list?show=removed&done=${id}`);
 }
 
 export async function restoreProject(id: string) {

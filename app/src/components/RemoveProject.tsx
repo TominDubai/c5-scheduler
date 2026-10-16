@@ -33,7 +33,7 @@ export default function RemoveProject({ project }: { project: Project }) {
       ) : (
         <form action={formAction} className="vo-form" style={{ flexWrap: "wrap" }}>
           <input name="reason" autoFocus required maxLength={120} placeholder="Why? e.g. duplicate, entered by mistake, test" aria-label="Reason for removing" style={{ flex: 1, minWidth: 240 }} />
-          <button className="btn sm danger" disabled={pending}>{pending ? "Removing…" : `Yes, remove ${title(project.name)}`}</button>
+          <button className="btn sm danger" style={{ background: "var(--crit)", color: "#fff", borderColor: "var(--crit)" }} disabled={pending}>{pending ? "Removing…" : `Yes, remove ${title(project.name)}`}</button>
           <button type="button" className="btn sm ghost" disabled={pending} onClick={() => setOpen(false)}>Cancel</button>
           {state?.error && <span className="msg err" style={{ width: "100%" }}>{state.error}</span>}
         </form>

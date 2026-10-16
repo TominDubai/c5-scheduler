@@ -10,15 +10,17 @@ import { getProjects, getRemovedProjects, getMe, pmCounts, applyFilters } from "
 
 export const dynamic = "force-dynamic";
 
-async function Inner_ListPage({ searchParams }: { searchParams: Promise<{ pm?: string; q?: string; show?: string }> }) {
+async function Inner_ListPage({ searchParams }: { searchParams: Promise<{ pm?: string; q?: string; show?: string; done?: string }> }) {
   const sp = await searchParams;
   const [all, removed, me] = await Promise.all([getProjects(), getRemovedProjects(), getMe()]);
   if (sp.show === "removed") {
+    const done = sp.done ? removed.find((p) => p.id === sp.done) : null;
     return (
       <Shell active="list">
         <main>
           <div className="page">
             <div className="crumbs"><Link href="/list">List</Link> / Removed</div>
+            {done && <div className="vobanner done"><b>Done — {done.name.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())} has been removed.</b> It's off the board, list and all counts. Changed your mind? Use Restore on its row below.</div>}
             <div className="head"><div><h1>Removed projects</h1><div className="client">{removed.length === 0 ? "Nothing has been removed." : `${removed.length} off the board. Nothing is deleted — ${me.canTeam ? "restore any of them below." : "Tom, Darren or Jinky can restore them."}`}</div></div></div>
             <RemovedTable projects={removed} canManage={me.canTeam} />
           </div>
