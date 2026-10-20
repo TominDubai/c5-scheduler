@@ -251,3 +251,8 @@ dt { color: var(--fg3); font-size: 12px; font-weight: 700; padding-top: 2px; } d
 .vobanner.done { background: #DDF3E8; border-color: #BFE3D0; color: #1E6B49; }
 select.vo-on { border-color: var(--bronze); background: #FBF4EC; font-weight: 700; }
 .vobanner.removed { background: #FBE3E1; border-color: #F1C7C3; color: #7A2A25; } .vobanner.removed b { color: #9E2B25; }
+
+/* PWA install */
+.install-ios { position: relative; display: inline-flex; }
+.install-ios .hint { position: absolute; top: calc(100% + 8px); right: 0; z-index: 6; background: var(--navy); color: #fff; font-size: 12px; padding: 8px 12px; border-radius: 8px; white-space: nowrap; box-shadow: 0 6px 18px rgba(16,44,82,.2); }
+@media (display-mode: standalone) { .top { padding-top: calc(12px + env(safe-area-inset-top)); } }

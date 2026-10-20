@@ -2,6 +2,7 @@ import Link from "next/link";
 import { signOut } from "@/app/actions";
 import { getMe, getUser } from "@/lib/data";
 import { title } from "@/lib/model";
+import InstallApp from "@/components/InstallApp";
 
 export function Monogram() {
   return <img className="mono" src="/c5-mark.png" alt="Concept 5" width={34} height={34} />;
@@ -22,6 +23,7 @@ export default async function Shell({ active, children, tools }: { active?: "boa
         </nav>
         <div className="tools">
           {tools}
+          <InstallApp />
           {me.canProjects && <Link href="/projects/new" className="btn sm bronze">+ Project</Link>}
           {user && <form action={signOut} className="userform"><span className="user">{title(me.name) || user.email}</span><button className="btn ghost sm" title={user.email ?? ""}>Sign out</button></form>}
         </div>
