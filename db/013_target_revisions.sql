@@ -52,7 +52,8 @@ begin
   return new;
 end $$;
 
--- Live DB has both of these (a redundant BEFORE INSERT one named trg_target_revision also exists there and is a no-op).
+-- Note: the live DB (applied 21 Oct) has `trg_target_revision` BEFORE INSERT OR UPDATE (insert half is a no-op via tg_when)
+-- plus `trg_target_revision_ins`; a fresh install uses the two below. Same behaviour either way.
 create trigger trg_target_revision_upd before update on projects for each row execute function log_target_revision();
 create trigger trg_target_revision_ins after insert on projects for each row execute function log_target_revision();
 
