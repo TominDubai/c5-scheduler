@@ -51,7 +51,25 @@ select:focus, input:focus, textarea:focus { outline: 2px solid var(--bronze); ou
 
 /* board */
 main { flex: 1; min-height: 0; display: flex; }
-.board { display: flex; gap: 16px; padding: 14px 24px 28px; overflow-x: auto; scroll-snap-type: x proximity; width: 100%; align-items: flex-start; }
+/* On the Board and Estimation pages the app fills the window and the board itself is the scroll area, so the
+   horizontal scrollbar sits at the bottom of the window where you can see it, and each column scrolls on its own. */
+.app:has(> main.fill) { height: 100dvh; min-height: 0; }
+main.fill { min-height: 0; overflow: hidden; }
+.board { display: flex; gap: 16px; padding: 14px 24px 18px; overflow: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; width: 100%; min-width: 0; height: 100%; align-items: flex-start; scrollbar-gutter: stable; }
+main.fill .col { max-height: 100%; }
+/* List: the table is the scroll area, header row stays put, horizontal scrollbar stays at the bottom of the window */
+main.fill.column { flex-direction: column; }
+main.fill .listview { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: visible; }
+main.fill .tablewrap { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
+.tablewrap::-webkit-scrollbar { width: 10px; height: 10px; }
+.tablewrap::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 999px; border: 2px solid var(--bg2); }
+.tablewrap::-webkit-scrollbar-thumb:hover { background: var(--fg3); }
+main.fill .cards { overflow-y: auto; min-height: 0; padding-right: 4px; scrollbar-gutter: stable; }
+/* always-visible, slim scrollbars so nobody has to hunt for them */
+.board::-webkit-scrollbar, .cards::-webkit-scrollbar { width: 10px; height: 10px; }
+.board::-webkit-scrollbar-thumb, .cards::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 999px; border: 2px solid var(--bg); }
+.board::-webkit-scrollbar-thumb:hover, .cards::-webkit-scrollbar-thumb:hover { background: var(--fg3); }
+.board::-webkit-scrollbar-track { background: transparent; }
 .col { flex: 0 0 300px; scroll-snap-align: start; display: flex; flex-direction: column; border-radius: var(--r); transition: background .15s; }
 .col.over { background: var(--bg3); }
 .col.side { opacity: .75; }

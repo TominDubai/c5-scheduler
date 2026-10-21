@@ -17,7 +17,7 @@ async function Inner_BoardPage({ searchParams }: { searchParams: Promise<{ pm?: 
     <Shell active="board" tools={<Suspense><Filters pms={pmCounts(all)} /></Suspense>}>
       <Summary projects={all} />
       <TodayMeetings />
-      <main><Board key={JSON.stringify(sp) + all.map((p) => p.updated_at).join()} projects={rows} canEdit={me.canProjects} /></main>
+      <main className="fill"><Board key={JSON.stringify(sp) + all.map((p) => p.updated_at).join()} projects={rows} canEdit={me.canProjects} /></main>
     </Shell>
   );
 }

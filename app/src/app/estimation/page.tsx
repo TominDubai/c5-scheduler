@@ -28,7 +28,7 @@ async function Inner_EstimationPage() {
         </div>
         {me.canEstimation && <EnquiryForm nextNo={(nextNo as string) ?? ""} people={people} contractors={contractors} liveProjects={live} />}
       </section>
-      <main><EstimationBoard key={all.map((p) => p.updated_at).join()} projects={quotes} canEdit={me.canEstimation} /></main>
+      <main className="fill"><EstimationBoard key={all.map((p) => p.updated_at).join()} projects={quotes} canEdit={me.canEstimation} /></main>
     </Shell>
   );
 }

@@ -31,7 +31,7 @@ async function Inner_ListPage({ searchParams }: { searchParams: Promise<{ pm?: s
   return (
     <Shell active="list" tools={<Suspense><Filters pms={pmCounts(all)} /></Suspense>}>
       <Summary projects={all} />
-      <main>
+      <main className="fill column">
         <ListTable projects={applyFilters(all, sp)} />
         {removed.length > 0 && <p className="note" style={{ padding: "10px 18px" }}><Link href="/list?show=removed" style={{ color: "var(--bronze)", fontWeight: 700 }}>{removed.length} removed project{removed.length === 1 ? "" : "s"}</Link> — not shown or counted.</p>}
       </main>
