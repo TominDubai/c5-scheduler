@@ -16,11 +16,12 @@ async function withParents(rows: Project[]): Promise<Project[]> {
     const cur = rev.get(r.project_id);
     rev.set(r.project_id, { target_rev: r.rev_no, target_rev0_date: cur ? cur.target_rev0_date : r.target_date });
   }
+  const counts = await getItemCounts();
   const byId = new Map(rows.map((p) => [p.id, p]));
   const missing = [...new Set([...parentOf.values()])].filter((id) => !byId.has(id));
   const extra = missing.length ? (await supabase.from("projects").select("id, name, enquiry_no").in("id", missing)).data ?? [] : [];
   const names = new Map<string, { name: string; enquiry_no: string | null }>([...rows.map((p) => [p.id, { name: p.name, enquiry_no: p.enquiry_no }] as const), ...extra.map((e) => [e.id as string, { name: e.name as string, enquiry_no: e.enquiry_no as string | null }] as const)]);
-  return rows.map((p) => { const pid = parentOf.get(p.id) ?? null; const par = pid ? names.get(pid) : null; const e = extras.get(p.id); return { ...p, parent_project_id: pid, parent_name: par?.name ?? null, parent_enquiry_no: par?.enquiry_no ?? null, deleted_at: e?.deleted_at ?? null, deleted_reason: e?.deleted_reason ?? null, deleted_by: e?.deleted_by ?? null, target_rev: rev.get(p.id)?.target_rev ?? null, target_rev0_date: rev.get(p.id)?.target_rev0_date ?? null }; });
+  return rows.map((p) => { const pid = parentOf.get(p.id) ?? null; const par = pid ? names.get(pid) : null; const e = extras.get(p.id); return { ...p, parent_project_id: pid, parent_name: par?.name ?? null, parent_enquiry_no: par?.enquiry_no ?? null, deleted_at: e?.deleted_at ?? null, deleted_reason: e?.deleted_reason ?? null, deleted_by: e?.deleted_by ?? null, target_rev: rev.get(p.id)?.target_rev ?? null, target_rev0_date: rev.get(p.id)?.target_rev0_date ?? null, items: counts.get(p.id) ?? null }; });
 }
 async function allProjects(): Promise<Project[]> {
   const supabase = await createClient();
@@ -63,7 +64,7 @@ export const getMe = cache(async function getMe(): Promise<Me> {
   const { data, error } = await supabase.rpc("me");
   if (error) throw new Error(`me(): ${error.message}`);
   const p = data as Person | null;
-  return { name: p?.name ?? "", canEstimation: !!p?.can_edit_estimation, canProjects: !!p?.can_edit_projects, canTeam: !!p?.can_manage_team };
+  return { id: p?.id ?? null, name: p?.name ?? "", role: p?.role ?? "", canEstimation: !!p?.can_edit_estimation, canProjects: !!p?.can_edit_projects, canTeam: !!p?.can_manage_team, isAdmin: !!p?.is_admin };
 });
 
 export function applyFilters<T extends { name: string; client: string | null; enquiry_no: string | null; pm: string | null; pm2: string | null }>(rows: T[], sp: { pm?: string; q?: string }) {
@@ -96,3 +97,37 @@ export async function getTargetRevisions(projectId: string): Promise<TargetRevis
   const { data } = await supabase.from("target_revisions").select("*, who:people(name)").eq("project_id", projectId).order("rev_no", { ascending: false });
   return (data ?? []) as TargetRevision[];
 }
+
+// ---------- items & production (db/014) ----------
+import type { Item, ItemType, ItemRevision, ItemProductionStage, ItemCounts } from "@/lib/model";
+export const getItemTypes = cache(async function getItemTypes(): Promise<ItemType[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("item_types").select("*").eq("is_active", true).order("sort_order");
+  return (data ?? []) as ItemType[];
+});
+/** items for one project, with every revision and production stage — the project page's Items tab works off this */
+export async function getProjectItems(projectId: string): Promise<{ items: Item[]; revisions: ItemRevision[]; stages: ItemProductionStage[] }> {
+  const supabase = await createClient();
+  const { data: items, error } = await supabase.from("items_live").select("*").eq("project_id", projectId).order("sort_order").order("item_code");
+  if (error) throw new Error(`items_live: ${error.message}`);
+  const ids = (items ?? []).map((i) => i.id as string);
+  if (ids.length === 0) return { items: [], revisions: [], stages: [] };
+  const [{ data: revisions }, { data: stages }] = await Promise.all([
+    supabase.from("item_revisions").select("*").in("item_id", ids).order("rev_no"),
+    supabase.from("item_production_stages").select("*").in("item_id", ids).order("stage_no"),
+  ]);
+  return { items: (items ?? []) as Item[], revisions: (revisions ?? []) as ItemRevision[], stages: (stages ?? []) as ItemProductionStage[] };
+}
+/** every item on every live project — the Drawings tab */
+export const getAllItems = cache(async function getAllItems(): Promise<Item[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("items_live").select("*").is("project_deleted_at", null).not("project_status", "in", "(LOST,MERGED)").order("enquiry_no").order("item_code");
+  if (error) throw new Error(`items_live: ${error.message}`);
+  return (data ?? []) as Item[];
+});
+/** per-project item counts for cards and the dashboard */
+export const getItemCounts = cache(async function getItemCounts(): Promise<Map<string, ItemCounts>> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("project_item_counts").select("*");
+  return new Map(((data ?? []) as (ItemCounts & { project_id: string })[]).map((r) => [r.project_id, r]));
+});

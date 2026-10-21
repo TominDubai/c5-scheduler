@@ -6,7 +6,9 @@ import ProjectForm from "@/components/ProjectForm";
 import Variations from "@/components/Variations";
 import RemoveProject, { RemovedBanner } from "@/components/RemoveProject";
 import TargetRevisions from "@/components/TargetRevisions";
-import { getProject, getPeople, getContractors, getMe, getProjectMeetings, getProjects, getTargetRevisions } from "@/lib/data";
+import ItemsPanel from "@/components/ItemsPanel";
+import { Suspense } from "react";
+import { getProject, getPeople, getContractors, getMe, getProjectMeetings, getProjects, getTargetRevisions, getProjectItems, getItemTypes } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { STAGES, ORDER, LABEL, aed, fmtD, title, tone, delayText, hm, fmtDay, todayDubai, LOCATION_LABEL, byEnq, type Variation, type History } from "@/lib/model";
 
@@ -15,8 +17,8 @@ export const dynamic = "force-dynamic";
 async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const [p, people, contractors, me, meetings, all, revisions, { data: vos }, { data: hist }] = await Promise.all([
-    getProject(id), getPeople(), getContractors(), getMe(), getProjectMeetings(id), getProjects(), getTargetRevisions(id),
+  const [p, people, contractors, me, meetings, all, revisions, itemsData, itemTypes, { data: vos }, { data: hist }] = await Promise.all([
+    getProject(id), getPeople(), getContractors(), getMe(), getProjectMeetings(id), getProjects(), getTargetRevisions(id), getProjectItems(id), getItemTypes(),
     supabase.from("variations").select("*").eq("project_id", id).order("vo_no"),
     supabase.from("status_history").select("*, who:people(name)").eq("project_id", id).order("changed_at", { ascending: false }),
   ]);
@@ -63,6 +65,12 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
           </div>
           <Variations projectId={p.id} signedQuote={p.signed_quote} vos={(vos ?? []) as Variation[]} canEdit={me.canProjects && !p.deleted_at} />
         </div>
+        {p.status !== "QUOTE" && p.status !== "LOST" && p.status !== "MERGED" && (
+          <>
+            {!p.designer_id && <div className="vobanner"><b>No designer assigned.</b> The project designer creates the item list — assign one in the form below before items go in.</div>}
+            <Suspense><ItemsPanel projectId={p.id} projectDesignerId={p.designer_id} data={itemsData} types={itemTypes} people={people} me={me} locked={!!p.deleted_at} /></Suspense>
+          </>
+        )}
         {canEdit ? (
           <div className="panel">
             <h2>Edit project</h2>

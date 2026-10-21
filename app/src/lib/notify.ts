@@ -65,6 +65,13 @@ function describe(c: Change): string {
       const v = (x: string | null) => x == null || x === "" ? "—" : c.field === "location" ? LOC[x] ?? x : c.field === "project" ? tc(x) : x;
       return `${f}: ${v(c.old_value)} → ${v(c.new_value)}`;
     }
+    case "item_created": return `Item added — ${c.field}`;
+    case "item_cancelled": return `Item cancelled — ${c.field}`;
+    case "item_drawing": return `${c.field}: drawing ${c.old_value ? `${c.old_value} → ` : ""}${c.new_value ?? "—"}`;
+    case "item_issued": return `${c.field}: ${c.new_value ? `issued to production ${fmtDate(c.new_value)}` : "issue to production cleared"}`;
+    case "item_designer": return `${c.field}: designer ${tc(c.old_value ?? "—")} → ${tc(c.new_value ?? "—")}`;
+    case "item_material": return `${c.field}: material ${(c.old_value ?? "—").toLowerCase()} → ${(c.new_value ?? "—").toLowerCase()}`;
+    case "item_stage": return `${c.field}: ${(c.old_value ?? "").toLowerCase().replace("_", " ")} → ${(c.new_value ?? "").toLowerCase().replace("_", " ")}`;
     case "vo_added": return `${c.field} added — ${vo(c.new_value)}`;
     case "vo_changed": return `${c.field} changed — ${vo(c.old_value)} → ${vo(c.new_value)}`;
     case "vo_removed": return `${c.field} removed — ${vo(c.old_value)}`;

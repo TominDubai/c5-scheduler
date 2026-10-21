@@ -34,12 +34,27 @@ export type Project = TargetInfo & {
   deleted_at: string | null; deleted_reason: string | null; deleted_by: string | null;
   project_value: number; vo_count: number; days_to_completion: number | null; duration_days: number | null; days_delayed: number | null; status_since: string | null;
 };
-export type Person = { id: string; name: string; full_name: string | null; role: string; email: string | null; whatsapp: string | null; is_active: boolean; can_edit_estimation: boolean; can_edit_projects: boolean; can_manage_team: boolean };
-export type Me = { name: string; canEstimation: boolean; canProjects: boolean; canTeam: boolean };
+export type Person = { id: string; name: string; full_name: string | null; role: string; email: string | null; whatsapp: string | null; is_active: boolean; can_edit_estimation: boolean; can_edit_projects: boolean; can_manage_team: boolean; is_admin: boolean };
+export type Me = { id: string | null; name: string; role: string; canEstimation: boolean; canProjects: boolean; canTeam: boolean; isAdmin: boolean };
+/** Who may do what on items (plan §6). Admins (Tom, Aftab, Darren, Jinky) and project editors can do everything. */
+export function itemRights(me: Me) {
+  const all = me.isAdmin || me.canProjects;
+  const designer = me.role === "DESIGNER" || me.role === "TECHNICAL_DESIGNER";
+  const production = me.role === "PRODUCTION";
+  const pm = me.role === "PM" || me.role === "MANAGEMENT";
+  return {
+    any: all || designer || production || pm,
+    items: all || designer || pm,          // add / edit / cancel items
+    drawing: all || designer,              // revisions, planned submission, drawing started
+    preProduction: all || production || designer, // material, measurements, issued to production
+    factory: all || production,            // stages 1–3
+    site: all || pm,                       // stages 4–6
+  };
+}
 export type Contractor = { id: string; name: string };
 export type Variation = { id: string; project_id: string; vo_no: number; description: string | null; value: number; approved_on: string | null; source_enquiry_id?: string | null };
 // stitched on by the app from target_revisions (projects_live is not rebuilt)
-export type TargetInfo = { target_rev?: number | null; target_rev0_date?: string | null };
+export type TargetInfo = { target_rev?: number | null; target_rev0_date?: string | null; items?: ItemCounts | null };
 export type TargetRevision = { id: number; project_id: string; rev_no: number; target_date: string | null; prev_date: string | null; reason: string | null; set_by: string | null; set_at: string; who?: { name: string } | null };
 export type History = { id: string; from_status: Status | null; to_status: Status; changed_at: string; note: string | null; changed_by: string | null; who?: string | null };
 
@@ -117,3 +132,71 @@ export function enqKey(no: string | null | undefined): number {
   return isNaN(n) ? Number.MAX_SAFE_INTEGER - 1 : n;
 }
 export const byEnq = <T extends { enquiry_no: string | null; name: string }>(a: T, b: T) => enqKey(a.enquiry_no) - enqKey(b.enquiry_no) || a.name.localeCompare(b.name);
+
+// ---------- items & production (db/014) ----------
+export type DrawingStatus = "A" | "B" | "C" | "D" | "UR";
+export const DRAWING_STATUS: [DrawingStatus, string][] = [
+  ["A", "Approved"], ["B", "Approved with comments"], ["C", "Revise & resubmit"], ["D", "Not required / cancelled"], ["UR", "Under review"],
+];
+export const DRAWING_LABEL: Record<DrawingStatus, string> = Object.fromEntries(DRAWING_STATUS) as Record<DrawingStatus, string>;
+export type MaterialStatus = "PENDING" | "APPROVED" | "NA";
+export type ProductionStage = "JOINERY" | "PAINT" | "DELIVERY" | "INSTALL" | "STONE" | "SNAGGING";
+export const PRODUCTION_STAGES: [ProductionStage, string, "factory" | "site"][] = [
+  ["JOINERY", "Joinery", "factory"], ["PAINT", "Paint", "factory"], ["DELIVERY", "Delivery", "factory"],
+  ["INSTALL", "Install", "site"], ["STONE", "Stone", "site"], ["SNAGGING", "Snagging", "site"],
+];
+export const PSTAGE_LABEL: Record<ProductionStage, string> = Object.fromEntries(PRODUCTION_STAGES.map(([k, l]) => [k, l])) as Record<ProductionStage, string>;
+export type StageStatus = "NOT_STARTED" | "IN_PROGRESS" | "DELAYED" | "ON_HOLD" | "COMPLETE";
+export const STAGE_STATUS: [StageStatus, string][] = [["NOT_STARTED", "Not started"], ["IN_PROGRESS", "In progress"], ["DELAYED", "Delayed"], ["ON_HOLD", "On hold"], ["COMPLETE", "Complete"]];
+export const STAGE_STATUS_LABEL: Record<StageStatus, string> = Object.fromEntries(STAGE_STATUS) as Record<StageStatus, string>;
+
+/** One field drives the colours: derived in the database from the drawing state and the six production stages. */
+export type ItemStage = "NOT_STARTED" | "DRAWING" | "SUBMITTED" | "APPROVED" | "ISSUED" | ProductionStage | "COMPLETE" | "CANCELLED";
+export const ITEM_STAGES: [ItemStage, string][] = [
+  ["NOT_STARTED", "Not started"], ["DRAWING", "Drawing"], ["SUBMITTED", "With client"], ["APPROVED", "Approved"], ["ISSUED", "Issued"],
+  ...PRODUCTION_STAGES.map(([k, l]) => [k, l] as [ItemStage, string]), ["COMPLETE", "Complete"], ["CANCELLED", "Cancelled"],
+];
+export const ITEM_STAGE_LABEL: Record<ItemStage, string> = Object.fromEntries(ITEM_STAGES) as Record<ItemStage, string>;
+export const ITEM_STAGE_ORDER: Record<ItemStage, number> = Object.fromEntries(ITEM_STAGES.map(([k], i) => [k, i])) as Record<ItemStage, number>;
+
+export type ItemType = { id: string; name: string; code_letter: string; sort_order: number; is_active: boolean };
+export type Item = {
+  id: string; project_id: string; type_id: string; code_letter: string; seq: number; name: string; area: string | null;
+  designer_id: string | null; drawing_started_date: string | null; planned_submission: string | null;
+  current_revision: number | null; current_status: DrawingStatus | null; material_approval: MaterialStatus;
+  measurements_date: string | null; issued_date: string | null; notes: string | null; cancelled: boolean; sort_order: number;
+  created_by: string | null; updated_by: string | null; created_at: string; updated_at: string;
+  // from items_live
+  item_code: string; drawing_code: string; drawing_code_rev: string; type_name: string;
+  project_name: string; enquiry_no: string | null; project_status: Status; client: string | null; project_deleted_at: string | null;
+  pm_id: string | null; pm: string | null; designer: string | null;
+  stage: ItemStage; last_submitted: string | null; last_returned: string | null;
+  slipping: boolean; earliest_slip: string | null; submission_overdue: boolean; client_overdue: boolean; past_r3: boolean;
+};
+export type ItemRevision = { id: string; item_id: string; rev_no: number; submitted_date: string | null; returned_date: string | null; status: DrawingStatus | null; comments: string | null; created_by: string | null; created_at: string };
+export type ItemProductionStage = { id: string; item_id: string; stage_no: number; stage: ProductionStage; planned_start: string | null; planned_end: string | null; actual_start: string | null; actual_end: string | null; status: StageStatus; na: boolean; notes: string | null; updated_by: string | null; updated_at: string };
+export type ItemCounts = { items_total: number; items_approved: number; items_in_production: number; items_on_site: number; items_complete: number; items_attention: number; earliest_slip: string | null };
+
+/** What needs someone's attention on an item, in priority order. Empty = fine. */
+export function itemFlags(i: Item): { text: string; tone: Tone }[] {
+  const f: { text: string; tone: Tone }[] = [];
+  if (i.cancelled) return f;
+  if (i.current_status === "C") f.push({ text: "Revise & resubmit", tone: "crit" });
+  if (i.current_status === "D") f.push({ text: "Not required", tone: "none" });
+  if (i.submission_overdue) f.push({ text: `R0 overdue ${fmtDShort(i.planned_submission)}`, tone: "crit" });
+  if (i.client_overdue) f.push({ text: `With client since ${fmtDShort(i.last_submitted)}`, tone: "warn" });
+  if (i.slipping) f.push({ text: `Slipping since ${fmtDShort(i.earliest_slip)}`, tone: "crit" });
+  if (i.past_r3) f.push({ text: `R${i.current_revision} — problem drawing`, tone: "warn" });
+  return f;
+}
+/** Tone for the stage chip */
+export function itemTone(i: Pick<Item, "stage" | "cancelled" | "current_status" | "slipping" | "submission_overdue" | "client_overdue">): Tone {
+  if (i.cancelled || i.stage === "CANCELLED") return "none";
+  if (i.stage === "COMPLETE") return "done";
+  if (i.current_status === "C" || i.slipping || i.submission_overdue) return "crit";
+  if (i.client_overdue) return "warn";
+  if (i.stage === "NOT_STARTED") return "none";
+  if (i.stage === "SUBMITTED") return "soon";
+  return "ok";
+}
+export const revLabel = (n: number | null | undefined) => n == null ? "—" : `R${n}`;
