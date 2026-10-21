@@ -32,8 +32,12 @@ button { font: inherit; }
    so pages carrying more filters (Drawings has five) drop to a second row earlier instead of
    overlapping the tabs. Never give this a fixed basis. */
 .tools { display: flex; gap: 8px; margin-left: auto; flex: 1 1 auto; justify-content: flex-end; min-width: 0; align-items: center; flex-wrap: wrap; }
-.tools > select { flex: 0 1 auto; min-width: 120px; }
-.tools > input[type="search"] { flex: 0 1 auto; min-width: 150px; }
+/* A native <select> sizes itself to its LONGEST option, so the project filter (full project names)
+   ballooned to ~350px and shoved the row off the left edge. field-sizing sizes it to the option
+   actually showing; the max-width is the cap for browsers without it, and for a long selection. */
+.tools > select { flex: 0 0 auto; field-sizing: content; min-width: 72px; max-width: 190px; text-overflow: ellipsis; }
+/* the search is the slack in the row: it gives up width first so the buttons stay on one line */
+.tools > input[type="search"] { flex: 1 1 140px; min-width: 110px; }
 select, input, textarea { background: var(--bg); border: 1px solid var(--line2); color: var(--fg); font: 14px var(--font); padding: 8px 12px; border-radius: 999px; min-width: 0; }
 textarea { border-radius: var(--r); }
 input[type="search"] { width: min(280px, 100%); }
