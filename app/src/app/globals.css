@@ -256,3 +256,16 @@ select.vo-on { border-color: var(--bronze); background: #FBF4EC; font-weight: 70
 .install-ios { position: relative; display: inline-flex; }
 .install-ios .hint { position: absolute; top: calc(100% + 8px); right: 0; z-index: 6; background: var(--navy); color: #fff; font-size: 12px; padding: 8px 12px; border-radius: 8px; white-space: nowrap; box-shadow: 0 6px 18px rgba(16,44,82,.2); }
 @media (display-mode: standalone) { .top { padding-top: calc(12px + env(safe-area-inset-top)); } }
+
+/* target completion revisions */
+.rev { display: inline-block; font: 700 11px var(--mono); letter-spacing: .02em; padding: 2px 7px; border-radius: 6px; background: var(--bg3); color: var(--bronze); margin-left: 8px; vertical-align: 1px; }
+.hist.revs li { display: grid; grid-template-columns: 56px 92px auto 1fr auto; gap: 10px; align-items: center; }
+.hist.revs li .rev { margin: 0; text-align: center; }
+.hist.revs li .date { font-variant-numeric: tabular-nums; }
+.hist.revs li.cur .date { color: var(--navy); }
+.hist.revs li:not(.cur) .date { color: var(--fg3); text-decoration: line-through; text-decoration-color: var(--line2); }
+.hist.revs .why { color: var(--fg2); }
+.hist.revs .by { color: var(--fg3); font: 12px var(--mono); white-space: nowrap; }
+.field .revnote { display: block; margin-top: 4px; color: var(--fg3); font-size: 12px; }
+.field.revreason { padding: 10px 12px; border-radius: 10px; background: var(--bg3); }
+@media (max-width: 640px) { .hist.revs li { grid-template-columns: 56px 1fr auto; } .hist.revs .why, .hist.revs .by { grid-column: 1 / -1; } }

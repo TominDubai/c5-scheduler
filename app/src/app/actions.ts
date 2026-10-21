@@ -36,6 +36,7 @@ function projectFields(fd: FormData) {
   if (has("received_date")) out.received_date = nz(fd.get("received_date"));
   if (has("start_date")) out.start_date = nz(fd.get("start_date"));
   if (has("target_date")) out.target_date = nz(fd.get("target_date"));
+  if (has("target_change_reason")) out.target_change_reason = nz(fd.get("target_change_reason"));
   if (has("completed_date")) out.completed_date = nz(fd.get("completed_date"));
   if (has("signed_quote")) out.signed_quote = num(fd.get("signed_quote"));
   if (has("notes")) out.notes = nz(fd.get("notes"));

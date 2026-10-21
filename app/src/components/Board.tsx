@@ -61,7 +61,7 @@ function Card({ p, canEdit, dragging, onDragStart, onDragEnd }: { p: Project; ca
         <span className="who"><b className="av">{ini(p.pm)}</b>{p.pm ? title(p.pm) : "No PM"}{p.pm2 ? ` + ${title(p.pm2)}` : ""}</span>
         <span className="val">{p.project_value ? aedS(p.project_value) : "—"}</span>
       </div>
-      <div className="dates"><span>Start {fmtDShort(p.start_date)}</span><span>Target {fmtDShort(p.target_date)}</span></div>
+      <div className="dates"><span>Start {fmtDShort(p.start_date)}</span><span>Target {fmtDShort(p.target_date)}{p.target_rev ? <span className="rev" title={`Target revised ${p.target_rev} time${p.target_rev === 1 ? "" : "s"}`}>R{p.target_rev}</span> : null}</span></div>
     </article>
   );
 }

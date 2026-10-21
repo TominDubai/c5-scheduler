@@ -18,7 +18,7 @@ export const QUOTE_STAGES: [QuoteStage, string][] = [
 ];
 export const QUOTE_LABEL: Record<QuoteStage, string> = Object.fromEntries(QUOTE_STAGES) as Record<QuoteStage, string>;
 
-export type Project = {
+export type Project = TargetInfo & {
   id: string; enquiry_no: string | null; name: string; client: string | null;
   contractor_id: string | null; pm_id: string | null; pm2_id: string | null; designer_id: string | null; technical_designer_id: string | null;
   status: Status; difficulty: number | null;
@@ -38,6 +38,9 @@ export type Person = { id: string; name: string; full_name: string | null; role:
 export type Me = { name: string; canEstimation: boolean; canProjects: boolean; canTeam: boolean };
 export type Contractor = { id: string; name: string };
 export type Variation = { id: string; project_id: string; vo_no: number; description: string | null; value: number; approved_on: string | null; source_enquiry_id?: string | null };
+// stitched on by the app from target_revisions (projects_live is not rebuilt)
+export type TargetInfo = { target_rev?: number | null; target_rev0_date?: string | null };
+export type TargetRevision = { id: number; project_id: string; rev_no: number; target_date: string | null; prev_date: string | null; reason: string | null; set_by: string | null; set_at: string; who?: { name: string } | null };
 export type History = { id: string; from_status: Status | null; to_status: Status; changed_at: string; note: string | null; changed_by: string | null; who?: string | null };
 
 export const aed = (v: number | null | undefined) => v ? "AED " + Math.round(v).toLocaleString("en-GB") : "—";

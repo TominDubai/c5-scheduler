@@ -5,7 +5,8 @@ import Failed from "@/components/Failed";
 import ProjectForm from "@/components/ProjectForm";
 import Variations from "@/components/Variations";
 import RemoveProject, { RemovedBanner } from "@/components/RemoveProject";
-import { getProject, getPeople, getContractors, getMe, getProjectMeetings, getProjects } from "@/lib/data";
+import TargetRevisions from "@/components/TargetRevisions";
+import { getProject, getPeople, getContractors, getMe, getProjectMeetings, getProjects, getTargetRevisions } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { STAGES, ORDER, LABEL, aed, fmtD, title, tone, delayText, hm, fmtDay, todayDubai, LOCATION_LABEL, byEnq, type Variation, type History } from "@/lib/model";
 
@@ -14,8 +15,8 @@ export const dynamic = "force-dynamic";
 async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const [p, people, contractors, me, meetings, all, { data: vos }, { data: hist }] = await Promise.all([
-    getProject(id), getPeople(), getContractors(), getMe(), getProjectMeetings(id), getProjects(),
+  const [p, people, contractors, me, meetings, all, revisions, { data: vos }, { data: hist }] = await Promise.all([
+    getProject(id), getPeople(), getContractors(), getMe(), getProjectMeetings(id), getProjects(), getTargetRevisions(id),
     supabase.from("variations").select("*").eq("project_id", id).order("vo_no"),
     supabase.from("status_history").select("*, who:people(name)").eq("project_id", id).order("changed_at", { ascending: false }),
   ]);
@@ -53,7 +54,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
               <dt>Designer</dt><dd>{p.designer ? title(p.designer) : "—"}</dd>
               <dt>Enquiry received</dt><dd>{fmtD(p.received_date)}</dd>
               <dt>Project start</dt><dd>{fmtD(p.start_date)}</dd>
-              <dt>Target completion</dt><dd>{fmtD(p.target_date)}{p.days_to_completion != null && <small> · {p.days_to_completion} days programme</small>}</dd>
+              <dt>Target completion</dt><dd>{fmtD(p.target_date)}{p.target_rev != null && p.target_rev > 0 && <span className="rev">Rev {p.target_rev}</span>}{p.days_to_completion != null && <small> · {p.days_to_completion} days programme</small>}</dd>
               <dt>Completed</dt><dd>{fmtD(p.completed_date)}</dd>
               <dt>Duration</dt><dd>{p.duration_days != null ? `${p.duration_days} days${p.completed_date ? "" : " so far"}` : "—"}</dd>
               <dt>Project value</dt><dd>{aed(p.project_value)} <small>inc. VAT · {p.vo_count} VO{p.vo_count === 1 ? "" : "s"}</small></dd>
@@ -77,6 +78,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
             <dt>Notes</dt><dd>{p.notes ?? "—"}</dd>
           </dl><p className="note">{p.deleted_at ? "This project has been removed; restore it to edit." : "You can view this project but not edit it."}</p></div>
         )}
+        <TargetRevisions revisions={revisions} current={p.target_date} canEdit={canEdit && me.canProjects} />
         <div className="panel">
           <h2>Status history</h2>
           {history.length === 0 ? <span style={{ color: "var(--fg3)" }}>No changes recorded yet.</span> : (

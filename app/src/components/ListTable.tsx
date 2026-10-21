@@ -30,7 +30,7 @@ export default function ListTable({ projects }: { projects: Project[] }) {
                 <td className="enq">{p.enquiry_no ?? "—"}</td><td className="name">{title(p.name)}</td><td>{title(p.client)}</td>
                 <td><span className={`status s-${p.status}`}>{LABEL[p.status]}</span></td>
                 <td>{p.pm ? title(p.pm) : <i>unassigned</i>}{p.pm2 ? ` + ${title(p.pm2)}` : ""}</td><td>{p.designer ? title(p.designer) : "—"}</td>
-                <td className="num">{fmtD(p.start_date)}</td><td className="num">{fmtD(p.target_date)}</td>
+                <td className="num">{fmtD(p.start_date)}</td><td className="num">{fmtD(p.target_date)}{p.target_rev ? <span className="rev">R{p.target_rev}</span> : null}</td>
                 <td className="num"><span className={`pill ${t}`}>{delayText(p)}</span></td>
                 <td className="num">{aed(p.project_value)}</td>
               </tr>); })}

@@ -1,6 +1,6 @@
 "use client";
-import { useActionState } from "react";
-import { ALL, QUOTE_STAGES, WAITING_ON, SCOPES, title, type Project, type Person, type Contractor } from "@/lib/model";
+import { useActionState, useState } from "react";
+import { ALL, QUOTE_STAGES, WAITING_ON, SCOPES, title, fmtD, type Project, type Person, type Contractor } from "@/lib/model";
 import { saveProject, createProject } from "@/app/actions";
 
 type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean; liveProjects?: Pick<Project, "id" | "name" | "enquiry_no">[] };
@@ -13,6 +13,9 @@ export default function ProjectForm({ project, people, contractors, estimationOn
   const designers = people.filter((p) => p.role === "DESIGNER" || p.role === "TECHNICAL_DESIGNER");
   const estimators = people.filter((p) => p.role === "ESTIMATOR" || p.role === "ADMIN" || p.role === "MANAGEMENT");
   const v = (k: keyof Project) => (project?.[k] ?? "") as string;
+  const [target, setTarget] = useState(v("target_date"));
+  const targetChanged = !!project && target !== v("target_date");
+  const nextRev = (project?.target_rev ?? -1) + 1;
   return (
     <form action={formAction} className="form">
       <div className="field wide"><label htmlFor="name">Project name</label><input id="name" name="name" required defaultValue={v("name")} placeholder="e.g. MEADOWS 5, ST3, V1" /></div>
@@ -31,7 +34,12 @@ export default function ProjectForm({ project, people, contractors, estimationOn
       <div className="field"><label htmlFor="signed_quote">Signed quote (AED inc. VAT)</label><input id="signed_quote" name="signed_quote" disabled={lock} inputMode="decimal" defaultValue={project?.signed_quote ?? ""} /></div>
       <div className="field"><label htmlFor="received_date">Enquiry received</label><input id="received_date" name="received_date" type="date" defaultValue={v("received_date")} /></div>
       <div className="field"><label htmlFor="start_date">Project start <small>(date payment received)</small></label><input id="start_date" name="start_date" disabled={lock} type="date" defaultValue={v("start_date")} /></div>
-      <div className="field"><label htmlFor="target_date">Target completion <small>(contractor’s programme, joinery only)</small></label><input id="target_date" name="target_date" disabled={lock} type="date" defaultValue={v("target_date")} /></div>
+      <div className="field"><label htmlFor="target_date">Target completion <small>(contractor’s programme, joinery only)</small></label><input id="target_date" name="target_date" disabled={lock} type="date" value={target} onChange={(e) => setTarget(e.target.value)} />
+        {project?.target_rev != null && project.target_rev > 0 && !targetChanged && <small className="revnote">Rev {project.target_rev} · originally {fmtD(project.target_rev0_date)}</small>}</div>
+      {targetChanged && (
+        <div className="field wide revreason"><label htmlFor="target_change_reason">Why is the target changing? <small>(becomes Rev {nextRev})</small></label>
+          <input id="target_change_reason" name="target_change_reason" placeholder="e.g. client added bedroom wardrobes, site not ready until Feb" /></div>
+      )}
       <div className="field"><label htmlFor="completed_date">Date completed</label><input id="completed_date" name="completed_date" disabled={lock} type="date" defaultValue={v("completed_date")} /></div>
       <div className="field wide sep"><span className="sectionlabel">Pricing (Ramus)</span></div>
       <div className="field"><label htmlFor="quote_stage">Pricing stage</label>
