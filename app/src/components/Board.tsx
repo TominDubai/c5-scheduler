@@ -27,11 +27,10 @@ export default function Board({ projects, canEdit }: { projects: Project[]; canE
 
   const cols = [...STAGES, ...SIDE].map(([k, l]) => {
     const items = rows.filter((p) => p.status === k).sort((a, b) => (b.days_delayed ?? -9e9) - (a.days_delayed ?? -9e9));
-    const val = items.reduce((s, p) => s + (p.project_value || 0), 0);
     return (
       <section key={k} className={`col${k === "SITE_ON_HOLD" || k === "LOST" ? " side" : ""}${over === k ? " over" : ""}`}
         onDragOver={(e) => { e.preventDefault(); if (over !== k) setOver(k); }} onDragLeave={() => setOver(null)} onDrop={() => drop(k)}>
-        <header><h2>{l}</h2><span className="count">{items.length}</span><span className="colval">{val ? aedS(val) : ""}</span></header>
+        <header><h2>{l}</h2><span className="count">{items.length}</span></header>
         <div className="cards">
           {items.length === 0 && <div className="empty">{canEdit ? "Drop a project here" : "Nothing here"}</div>}
           {items.map((p) => <Card key={p.id} p={p} canEdit={canEdit} dragging={dragId === p.id} onDragStart={() => setDragId(p.id)} onDragEnd={() => { setDragId(null); setOver(null); }} />)}

@@ -4,7 +4,7 @@ import EstimationBoard from "@/components/EstimationBoard";
 import EnquiryForm from "@/components/EnquiryForm";
 import { getProjects, getPeople, getContractors, getMe } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import { aedS, byEnq } from "@/lib/model";
+import { byEnq } from "@/lib/model";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,6 @@ async function Inner_EstimationPage() {
         <div className="stats">
           <div className="stat"><b>{open.length}</b><span>being priced</span></div>
           <div className="stat"><b>{submitted.length}</b><span>submitted, awaiting decision</span></div>
-          <div className="stat"><b>{aedS(submitted.reduce((s, p) => s + (p.quoted_value || 0), 0))}</b><span>value out for decision</span></div>
           <div className={`stat${oldest > 21 ? " crit" : ""}`}><b>{oldest}d</b><span>oldest open enquiry</span></div>
           <div className="stat"><b>{wonThisYear}</b><span>won this year</span></div>
         </div>

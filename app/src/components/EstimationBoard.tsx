@@ -40,11 +40,10 @@ export default function EstimationBoard({ projects, canEdit }: { projects: Proje
       <div className="board" aria-busy={pending}>
         {QUOTE_STAGES.map(([k, l]) => {
           const items = rows.filter((p) => p.quote_stage === k).sort((a, b) => (b.days_since_enquiry ?? 0) - (a.days_since_enquiry ?? 0));
-          const val = items.reduce((s, p) => s + (p.quoted_value || 0), 0);
           return (
             <section key={k} className={`col${over === k ? " over" : ""}`}
               onDragOver={(e) => { e.preventDefault(); if (over !== k) setOver(k); }} onDragLeave={() => setOver(null)} onDrop={() => drop(k)}>
-              <header><h2>{l}</h2><span className="count">{items.length}</span><span className="colval">{val ? aedS(val) : ""}</span></header>
+              <header><h2>{l}</h2><span className="count">{items.length}</span></header>
               <div className="cards">
                 {items.length === 0 && <div className="empty">{canEdit ? "Drop an enquiry here" : "Nothing here"}</div>}
                 {items.map((p) => {
