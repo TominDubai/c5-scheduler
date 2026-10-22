@@ -131,3 +131,10 @@ export const getItemCounts = cache(async function getItemCounts(): Promise<Map<s
   const { data } = await supabase.from("project_item_counts").select("*");
   return new Map(((data ?? []) as (ItemCounts & { project_id: string })[]).map((r) => [r.project_id, r]));
 });
+
+/** People tagged on a project, over and above the PM / second PM / designer. */
+export async function getProjectWatchers(projectId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("project_watchers").select("person_id").eq("project_id", projectId);
+  return ((data ?? []) as { person_id: string }[]).map((r) => r.person_id);
+}

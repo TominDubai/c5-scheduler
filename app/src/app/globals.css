@@ -381,3 +381,9 @@ td.draw b { font-family: var(--mono); font-weight: 600; } td.flags { white-space
 @media (max-width: 1600px) { .tools > input[type="search"] { width: 200px; } }
 @media (max-width: 1500px) { .top { gap: 16px; } .sub { display: none; } .user { display: none; } }
 @media (max-width: 1040px) { .tab { padding: 8px 9px; } .tabs { gap: 2px; } }
+
+/* "Also keep updated" — the people tagged on a project (db/015) */
+.field.tagged { padding: 12px 14px; border-radius: var(--r); background: var(--bg3); gap: 8px; }
+.field.tagged .chips { max-height: 132px; overflow-y: auto; padding: 2px; }
+.field.tagged .note { margin-top: 2px; }
+.team td .check { font-size: 12px; }

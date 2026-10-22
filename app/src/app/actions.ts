@@ -121,12 +121,28 @@ export async function createEnquiry(_prev: unknown, fd: FormData) {
   return { ok: true, enquiry_no: data.enquiry_no as string, id: data.id as string };
 }
 
+/** Tagged people (db/015): add the new ones, drop the removed ones. The triggers log each change,
+ *  so being added to a project turns up in that person's next digest. */
+async function syncWatchers(projectId: string, fd: FormData) {
+  if (!fd.has("watchers_present")) return;               // form didn't carry the control — leave the list alone
+  // (an all-unchecked checkbox group posts nothing, so the hidden marker is what tells us it was there)
+  const supabase = await createClient();
+  const want = [...new Set(fd.getAll("watchers").map(String).filter(Boolean))];
+  const { data: cur } = await supabase.from("project_watchers").select("person_id").eq("project_id", projectId);
+  const have = new Set(((cur ?? []) as { person_id: string }[]).map((r) => r.person_id));
+  const add = want.filter((id) => !have.has(id));
+  const drop = [...have].filter((id) => !want.includes(id));
+  if (add.length) await supabase.from("project_watchers").insert(add.map((person_id) => ({ project_id: projectId, person_id })));
+  if (drop.length) await supabase.from("project_watchers").delete().eq("project_id", projectId).in("person_id", drop);
+}
+
 export async function saveProject(id: string, _prev: unknown, fd: FormData) {
   const supabase = await createClient();
   const fields = projectFields(fd);
   if (fields.name === "") return { error: "Project name is required." };
   const { error } = await supabase.from("projects").update(fields).eq("id", id);
   if (error) return { error: error.message };
+  await syncWatchers(id, fd);
   revalidatePath("/board"); revalidatePath("/list"); revalidatePath(`/projects/${id}`);
   return { ok: true, at: new Date().toISOString() };
 }
@@ -137,6 +153,7 @@ export async function createProject(_prev: unknown, fd: FormData) {
   if (!fields.name) return { error: "Project name is required." };
   const { data, error } = await supabase.from("projects").insert(fields as { name: string }).select("id").single();
   if (error) return { error: error.message };
+  await syncWatchers(data.id as string, fd);
   revalidatePath("/board"); revalidatePath("/list");
   redirect(`/projects/${data.id}`);
 }
@@ -186,7 +203,7 @@ const phone = (v: FormDataEntryValue | null) => { const s = nz(v)?.replace(/[\s\
 export async function savePerson(id: string, _prev: unknown, fd: FormData) {
   const supabase = await createClient();
   try {
-    const patch = { full_name: nz(fd.get("full_name")), email: email(fd.get("email")), whatsapp: phone(fd.get("whatsapp")), is_active: fd.get("is_active") === "on" };
+    const patch = { full_name: nz(fd.get("full_name")), email: email(fd.get("email")), whatsapp: phone(fd.get("whatsapp")), is_active: fd.get("is_active") === "on", notify_on_award: fd.get("notify_on_award") === "on" };
     const { error } = await supabase.from("people").update(patch).eq("id", id);
     if (error) return { error: error.message.includes("people_email_key") ? "Another person already has that email." : error.message };
   } catch (e) { return { error: (e as Error).message }; }

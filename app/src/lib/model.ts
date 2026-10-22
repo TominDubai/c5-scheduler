@@ -34,7 +34,7 @@ export type Project = TargetInfo & {
   deleted_at: string | null; deleted_reason: string | null; deleted_by: string | null;
   project_value: number; vo_count: number; days_to_completion: number | null; duration_days: number | null; days_delayed: number | null; status_since: string | null;
 };
-export type Person = { id: string; name: string; full_name: string | null; role: string; email: string | null; whatsapp: string | null; is_active: boolean; can_edit_estimation: boolean; can_edit_projects: boolean; can_manage_team: boolean; is_admin: boolean };
+export type Person = { id: string; name: string; full_name: string | null; role: string; email: string | null; whatsapp: string | null; is_active: boolean; can_edit_estimation: boolean; can_edit_projects: boolean; can_manage_team: boolean; is_admin: boolean; notify_on_award: boolean };
 export type Me = { id: string | null; name: string; role: string; canEstimation: boolean; canProjects: boolean; canTeam: boolean; isAdmin: boolean };
 /** Who may do what on items (plan §6). Admins (Tom, Aftab, Darren, Jinky) and project editors can do everything. */
 export function itemRights(me: Me) {
@@ -55,6 +55,8 @@ export type Contractor = { id: string; name: string };
 export type Variation = { id: string; project_id: string; vo_no: number; description: string | null; value: number; approved_on: string | null; source_enquiry_id?: string | null };
 // stitched on by the app from target_revisions (projects_live is not rebuilt)
 export type TargetInfo = { target_rev?: number | null; target_rev0_date?: string | null; items?: ItemCounts | null };
+/** Anyone tagged to be kept updated on a project, on top of the PM, second PM and designer (db/015). */
+export type Watcher = { project_id: string; person_id: string; added_by: string | null; added_at: string };
 export type TargetRevision = { id: number; project_id: string; rev_no: number; target_date: string | null; prev_date: string | null; reason: string | null; set_by: string | null; set_at: string; who?: { name: string } | null };
 export type History = { id: string; from_status: Status | null; to_status: Status; changed_at: string; note: string | null; changed_by: string | null; who?: string | null };
 
