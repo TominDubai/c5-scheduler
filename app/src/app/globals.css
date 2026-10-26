@@ -102,7 +102,7 @@ main.fill .cards { overflow-y: auto; min-height: 0; padding-right: 4px; scrollba
 .val { font: 800 14px var(--font); color: var(--bronze); font-variant-numeric: tabular-nums; }
 .dates { display: flex; justify-content: space-between; margin: 10px 0 6px; font: 12px var(--font); color: var(--fg3); }
 .card-status { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
-.card-status select { width: auto; max-width: 100%; font: 600 12px var(--font); padding: 5px 30px 5px 12px; cursor: pointer; }
+.card-status select { width: auto; max-width: 100%; font: 600 12px var(--font); padding: 5px 32px 5px 14px; cursor: pointer; -webkit-appearance: none; appearance: none; background-color: var(--bg); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23102C52' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; background-size: 10px 6px; }
 .card-status select:disabled { cursor: default; opacity: .7; }
 .pill { font: 700 11px var(--font); padding: 3px 9px; border-radius: 999px; white-space: nowrap; background: var(--bg3); color: var(--fg2); }
 .pill.crit { background: #FBE3E1; color: #9E2B25; } .pill.warn { background: #FCEBD9; color: #9A5410; } .pill.soon { background: #FAF1CF; color: #7A5F0B; } .pill.ok { background: #DDF3E8; color: #1E6B49; } .pill.done { background: #DCEBF9; color: #255A8E; }
