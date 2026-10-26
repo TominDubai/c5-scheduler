@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Shell from "@/components/Shell";
 import Failed from "@/components/Failed";
+import BackButton from "@/components/BackButton";
 import ProjectForm from "@/components/ProjectForm";
 import Variations from "@/components/Variations";
 import RemoveProject, { RemovedBanner } from "@/components/RemoveProject";
@@ -29,7 +30,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
   return (
     <Shell>
       <div className="page">
-        <div className="crumbs"><Link href="/board">Board</Link> / <span className="enq">{p.enquiry_no ?? "no enquiry no."}</span></div>
+        <div className="crumbs"><BackButton fallback="/board" /><Link href="/board">Board</Link> / <span className="enq">{p.enquiry_no ?? "no enquiry no."}</span></div>
         <div className="head">
           <div><h1>{title(p.name)}</h1><div className="client">{title(p.client)}{p.contractor ? ` · via ${p.contractor}` : ""}</div></div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}><span className={`status s-${p.status}`}>{LABEL[p.status]}</span><span className={`pill ${t}`}>{delayText(p)}</span></div>
