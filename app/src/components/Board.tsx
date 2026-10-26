@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { STAGES, SIDE, aedS, fmtDShort, title, ini, tone, delayText, type Project, type Status } from "@/lib/model";
 import { setStatus } from "@/app/actions";
 
+const STATUS_OPTIONS: [Status, string][] = [...STAGES, ...SIDE];
+
 export default function Board({ projects, canEdit }: { projects: Project[]; canEdit: boolean }) {
   const router = useRouter();
   const [rows, setRows] = useState(projects);
@@ -12,17 +14,23 @@ export default function Board({ projects, canEdit }: { projects: Project[]; canE
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
 
-  function drop(stage: Status) {
-    if (!dragId || !canEdit) return;
-    const p = rows.find((r) => r.id === dragId);
-    setOver(null); setDragId(null);
+  /** Shared by drag-and-drop and the card's status dropdown: optimistic move, rolled back on error. */
+  function move(id: string, stage: Status) {
+    const p = rows.find((r) => r.id === id);
     if (!p || p.status === stage) return;
     const prev = rows;
-    setRows(rows.map((r) => (r.id === dragId ? { ...r, status: stage } : r)));
+    setRows(rows.map((r) => (r.id === id ? { ...r, status: stage } : r)));
     start(async () => {
       const res = await setStatus(p.id, stage);
       if (res?.error) { setRows(prev); setErr(res.error); } else { setErr(null); router.refresh(); }
     });
+  }
+
+  function drop(stage: Status) {
+    const id = dragId;
+    setOver(null); setDragId(null);
+    if (!id || !canEdit) return;
+    move(id, stage);
   }
 
   const cols = [...STAGES, ...SIDE].map(([k, l]) => {
@@ -33,7 +41,11 @@ export default function Board({ projects, canEdit }: { projects: Project[]; canE
         <header><h2>{l}</h2><span className="count">{items.length}</span></header>
         <div className="cards">
           {items.length === 0 && <div className="empty">{canEdit ? "Drop a project here" : "Nothing here"}</div>}
-          {items.map((p) => <Card key={p.id} p={p} canEdit={canEdit} dragging={dragId === p.id} onDragStart={() => setDragId(p.id)} onDragEnd={() => { setDragId(null); setOver(null); }} />)}
+          {items.map((p) => (
+            <Card key={p.id} p={p} canEdit={canEdit} dragging={dragId === p.id}
+              onDragStart={() => setDragId(p.id)} onDragEnd={() => { setDragId(null); setOver(null); }}
+              onStatus={(stage) => move(p.id, stage)} />
+          ))}
         </div>
       </section>
     );
@@ -47,9 +59,14 @@ export default function Board({ projects, canEdit }: { projects: Project[]; canE
   );
 }
 
-function Card({ p, canEdit, dragging, onDragStart, onDragEnd }: { p: Project; canEdit: boolean; dragging: boolean; onDragStart: () => void; onDragEnd: () => void }) {
+function Card({ p, canEdit, dragging, onDragStart, onDragEnd, onStatus }: {
+  p: Project; canEdit: boolean; dragging: boolean;
+  onDragStart: () => void; onDragEnd: () => void; onStatus: (stage: Status) => void;
+}) {
   const router = useRouter();
   const t = tone(p);
+  // Keep interactions inside the status dropdown from opening the project or starting a card drag.
+  const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
   return (
     <article className={`card ${t}${dragging ? " dragging" : ""}`} draggable={canEdit} onDragStart={onDragStart} onDragEnd={onDragEnd}
       tabIndex={0} role="link" onClick={() => router.push(`/projects/${p.id}`)} onKeyDown={(e) => e.key === "Enter" && router.push(`/projects/${p.id}`)}>
@@ -61,6 +78,12 @@ function Card({ p, canEdit, dragging, onDragStart, onDragEnd }: { p: Project; ca
         <span className="val">{p.project_value ? aedS(p.project_value) : "—"}</span>
       </div>
       <div className="dates"><span>Start {fmtDShort(p.start_date)}</span><span>Target {fmtDShort(p.target_date)}{p.target_rev ? <span className="rev" title={`Target revised ${p.target_rev} time${p.target_rev === 1 ? "" : "s"}`}>R{p.target_rev}</span> : null}</span></div>
+      <div className="card-status" onClick={stop} onKeyDown={stop} onMouseDown={stop} onDragStart={(e) => e.preventDefault()}>
+        <select aria-label={`Status for ${title(p.name)}`} value={p.status} disabled={!canEdit} draggable={false}
+          onChange={(e) => onStatus(e.target.value as Status)}>
+          {STATUS_OPTIONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+      </div>
     </article>
   );
 }
