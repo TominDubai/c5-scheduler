@@ -21,7 +21,7 @@ function Row({ p, canEdit }: { p: Person; canEdit: boolean }) {
       <td className="name">{title(p.name)}</td>
       <td><input form={`f-${p.id}`} name="full_name" defaultValue={p.full_name ?? ""} placeholder="Full name" onChange={() => setDirty(true)} /><input form={`f-${p.id}`} name="position" defaultValue={p.position ?? ""} placeholder="Position (shown under the ball holder)" className="pos" onChange={() => setDirty(true)} /></td>
       <td><input form={`f-${p.id}`} name="email" type="email" defaultValue={p.email ?? ""} placeholder={p.can_sign_in ? "name@concept-5.com" : "no email — WhatsApp only"} onChange={() => setDirty(true)} className={p.email || !p.can_sign_in ? "" : "missing"} />
-        <label className="check"><input form={`f-${p.id}`} type="checkbox" name="whatsapp_only" defaultChecked={!p.can_sign_in} onChange={() => setDirty(true)} /> WhatsApp only (can’t sign in; Anne records for them)</label></td>
+        <label className="check"><input form={`f-${p.id}`} type="checkbox" name="whatsapp_only" defaultChecked={!p.can_sign_in} onChange={() => setDirty(true)} /> WhatsApp only</label></td>
       <td><input form={`f-${p.id}`} name="whatsapp" defaultValue={p.whatsapp ?? ""} placeholder="+9715…" onChange={() => setDirty(true)} /></td>
       <td><span className="pill">{flags || "view"}</span></td>
       <td><label className="check"><input form={`f-${p.id}`} type="checkbox" name="notify_on_award" defaultChecked={p.notify_on_award} onChange={() => setDirty(true)} /> Told</label></td>
