@@ -21,7 +21,7 @@ async function Inner_ReconcilePage() {
           <div className="stat"><b>{done}</b><span>confirmed</span></div>
           <div className="stat"><b>{todo.filter((p) => p.stage == null).length}</b><span>with no stage at all</span></div>
         </div>
-        <p className="note teamnote">Every live project was given a stage and a ball holder from its old status on 28 Oct. Nobody has agreed those yet. Set the true stage and who really holds the ball, then confirm — the card loses its “to confirm” tag and the owner is on the hook from then on. {allowed ? "" : "Only administrators and the project coordinator can confirm here; ask Anne or Jinky."}</p>
+        <p className="note teamnote">Every live project was given a stage and a ball holder from its old status on 28 Oct. Nobody has agreed those yet. Set the true stage and who really holds the ball, then confirm — the card loses its “to confirm” tag, its stage clock restarts from today, and the owner is on the hook from then on. {allowed ? "" : "Only administrators and the project coordinator can confirm here; ask Anne or Jinky."}</p>
       </section>
       <main className="column">
         <ReconcileTable projects={todo} stages={stages} owners={owners} people={people} canEdit={allowed} />

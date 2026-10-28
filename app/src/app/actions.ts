@@ -584,10 +584,12 @@ export async function reassignBall(projectId: string, _prev: unknown, fd: FormDa
   bustWorkflow(projectId);
   return { ok: true, at: new Date().toISOString() };
 }
-/** Reconciliation (plan §3): the named owner (or an admin) confirms a stage the migration set. */
+/** Reconciliation (plan §3): the named owner (or an admin) confirms a stage the migration set.
+ *  Tom, 28 Oct: the stage clock resets at go-live, so confirming also restarts stage_entered_at from now. */
 export async function confirmMigratedStage(projectId: string): Promise<R> {
   const supabase = await createClient();
-  const { error } = await supabase.from("projects").update({ stage_migrated: false, stage_accepted_at: new Date().toISOString() }).eq("id", projectId);
+  const now = new Date().toISOString();
+  const { error } = await supabase.from("projects").update({ stage_migrated: false, stage_accepted_at: now, stage_entered_at: now }).eq("id", projectId);
   if (error) return { error: error.message };
   bustWorkflow(projectId);
   return { ok: true };
@@ -608,7 +610,8 @@ export async function setStageOwner(stageNo: number, personId: string | null): P
  *  The stage/status trigger keeps status in step; a stage change with no holder picked falls back to the stage's default owner. */
 export async function reconcileCard(projectId: string, stage: number | null, ballHolderId: string | null): Promise<R> {
   const supabase = await createClient();
-  const patch: Record<string, unknown> = { stage_migrated: false, stage_accepted_at: new Date().toISOString() };
+  const now = new Date().toISOString();
+  const patch: Record<string, unknown> = { stage_migrated: false, stage_accepted_at: now, stage_entered_at: now };   // the clock restarts at confirmation (Tom, 28 Oct)
   if (stage != null) patch.stage = stage;
   if (ballHolderId !== undefined) patch.ball_holder_id = ballHolderId;
   const { error } = await supabase.from("projects").update(patch).eq("id", projectId);
