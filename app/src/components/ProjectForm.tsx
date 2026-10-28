@@ -3,14 +3,16 @@ import { useActionState, useState } from "react";
 import { ALL, QUOTE_STAGES, WAITING_ON, SCOPES, title, fmtD, type Project, type Person, type Contractor } from "@/lib/model";
 import { saveProject, createProject } from "@/app/actions";
 
-type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean; liveProjects?: Pick<Project, "id" | "name" | "enquiry_no">[]; watchers?: string[] };
+type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean; liveProjects?: Pick<Project, "id" | "name" | "enquiry_no">[]; watchers?: string[]; isAdmin?: boolean };
 
-export default function ProjectForm({ project, people, contractors, estimationOnly = false, liveProjects, watchers = [] }: Props) {
+export default function ProjectForm({ project, people, contractors, estimationOnly = false, liveProjects, watchers = [], isAdmin = false }: Props) {
   const lock = estimationOnly; // estimators: pricing fields only
   const action = project ? saveProject.bind(null, project.id) : createProject;
   const [state, formAction, pending] = useActionState(action, null as { error?: string; ok?: boolean; at?: string } | null);
   const pms = people.filter((p) => p.role === "PM" || p.role === "MANAGEMENT");
   const designers = people.filter((p) => p.role === "DESIGNER" || p.role === "TECHNICAL_DESIGNER");
+  const technical = people.filter((p) => p.role === "TECHNICAL_DESIGNER" || p.role === "DESIGNER");
+  const coordinators = people.filter((p) => p.role === "PROJECT_COORDINATOR" || p.role === "ADMIN" || p.role === "MANAGEMENT");
   const estimators = people.filter((p) => p.role === "ESTIMATOR" || p.role === "ADMIN" || p.role === "MANAGEMENT");
   const v = (k: keyof Project) => (project?.[k] ?? "") as string;
   const [target, setTarget] = useState(v("target_date"));
@@ -24,14 +26,20 @@ export default function ProjectForm({ project, people, contractors, estimationOn
       <div className="field"><label htmlFor="client">Client</label><input id="client" name="client" defaultValue={v("client")} /></div>
       <div className="field"><label htmlFor="contractor_id">Main contractor</label>
         <select id="contractor_id" name="contractor_id" defaultValue={v("contractor_id")}><option value="">—</option>{contractors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-      <div className="field"><label htmlFor="status">Status</label>
-        <select id="status" name="status" disabled={lock} defaultValue={project?.status ?? "QUOTE"}>{ALL.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+      {(isAdmin || !project) && (
+        <div className="field"><label htmlFor="status">Status <small>{project ? "(admin only — stages normally move by handover)" : ""}</small></label>
+          <select id="status" name="status" disabled={lock} defaultValue={project?.status ?? "QUOTE"}>{ALL.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+      )}
       <div className="field"><label htmlFor="pm_id">Project manager <small>(assigned by Basim)</small></label>
         <select id="pm_id" name="pm_id" disabled={lock} defaultValue={v("pm_id")}><option value="">Unassigned</option>{pms.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
-      <div className="field"><label htmlFor="pm2_id">Second PM (optional)</label>
+      <div className="field"><label htmlFor="pm2_id">Supporting PM <small>(optional — not a second owner)</small></label>
         <select id="pm2_id" name="pm2_id" disabled={lock} defaultValue={v("pm2_id")}><option value="">—</option>{pms.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
-      <div className="field"><label htmlFor="designer_id">Designer <small>(assigned by Jinky)</small></label>
+      <div className="field"><label htmlFor="coordinator_id">Project coordinator <small>(assigned by Basim)</small></label>
+        <select id="coordinator_id" name="coordinator_id" disabled={lock} defaultValue={v("coordinator_id")}><option value="">—</option>{coordinators.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
+      <div className="field"><label htmlFor="designer_id">Project designer <small>(assigned by Haydee)</small></label>
         <select id="designer_id" name="designer_id" disabled={lock} defaultValue={v("designer_id")}><option value="">—</option>{designers.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
+      <div className="field"><label htmlFor="technical_designer_id">Technical designer <small>(assigned by Alyssa)</small></label>
+        <select id="technical_designer_id" name="technical_designer_id" disabled={lock} defaultValue={v("technical_designer_id")}><option value="">—</option>{technical.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
       {!lock && (
         <div className="field wide tagged">
           <label>Also keep updated <small>(anyone else who should get this project’s update emails — Jinky tags them)</small></label>

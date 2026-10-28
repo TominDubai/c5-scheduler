@@ -8,18 +8,19 @@ import Variations from "@/components/Variations";
 import RemoveProject, { RemovedBanner } from "@/components/RemoveProject";
 import TargetRevisions from "@/components/TargetRevisions";
 import ItemsPanel from "@/components/ItemsPanel";
+import Workflow from "@/components/Workflow";
 import { Suspense } from "react";
-import { getProject, getPeople, getContractors, getMe, getProjectMeetings, getProjects, getTargetRevisions, getProjectItems, getItemTypes, getProjectWatchers } from "@/lib/data";
+import { getProject, getPeople, getContractors, getMe, getProjectMeetings, getProjects, getTargetRevisions, getProjectItems, getItemTypes, getProjectWatchers, getStages, getStageOwners, getProjectWorkflow } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import { STAGES, ORDER, LABEL, aed, fmtD, title, tone, delayText, hm, fmtDay, todayDubai, LOCATION_LABEL, byEnq, type Variation, type History } from "@/lib/model";
+import { PHASES, COMPLETED_STAGE, LABEL, aed, fmtD, title, tone, delayText, hm, fmtDay, todayDubai, LOCATION_LABEL, byEnq, type Variation, type History } from "@/lib/model";
 
 export const dynamic = "force-dynamic";
 
 async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const [p, people, contractors, me, meetings, all, revisions, itemsData, itemTypes, watchers, { data: vos }, { data: hist }] = await Promise.all([
-    getProject(id), getPeople(), getContractors(), getMe(), getProjectMeetings(id), getProjects(), getTargetRevisions(id), getProjectItems(id), getItemTypes(), getProjectWatchers(id),
+  const [p, people, contractors, me, meetings, all, revisions, itemsData, itemTypes, watchers, stages, owners, wf, { data: vos }, { data: hist }] = await Promise.all([
+    getProject(id), getPeople(), getContractors(), getMe(), getProjectMeetings(id), getProjects(), getTargetRevisions(id), getProjectItems(id), getItemTypes(), getProjectWatchers(id), getStages(), getStageOwners(), getProjectWorkflow(id),
     supabase.from("variations").select("*").eq("project_id", id).order("vo_no"),
     supabase.from("status_history").select("*, who:people(name)").eq("project_id", id).order("changed_at", { ascending: false }),
   ]);
@@ -35,7 +36,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
         <div className="crumbs"><BackButton fallback="/board" /><Link href="/board">Board</Link> / <span className="enq">{p.enquiry_no ?? "no enquiry no."}</span></div>
         <div className="head">
           <div><h1>{title(p.name)}</h1><div className="client">{title(p.client)}{p.contractor ? ` · via ${p.contractor}` : ""}</div></div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}><span className={`status s-${p.status}`}>{LABEL[p.status]}</span><span className={`pill ${t}`}>{delayText(p)}</span></div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>{p.stage != null ? <span className="stagechip big"><b>{p.stage}</b>{p.stage_short}</span> : <span className={`status s-${p.status}`}>{LABEL[p.status]}</span>}<span className={`pill ${t}`}>{delayText(p)}</span></div>
         </div>
         {p.deleted_at && <RemovedBanner project={p} canManage={me.canTeam} />}
         {p.parent_project_id && (
@@ -45,16 +46,26 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
               : <>VO enquiry for <Link href={`/projects/${p.parent_project_id}`}>{title(p.parent_name)}</Link>{p.parent_enquiry_no ? ` (${p.parent_enquiry_no})` : ""} — when it's won it becomes the next VO on that project.</>}
           </div>
         )}
-        <div>
-          <div className="stagebar">{STAGES.map(([k]) => <span key={k} className={(ORDER[k] <= ORDER[p.status] && ORDER[p.status] <= ORDER.COMPLETED ? "on " : "") + (k === p.status ? "cur" : "")} />)}</div>
-          <div className="stagebar-labels">{STAGES.map(([k, l]) => <span key={k}>{l}</span>)}</div>
-        </div>
+        {p.stage != null && (
+          <div className="stagebar17" aria-label="Stages 0 to 16, then Completed">
+            {[...PHASES, { key: "COMPLETE" as const, label: "Completed", short: "Done", stages: [COMPLETED_STAGE] }].map((ph) => (
+              <div key={ph.key} className={`sb-phase ph-${ph.key}${ph.stages.some((n) => n === p.stage) ? " cur" : ""}`} style={{ flex: ph.stages.length }}>
+                <div className="sb-segs">{ph.stages.map((n) => <span key={n} className={(n < p.stage! ? "on " : "") + (n === p.stage ? "cur" : "")} title={stages.find((s) => s.stage_no === n)?.name}>{n === COMPLETED_STAGE ? "✓" : n}</span>)}</div>
+                <small>{ph.key === "COMPLETE" ? "Completed" : ph.label}</small>
+              </div>
+            ))}
+          </div>
+        )}
+        {p.status !== "LOST" && p.status !== "MERGED" && (p.stage == null || p.stage >= 3) && (
+          <Workflow project={p} stages={stages} owners={owners} people={people} me={me} handovers={wf.handovers} holds={wf.holds} evidence={wf.evidence} tasks={wf.tasks} locked={!!p.deleted_at} />
+        )}
         <div className="grid2">
           <div className="panel">
             <h2>At a glance</h2>
             <dl>
-              <dt>Project manager</dt><dd>{p.pm ? title(p.pm) : "Unassigned"}{p.pm2 ? ` + ${title(p.pm2)}` : ""}</dd>
-              <dt>Designer</dt><dd>{p.designer ? title(p.designer) : "—"}</dd>
+              <dt>Lead PM</dt><dd>{p.pm ? title(p.pm) : <i style={{ color: p.stage != null && p.stage >= 4 ? "var(--crit)" : "var(--fg3)" }}>{p.stage != null && p.stage >= 4 ? "not named — required from allocation" : "Unassigned"}</i>}{p.pm2 ? <small> · supporting {title(p.pm2)}</small> : null}</dd>
+              <dt>Coordinator</dt><dd>{p.coordinator ? title(p.coordinator) : <i style={{ color: p.stage != null && p.stage >= 5 ? "var(--crit)" : "var(--fg3)" }}>{p.stage != null && p.stage >= 5 ? "not named" : "—"}</i>}</dd>
+              <dt>Designer</dt><dd>{p.designer ? title(p.designer) : <i style={{ color: p.stage != null && p.stage >= 5 ? "var(--crit)" : "var(--fg3)" }}>{p.stage != null && p.stage >= 5 ? "not named" : "—"}</i>}{p.technical_designer ? <small> · technical {title(p.technical_designer)}</small> : null}</dd>
               <dt>Enquiry received</dt><dd>{fmtD(p.received_date)}</dd>
               <dt>Project start</dt><dd>{fmtD(p.start_date)}</dd>
               <dt>Target completion</dt><dd>{fmtD(p.target_date)}{p.target_rev != null && p.target_rev > 0 && <span className="rev">Rev {p.target_rev}</span>}{p.days_to_completion != null && <small> · {p.days_to_completion} days programme</small>}</dd>
@@ -80,7 +91,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
         {canEdit ? (
           <div className="panel">
             <h2>Edit project</h2>
-            <ProjectForm project={p} people={people} contractors={contractors} estimationOnly={!me.canProjects} liveProjects={live} watchers={watchers} />
+            <ProjectForm project={p} people={people} contractors={contractors} estimationOnly={!me.canProjects} liveProjects={live} watchers={watchers} isAdmin={me.isAdmin} />
           </div>
         ) : (
           <div className="panel"><h2>Details</h2><dl>

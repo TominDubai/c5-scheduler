@@ -10,7 +10,7 @@ const QUIET_MS = 3 * 60 * 1000;        // skip a project edited in the last 3 mi
 const MAX_AGE_MS = 7 * 24 * 3600 * 1000; // never email about something older than a week (e.g. a backlog after an outage)
 
 type Change = { id: number; project_id: string | null; meeting_id: string | null; kind: string; field: string | null; old_value: string | null; new_value: string | null; changed_by: string | null; changed_at: string };
-type Proj = { id: string; enquiry_no: string | null; name: string; client: string | null; status: Status; pm_id: string | null; pm2_id: string | null; designer_id: string | null; estimator_id: string | null; signed_quote: number | null };
+type Proj = { id: string; enquiry_no: string | null; name: string; client: string | null; status: Status; pm_id: string | null; pm2_id: string | null; designer_id: string | null; estimator_id: string | null; signed_quote: number | null; ball_holder_id?: string | null; stage?: number | null };
 type Person = { id: string; name: string; full_name: string | null; email: string | null; is_active: boolean; notify_on_award: boolean };
 type Meet = { id: string; title: string; project_id: string | null; project_name: string | null; location: "ROOM" | "SITE" | "ONLINE"; meeting_date: string; start_time: string; end_time: string; notes: string | null; cancelled: boolean; created_by: string | null; attendee_ids: string[]; attendees: string[] };
 const LOC: Record<string, string> = { ROOM: "Meeting room", SITE: "On site", ONLINE: "Online" };
@@ -29,6 +29,7 @@ export function admin() {
 const FIELD: Record<string, string> = {
   name: "Project name", client: "Client", enquiry_no: "Enquiry no", status: "Status", quote_stage: "Quote stage",
   pm_id: "PM", pm2_id: "Second PM", designer_id: "Designer", estimator_id: "Estimator", contractor_id: "Contractor",
+  coordinator_id: "Project coordinator", technical_designer_id: "Technical designer",
   start_date: "Start date", target_date: "Target completion", completed_date: "Completed date", quote_due_date: "Quote due",
   signed_quote: "Signed quote", quoted_value: "Quoted value",
 };
@@ -58,11 +59,25 @@ export function describe(c: Change, p?: Proj): string {
     const value = p?.signed_quote ? ` — ${fmtAed(String(p.signed_quote))}` : "";
     const missing = p ? [!p.pm_id && "a project manager", !p.designer_id && "a designer"].filter(Boolean) as string[] : [];
     const needs = missing.length ? ` Still needs ${missing.join(" and ")}.` : "";
-    return `Signed${value}. Now at ${LABEL[c.new_value as Status] ?? c.new_value}.${needs}`;
+    // the stage change rides in the same batch; name the Rev 3 stage rather than the coarse status
+    return `Signed${value}. Now at ${p?.stage === 3 ? "Award / contract with Jean" : LABEL[c.new_value as Status] ?? c.new_value}.${needs}`;
   }
+  if (c.kind === "field" && c.field === "status" && p?.stage != null) return "";   // the 'stage' row says it better
   const vo = (s: string | null) => { const [d, v] = (s ?? "").split(" | "); return `${d || "no description"} (${fmtAed(v ?? null)})`; };
   switch (c.kind) {
     case "created": return "New project created";
+    // workflow Rev 3 (db/016)
+    case "stage": return `Stage: ${c.old_value ?? "—"} → ${c.new_value ?? "—"}`;
+    case "ball": return c.new_value ? `${tc(c.new_value)} now holds the ball` : "No one holds the ball";
+    case "flow": return "";  // the handover / hold rows carry the story
+    case "next_action": return `Next action: ${c.new_value ?? "—"}`;
+    case "handover_requested": return `Handover requested — ${c.field}: ${tc(c.old_value ?? "—")} → ${tc(c.new_value ?? "—")}. Waiting for ${tc(c.new_value ?? "them")} to accept.`;
+    case "handover_accepted": return `Handover accepted — ${c.field} now with ${tc((c.new_value ?? "").split(" — ")[0])}${c.new_value?.includes(" — recorded by ") ? ` (recorded by ${tc(c.new_value.split(" — recorded by ")[1])})` : ""}`;
+    case "handover_returned": return `Handover returned by ${tc(c.old_value ?? "—")} — ${c.new_value ?? "no reason given"}`;
+    case "handover_cancelled": return `Handover request withdrawn (${c.field})`;
+    case "handover_override": return `Moved to ${c.field} without acceptance — ${c.new_value ?? ""}`;
+    case "hold": return `On hold${c.field ? ` — waiting on ${tc(c.field)}` : ""}: ${c.new_value ?? ""}`;
+    case "hold_released": return `Hold released${c.new_value ? ` — ${c.new_value}` : ""}`;
     case "removed": return `Project removed from the board — ${c.new_value ?? "no reason given"}`;
     case "restored": return "Project restored to the board";
     case "meeting_created": return "You've been added to this meeting";
@@ -112,8 +127,13 @@ const meetingCard = (m: Meet) => `
  *  so without them the signing would go to an empty list. */
 export function recipients(p: Proj, changes: Change[], people: Map<string, Person>, watchers: Set<string>): Person[] {
   const ids = new Set<string>();
-  for (const id of [p.pm_id, p.pm2_id, p.designer_id]) if (id) ids.add(id);
+  for (const id of [p.pm_id, p.pm2_id, p.designer_id, p.ball_holder_id]) if (id) ids.add(id);
   if (p.status === "QUOTE" && p.estimator_id) ids.add(p.estimator_id);
+  // Rev 3: the next owner hears the moment a handover is requested; the previous owner hears the outcome
+  for (const c of changes) {
+    if (c.kind === "handover_requested" && c.new_value) for (const person of people.values()) if (person.name === c.new_value) ids.add(person.id);
+    if ((c.kind === "handover_accepted" || c.kind === "handover_returned" || c.kind === "handover_override") && c.old_value) for (const person of people.values()) if (person.name === c.old_value) ids.add(person.id);
+  }
   for (const id of watchers) ids.add(id);
   const wonOrNew = changes.some((c) => (c.kind === "created" && p.status !== "QUOTE") || isAward(c));
   if (wonOrNew) for (const person of people.values()) if (person.notify_on_award) ids.add(person.id);
@@ -128,7 +148,7 @@ function renderEmail(to: Person, groups: Group[], people: Map<string, Person>): 
   const g0 = groups[0];
   const firstName = g0.p ? `${g0.p.name}${g0.p.enquiry_no ? ` (${g0.p.enquiry_no})` : ""}` : `Meeting: ${g0.m!.title}`;
   const subject = groups.length === 1
-    ? `${firstName} — ${g0.changes.length === 1 ? describe(g0.changes[0], g0.p) : g0.changes.length + " updates"}`
+    ? `${firstName} — ${(() => { const d = g0.changes.map((c) => describe(c, g0.p)).filter(Boolean); return d.length === 1 ? d[0] : d.length + " updates"; })()}`
     : `${firstName} and ${groups.length - 1} other update${groups.length > 2 ? "s" : ""}`;
 
   const who = (id: string | null) => (id && people.get(id)?.name) || "someone";
@@ -137,7 +157,7 @@ function renderEmail(to: Person, groups: Group[], people: Map<string, Person>): 
       ${p ? `<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a7a5c">${esc(p.enquiry_no ?? "")}${p.client ? ` · ${esc(p.client)}` : ""}</div>
       <div style="font-size:17px;font-weight:600;color:#14213d;margin:2px 0 10px"><a href="${APP_URL}/projects/${p.id}" style="color:#14213d;text-decoration:none">${esc(p.name)}</a></div>` : meetingCard(m!)}
       <ul style="margin:0;padding:0 0 0 18px;color:#2b2b2b;font-size:14px;line-height:1.55">
-        ${changes.map((c) => `<li>${esc(describe(c, p))} <span style="color:#8a8a8a;font-size:12px">— ${esc(who(c.changed_by))}, ${fmtTime(c.changed_at)}</span></li>`).join("")}
+        ${changes.filter((c) => describe(c, p)).map((c) => `<li>${esc(describe(c, p))} <span style="color:#8a8a8a;font-size:12px">— ${esc(who(c.changed_by))}, ${fmtTime(c.changed_at)}</span></li>`).join("")}
       </ul>
       <div style="margin-top:10px"><a href="${p ? `${APP_URL}/projects/${p.id}` : `${APP_URL}/meetings?w=${m!.meeting_date}`}" style="font-size:13px;color:#8a7a5c">${p ? "Open project" : "Open the diary"} →</a></div>
     </div>`).join("");
@@ -150,7 +170,7 @@ function renderEmail(to: Person, groups: Group[], people: Map<string, Person>): 
       <div style="font-size:12px;color:#9a9a9a;margin-top:8px">You get this because you're the PM, designer or estimator on these projects, you've been tagged to be kept updated, or you're in these meetings. Updates are grouped and sent at most every 10 minutes. <a href="${APP_URL}/board" style="color:#8a7a5c">Open the board</a></div>
     </div></body></html>`;
 
-  const text = groups.map(({ p, m, changes }) => `${p ? `${p.enquiry_no ?? ""} ${p.name}` : `Meeting: ${m!.title} — ${fmtDay(m!.meeting_date)} ${hm(m!.start_time)}–${hm(m!.end_time)} (${LOC[m!.location]})`}\n${changes.map((c) => `  - ${describe(c, p)} (${who(c.changed_by)}, ${fmtTime(c.changed_at)})`).join("\n")}\n  ${p ? `${APP_URL}/projects/${p.id}` : `${APP_URL}/meetings?w=${m!.meeting_date}`}`).join("\n\n");
+  const text = groups.map(({ p, m, changes }) => `${p ? `${p.enquiry_no ?? ""} ${p.name}` : `Meeting: ${m!.title} — ${fmtDay(m!.meeting_date)} ${hm(m!.start_time)}–${hm(m!.end_time)} (${LOC[m!.location]})`}\n${changes.filter((c) => describe(c, p)).map((c) => `  - ${describe(c, p)} (${who(c.changed_by)}, ${fmtTime(c.changed_at)})`).join("\n")}\n  ${p ? `${APP_URL}/projects/${p.id}` : `${APP_URL}/meetings?w=${m!.meeting_date}`}`).join("\n\n");
   return { subject, html, text };
 }
 
@@ -189,7 +209,7 @@ export async function runNotifications(opts: { dryRun?: boolean } = {}) {
   const pIds = ready.filter(([k]) => k.startsWith("p:")).map(([k]) => k.slice(2));
   const mIds = ready.filter(([k]) => k.startsWith("m:")).map(([k]) => k.slice(2));
   const [{ data: projs }, { data: meets }, { data: ppl }] = await Promise.all([
-    pIds.length ? db.from("projects").select("id, enquiry_no, name, client, status, pm_id, pm2_id, designer_id, estimator_id, signed_quote").in("id", pIds) : { data: [] },
+    pIds.length ? db.from("projects").select("id, enquiry_no, name, client, status, pm_id, pm2_id, designer_id, estimator_id, signed_quote, ball_holder_id, stage").in("id", pIds) : { data: [] },
     mIds.length ? db.from("meetings_live").select("id, title, project_id, project_name, location, meeting_date, start_time, end_time, notes, cancelled, created_by, attendee_ids, attendees").in("id", mIds) : { data: [] },
     db.from("people").select("id, name, full_name, email, is_active, notify_on_award"),
   ]);

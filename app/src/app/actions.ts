@@ -426,3 +426,163 @@ export async function qualify(projectId: string, proceed: boolean): Promise<R> {
   bust(projectId);
   return { ok: true };
 }
+
+// ---------- handovers (Rev 3: the ball only moves when the next person accepts) ----------
+function bustWorkflow(projectId: string) { revalidatePath(`/projects/${projectId}`); revalidatePath("/board"); revalidatePath("/list"); }
+
+export async function requestHandover(projectId: string, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const to_stage = parseInt((fd.get("to_stage") ?? "").toString(), 10);
+  if (isNaN(to_stage)) return { error: "Pick the next stage." };
+  const row: Record<string, unknown> = { project_id: projectId, to_stage, note: nz(fd.get("note")), to_person_id: nz(fd.get("to_person_id")) };
+  const { error } = await supabase.from("handovers").insert(row);
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true, at: new Date().toISOString() };
+}
+/** The named next owner accepts; stage and ball move together (trigger). */
+export async function acceptHandover(projectId: string, handoverId: string): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("handovers").update({ status: "ACCEPTED" }).eq("id", handoverId);
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true };
+}
+/** Anne records an acceptance that came on WhatsApp: the message is the evidence, she is the recorder, the owner is still the owner. */
+export async function recordAcceptance(projectId: string, handoverId: string, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const evidence = nz(fd.get("acceptance_evidence"));
+  if (!evidence) return { error: "Paste the acceptance message — it is the evidence." };
+  const t = nz(fd.get("evidence_time"));
+  const { error } = await supabase.from("handovers").update({ status: "ACCEPTED", acceptance_evidence: evidence, evidence_time: t ? new Date(t).toISOString() : null }).eq("id", handoverId);
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true, at: new Date().toISOString() };
+}
+export async function returnHandover(projectId: string, handoverId: string, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const reason = nz(fd.get("return_reason"));
+  if (!reason) return { error: "Say what is missing — the outgoing owner needs a specific reason." };
+  const { error } = await supabase.from("handovers").update({ status: "RETURNED", return_reason: reason }).eq("id", handoverId);
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true, at: new Date().toISOString() };
+}
+export async function cancelHandover(projectId: string, handoverId: string): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("handovers").update({ status: "CANCELLED" }).eq("id", handoverId);
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true };
+}
+/** Admin accept-for-someone with a reason (decision 4) — recorded as an override against the admin's name. */
+export async function overrideAccept(projectId: string, handoverId: string, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const reason = nz(fd.get("override_reason"));
+  if (!reason) return { error: "Give a reason for accepting on their behalf." };
+  const { error } = await supabase.from("handovers").update({ status: "ACCEPTED", override_reason: reason }).eq("id", handoverId);
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true, at: new Date().toISOString() };
+}
+
+// ---------- holds ----------
+export async function putOnHold(projectId: string, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const reason = nz(fd.get("reason"));
+  if (!reason) return { error: "Say why the project is on hold." };
+  const { error } = await supabase.from("holds").insert({
+    project_id: projectId, reason, waiting_on_person_id: nz(fd.get("waiting_on_person_id")), waiting_on: nz(fd.get("waiting_on")),
+    required_action: nz(fd.get("required_action")), action_due: nz(fd.get("action_due")), review_date: nz(fd.get("review_date")),
+  });
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true, at: new Date().toISOString() };
+}
+export async function releaseHold(projectId: string, holdId: string, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("holds").update({ released_at: new Date().toISOString(), release_note: nz(fd.get("release_note")) }).eq("id", holdId);
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true, at: new Date().toISOString() };
+}
+
+// ---------- next action, checklist, evidence, tasks ----------
+export async function saveNextAction(projectId: string, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("projects").update({ next_action: nz(fd.get("next_action")), next_action_owner_id: nz(fd.get("next_action_owner_id")), next_action_due: nz(fd.get("next_action_due")) }).eq("id", projectId);
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true, at: new Date().toISOString() };
+}
+export async function tickChecklist(projectId: string, stageNo: number, itemKey: string, done: boolean, note?: string | null): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("stage_evidence").upsert({ project_id: projectId, stage_no: stageNo, item_key: itemKey, done, note: note ?? null }, { onConflict: "project_id,stage_no,item_key" });
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true };
+}
+/** A file already uploaded to the `evidence` bucket by the browser, or a link — one row either way. */
+export async function addEvidence(projectId: string, stageNo: number, data: { item_key?: string | null; file_path?: string | null; file_name?: string | null; link_url?: string | null; note?: string | null }): Promise<R> {
+  const supabase = await createClient();
+  if (!data.file_path && !data.link_url) return { error: "Nothing to attach." };
+  const { error } = await supabase.from("stage_evidence").insert({ project_id: projectId, stage_no: stageNo, done: true, item_key: null, file_path: data.file_path ?? null, file_name: data.file_name ?? null, link_url: data.link_url ?? null, note: data.note ?? (data.item_key ? `for: ${data.item_key}` : null) });
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true };
+}
+export async function removeEvidence(projectId: string, evidenceId: string): Promise<R> {
+  const supabase = await createClient();
+  const { data: row } = await supabase.from("stage_evidence").select("file_path").eq("id", evidenceId).single();
+  const { error } = await supabase.from("stage_evidence").delete().eq("id", evidenceId);
+  if (error) return { error: error.message };
+  if (row?.file_path) await supabase.storage.from("evidence").remove([row.file_path as string]);
+  bustWorkflow(projectId);
+  return { ok: true };
+}
+/** A short-lived link to an evidence file (the bucket is private). */
+export async function evidenceUrl(filePath: string): Promise<{ url?: string; error?: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.storage.from("evidence").createSignedUrl(filePath, 600);
+  if (error) return { error: error.message };
+  return { url: data.signedUrl };
+}
+export async function addTask(projectId: string, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const title = nz(fd.get("title"));
+  if (!title) return { error: "What is the task?" };
+  const { error } = await supabase.from("project_tasks").insert({ project_id: projectId, title, owner_id: nz(fd.get("owner_id")), due: nz(fd.get("due")) });
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true, at: new Date().toISOString() };
+}
+export async function setTaskDone(projectId: string, taskId: string, done: boolean): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("project_tasks").update({ done_at: done ? new Date().toISOString() : null }).eq("id", taskId);
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true };
+}
+/** Reassignment for leave or capacity: one replacement, who authorised it, why (Rev 3). Team managers and admins. */
+export async function reassignBall(projectId: string, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const to = nz(fd.get("to_person_id"));
+  const reason = nz(fd.get("reason"));
+  if (!to) return { error: "Pick the replacement." };
+  if (!reason) return { error: "Say why (leave, capacity …)." };
+  const { data: p } = await supabase.from("projects").select("ball_holder_id").eq("id", projectId).single();
+  const { error: e1 } = await supabase.from("reassignments").insert({ project_id: projectId, role: "BALL", from_person_id: p?.ball_holder_id ?? null, to_person_id: to, reason });
+  if (e1) return { error: e1.message };
+  const { error } = await supabase.from("projects").update({ ball_holder_id: to }).eq("id", projectId);
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true, at: new Date().toISOString() };
+}
+/** Reconciliation (plan §3): the named owner (or an admin) confirms a stage the migration set. */
+export async function confirmMigratedStage(projectId: string): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("projects").update({ stage_migrated: false, stage_accepted_at: new Date().toISOString() }).eq("id", projectId);
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true };
+}

@@ -582,3 +582,12 @@ alter table projects enable trigger trg_workflow_change_log;
 
 -- ---------- projects_live ----------
 -- NOTE: the migration tool refuses `drop view`; run the drop + create via execute_sql (016c).
+
+-- ---------- added later in the 28 Oct session ----------
+-- the person holding the ball may edit their own project (next action, confirm a migrated stage, team fields)
+drop policy if exists update_ball_holder on projects;
+create policy update_ball_holder on projects for update to authenticated
+  using (ball_holder_id is not null and ball_holder_id = current_person_id())
+  with check (ball_holder_id is not null and ball_holder_id = current_person_id());
+-- Anne records the appointments and books the meetings (Rev 3 stage 4): she needs project-edit rights
+update people set can_edit_projects = true where name = 'ANNE';
