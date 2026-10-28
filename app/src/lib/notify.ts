@@ -294,10 +294,13 @@ type LiveRow = {
   stage: number | null; stage_name: string | null; stage_short: string | null; ball_holder_id: string | null; flow_status: string | null;
   stage_age_days: number | null; stage_target_days: number | null; stage_overdue: boolean | null;
   hold_id: string | null; hold_reason: string | null; hold_waiting_on: string | null; hold_review_date: string | null; hold_action_due: string | null; hold_action: string | null;
+  pm_id: string | null; designer_id: string | null; stage_entered_at: string | null;
   pending_handover_id: string | null; pending_to_person_id: string | null; pending_to_stage: number | null; pending_since: string | null;
   next_action: string | null; next_action_owner_id: string | null; next_action_due: string | null;
 };
-type Reminder = { p: LiveRow; kind: "accept" | "escalated" | "hold" | "action" | "stage"; text: string; onBehalfOf?: string };
+type Reminder = { p: LiveRow; kind: "accept" | "escalated" | "hold" | "action" | "stage" | "item"; text: string; onBehalfOf?: string };
+type ItemRow = { id: string; project_id: string; drawing_code: string; name: string; stage: string; designer_id: string | null; pm_id: string | null; planned_submission: string | null; material_approval: string; measurements_date: string | null; issued_date: string | null; submission_overdue: boolean; client_overdue: boolean; last_submitted: string | null; cancelled: boolean; project_status: string; project_deleted_at: string | null };
+type PStage = { id: string; item_id: string; stage: string; stage_no: number; planned_start: string | null; planned_end: string | null; status: string; na: boolean };
 type RPerson = Person & { role: string; can_sign_in: boolean; handles_escalations: boolean };
 
 export async function runDailyReminders(opts: { dryRun?: boolean; date?: string } = {}) {
@@ -305,12 +308,17 @@ export async function runDailyReminders(opts: { dryRun?: boolean; date?: string 
   const today = opts.date ?? todayDubai();
   const now = opts.date ? new Date(opts.date + "T03:30:00Z").getTime() : Date.now();
   const [{ data: rows, error }, { data: ppl }, { data: settings }, { data: targets }, { data: stages }] = await Promise.all([
-    db.from("projects_live").select("id, enquiry_no, name, client, status, stage, stage_name, stage_short, ball_holder_id, flow_status, stage_age_days, stage_target_days, stage_overdue, hold_id, hold_reason, hold_waiting_on, hold_review_date, hold_action_due, hold_action, pending_handover_id, pending_to_person_id, pending_to_stage, pending_since, next_action, next_action_owner_id, next_action_due")
+    db.from("projects_live").select("id, enquiry_no, name, client, status, stage, stage_name, stage_short, ball_holder_id, flow_status, stage_age_days, stage_target_days, stage_overdue, pm_id, designer_id, stage_entered_at, hold_id, hold_reason, hold_waiting_on, hold_review_date, hold_action_due, hold_action, pending_handover_id, pending_to_person_id, pending_to_stage, pending_since, next_action, next_action_owner_id, next_action_due")
       .is("deleted_at", null).not("status", "in", "(LOST,MERGED,COMPLETED)"),
     db.from("people").select("id, name, full_name, email, is_active, notify_on_award, role, can_sign_in, handles_escalations"),
     db.from("alert_settings").select("rule, threshold, enabled").in("rule", ["W1", "W2", "W3", "W4"]),
     db.from("stage_targets").select("stage_no, response_hours"),
     db.from("stages").select("stage_no, short_name"),
+  ]);
+  const [{ data: itemRows }, { data: pstages }, { data: isettings }] = await Promise.all([
+    db.from("items_live").select("id, project_id, drawing_code, name, stage, designer_id, pm_id, planned_submission, material_approval, measurements_date, issued_date, submission_overdue, client_overdue, last_submitted, cancelled, project_status, project_deleted_at").eq("cancelled", false).is("project_deleted_at", null).not("project_status", "in", "(LOST,MERGED,COMPLETED)"),
+    db.from("item_production_stages").select("id, item_id, stage, stage_no, planned_start, planned_end, status, na").eq("na", false).neq("status", "COMPLETE"),
+    db.from("alert_settings").select("rule, threshold, enabled").like("rule", "I%"),
   ]);
   if (error) throw new Error(error.message);
   const people = new Map(((ppl ?? []) as RPerson[]).map((p) => [p.id, p]));
@@ -336,6 +344,10 @@ export async function runDailyReminders(opts: { dryRun?: boolean; date?: string 
   };
 
   const W1 = setting("W1"), W2 = setting("W2"), W3 = setting("W3"), W4 = setting("W4");
+  const iset = (r: string) => { const x = (isettings ?? []).find((y) => y.rule === r); return { on: x ? x.enabled !== false : true, n: x?.threshold ?? 0 }; };
+  const production = [...people.values()].find((p) => p.role === "PRODUCTION" && p.is_active) ?? null;   // Gajanand
+  const projRow = new Map(((rows ?? []) as LiveRow[]).map((p) => [p.id, p]));
+  const projectsById = projRow;
   for (const p of (rows ?? []) as LiveRow[]) {
     // W1: a handover nobody has accepted
     if (W1.on && p.flow_status === "AWAITING_ACCEPTANCE" && p.pending_handover_id && p.pending_to_person_id) {
@@ -367,7 +379,46 @@ export async function runDailyReminders(opts: { dryRun?: boolean; date?: string 
     }
   }
 
-  const KIND: Record<Reminder["kind"], string> = { accept: "Waiting for acceptance", escalated: "Escalated", hold: "On hold", action: "Next action", stage: "Stage overdue" };
+  // ---- items & production (Items plan §7, rules I1–I10; I3 rides the 10-minute digest) ----
+  const stagesByItem = new Map<string, PStage[]>();
+  for (const st of (pstages ?? []) as PStage[]) stagesByItem.set(st.item_id, [...(stagesByItem.get(st.item_id) ?? []), st]);
+  const itemsByProject = new Map<string, ItemRow[]>();
+  for (const i of (itemRows ?? []) as ItemRow[]) itemsByProject.set(i.project_id, [...(itemsByProject.get(i.project_id) ?? []), i]);
+  const I = { I1: iset("I1"), I2: iset("I2"), I4: iset("I4"), I5: iset("I5"), I6: iset("I6"), I7: iset("I7"), I8: iset("I8"), I9: iset("I9"), I10: iset("I10") };
+  const soon = (d: string | null, n: number) => !!d && days(d) <= 0 && days(d) >= -n;   // within the next n days (inclusive of today)
+  for (const i of (itemRows ?? []) as ItemRow[]) {
+    const p = projRow.get(i.project_id); if (!p) continue;
+    const code = `${i.drawing_code} ${i.name}`;
+    const sts = stagesByItem.get(i.id) ?? [];
+    const joinery = sts.find((x) => x.stage === "JOINERY"), delivery = sts.find((x) => x.stage === "DELIVERY"), install = sts.find((x) => x.stage === "INSTALL");
+    if (I.I1.on && i.submission_overdue) { const t = `${code} — R0 was due ${fmtDate(i.planned_submission)}`; add(i.designer_id, { p, kind: "item", text: t }); add(i.pm_id, { p, kind: "item", text: t }); }
+    if (I.I2.on && i.client_overdue) add(i.pm_id, { p, kind: "item", text: `${code} — with the client since ${fmtDate(i.last_submitted)}, chase them` });
+    if (I.I4.on && joinery && soon(joinery.planned_start, I.I4.n) && (i.material_approval === "PENDING" || !i.measurements_date)) {
+      const t = `${code} — joinery starts ${fmtDate(joinery.planned_start)} but ${[i.material_approval === "PENDING" && "material approval is pending", !i.measurements_date && "final measurements aren't taken"].filter(Boolean).join(" and ")}`;
+      add(i.pm_id, { p, kind: "item", text: t }); if (production) add(production.id, { p, kind: "item", text: t });
+    }
+    if (I.I5.on) for (const st of sts) if (st.planned_end && days(st.planned_end) > I.I5.n) {
+      const factory = st.stage_no <= 3; const t = `${code} — ${st.stage.toLowerCase()} should have finished ${fmtDate(st.planned_end)}`;
+      add(factory ? production?.id ?? null : i.pm_id, { p, kind: "item", text: t }); if (factory) add(i.pm_id, { p, kind: "item", text: t });
+    }
+    if (I.I6.on && install && soon(install.planned_start, I.I6.n) && delivery) {
+      const t = `${code} — install starts ${fmtDate(install.planned_start)} and delivery isn't complete`;
+      if (production) add(production.id, { p, kind: "item", text: t }); add(i.pm_id, { p, kind: "item", text: t });
+    }
+    if (I.I9.on && i.issued_date && days(i.issued_date) > I.I9.n && joinery && !joinery.planned_start) add(production?.id ?? null, { p, kind: "item", text: `${code} — issued ${fmtDate(i.issued_date)}, no joinery dates yet` });
+    // delivery complete (so it is no longer in the open-stage list) and the item has moved to Install with no dates
+    if (I.I10.on && delivery == null && install && !install.planned_start && i.stage === "INSTALL") add(i.pm_id, { p, kind: "item", text: `${code} — delivered, no install date` });
+  }
+  // I7 awarded, no items / I8 awarded, no designer — per project
+  for (const p of (rows ?? []) as LiveRow[]) {
+    const awarded = p.status !== "QUOTE" && p.status !== "SITE_ON_HOLD";
+    if (!awarded) continue;
+    const pr = projectsById.get(p.id);
+    if (I.I8.on && !pr?.designer_id) { const t = `No designer assigned yet`; add(pr?.pm_id ?? null, { p, kind: "item", text: t }); if (coordinator) add(coordinator.id, { p, kind: "item", text: t }); }
+    else if (I.I7.on && !(itemsByProject.get(p.id)?.length) && pr?.stage_entered_at && Math.floor((now - new Date(pr.stage_entered_at).getTime()) / 86400000) >= I.I7.n && (p.stage ?? 0) >= 6) { const t = `No item list yet — add the items so drawings can start`; add(pr.designer_id ?? null, { p, kind: "item", text: t }); add(pr.pm_id ?? null, { p, kind: "item", text: t }); }
+  }
+
+  const KIND: Record<Reminder["kind"], string> = { accept: "Waiting for acceptance", escalated: "Escalated", hold: "On hold", action: "Next action", stage: "Stage overdue", item: "Drawings & production" };
   let sent = 0; const failures: string[] = []; const preview: Record<string, string[]> = {};
   for (const [id, list] of per) {
     const to = people.get(id)!;
