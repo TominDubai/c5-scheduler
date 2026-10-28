@@ -3,8 +3,8 @@ import { Fragment, useActionState, useState } from "react";
 import { title, type Person } from "@/lib/model";
 import { savePerson, addPerson } from "@/app/actions";
 
-const ROLE_LABEL: Record<string, string> = { PM: "Project manager", DESIGNER: "Designer", TECHNICAL_DESIGNER: "Technical designer", ESTIMATOR: "Estimator", MANAGEMENT: "Management", ADMIN: "Office / admin" };
-const ROLE_ORDER = ["MANAGEMENT", "PM", "DESIGNER", "TECHNICAL_DESIGNER", "ESTIMATOR", "ADMIN"];
+const ROLE_LABEL: Record<string, string> = { PM: "Project manager", DESIGNER: "Designer", TECHNICAL_DESIGNER: "Technical designer", ESTIMATOR: "Estimator", PRODUCTION: "Production", MANAGEMENT: "Management", ADMIN: "Office / admin" };
+const ROLE_ORDER = ["MANAGEMENT", "PM", "DESIGNER", "TECHNICAL_DESIGNER", "ESTIMATOR", "PRODUCTION", "ADMIN"];
 type State = { error?: string; ok?: boolean; at?: string } | null;
 
 function Row({ p, canEdit }: { p: Person; canEdit: boolean }) {
@@ -13,7 +13,7 @@ function Row({ p, canEdit }: { p: Person; canEdit: boolean }) {
   const flags = [p.can_edit_projects && "projects", p.can_edit_estimation && "estimation", p.can_manage_team && "team"].filter(Boolean).join(" + ");
   if (!canEdit) return (
     <tr className={p.is_active ? "" : "off"}>
-      <td className="name">{title(p.name)}</td><td>{p.full_name ?? "—"}</td><td>{p.email ?? <i>no email</i>}</td><td>{p.whatsapp ?? "—"}</td><td><span className="pill">{flags || "view"}</span></td><td>{p.is_active ? "Active" : "Left"}</td><td />
+      <td className="name">{title(p.name)}</td><td>{p.full_name ?? "—"}</td><td>{p.email ?? <i>no email</i>}</td><td>{p.whatsapp ?? "—"}</td><td><span className="pill">{flags || "view"}</span></td><td>{p.notify_on_award ? <span className="pill ok">signings</span> : "—"}</td><td>{p.is_active ? "Active" : "Left"}</td><td />
     </tr>
   );
   return (
@@ -23,6 +23,7 @@ function Row({ p, canEdit }: { p: Person; canEdit: boolean }) {
       <td><input form={`f-${p.id}`} name="email" type="email" defaultValue={p.email ?? ""} placeholder="name@concept-5.com" onChange={() => setDirty(true)} className={p.email ? "" : "missing"} /></td>
       <td><input form={`f-${p.id}`} name="whatsapp" defaultValue={p.whatsapp ?? ""} placeholder="+9715…" onChange={() => setDirty(true)} /></td>
       <td><span className="pill">{flags || "view"}</span></td>
+      <td><label className="check"><input form={`f-${p.id}`} type="checkbox" name="notify_on_award" defaultChecked={p.notify_on_award} onChange={() => setDirty(true)} /> Told</label></td>
       <td><label className="check"><input form={`f-${p.id}`} type="checkbox" name="is_active" defaultChecked={p.is_active} onChange={() => setDirty(true)} /> Active</label></td>
       <td className="save">
         <form id={`f-${p.id}`} action={action} onSubmit={() => setDirty(false)}>
@@ -62,11 +63,11 @@ export default function TeamTable({ people, canEdit }: { people: Person[]; canEd
     <div className="listview">
       <div className="tablewrap team">
         <table>
-          <thead><tr><th>Name</th><th>Full name</th><th>Email</th><th>WhatsApp</th><th>Can edit</th><th>Status</th><th /></tr></thead>
+          <thead><tr><th>Name</th><th>Full name</th><th>Email</th><th>WhatsApp</th><th>Can edit</th><th>Told when a project is signed</th><th>Status</th><th /></tr></thead>
           <tbody>
             {groups.map(([role, ps]) => (
               <Fragment key={role}>
-                <tr className="group"><td colSpan={7}>{ROLE_LABEL[role]}</td></tr>
+                <tr className="group"><td colSpan={8}>{ROLE_LABEL[role]}</td></tr>
                 {ps.map((p) => <Row key={p.id} p={p} canEdit={canEdit} />)}
               </Fragment>
             ))}

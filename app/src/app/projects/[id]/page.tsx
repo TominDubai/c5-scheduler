@@ -7,7 +7,9 @@ import ProjectForm from "@/components/ProjectForm";
 import Variations from "@/components/Variations";
 import RemoveProject, { RemovedBanner } from "@/components/RemoveProject";
 import TargetRevisions from "@/components/TargetRevisions";
-import { getProject, getPeople, getContractors, getMe, getProjectMeetings, getProjects, getTargetRevisions } from "@/lib/data";
+import ItemsPanel from "@/components/ItemsPanel";
+import { Suspense } from "react";
+import { getProject, getPeople, getContractors, getMe, getProjectMeetings, getProjects, getTargetRevisions, getProjectItems, getItemTypes, getProjectWatchers } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { STAGES, ORDER, LABEL, aed, fmtD, title, tone, delayText, hm, fmtDay, todayDubai, LOCATION_LABEL, byEnq, type Variation, type History } from "@/lib/model";
 
@@ -16,8 +18,8 @@ export const dynamic = "force-dynamic";
 async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const [p, people, contractors, me, meetings, all, revisions, { data: vos }, { data: hist }] = await Promise.all([
-    getProject(id), getPeople(), getContractors(), getMe(), getProjectMeetings(id), getProjects(), getTargetRevisions(id),
+  const [p, people, contractors, me, meetings, all, revisions, itemsData, itemTypes, watchers, { data: vos }, { data: hist }] = await Promise.all([
+    getProject(id), getPeople(), getContractors(), getMe(), getProjectMeetings(id), getProjects(), getTargetRevisions(id), getProjectItems(id), getItemTypes(), getProjectWatchers(id),
     supabase.from("variations").select("*").eq("project_id", id).order("vo_no"),
     supabase.from("status_history").select("*, who:people(name)").eq("project_id", id).order("changed_at", { ascending: false }),
   ]);
@@ -60,14 +62,25 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
               <dt>Duration</dt><dd>{p.duration_days != null ? `${p.duration_days} days${p.completed_date ? "" : " so far"}` : "—"}</dd>
               <dt>Project value</dt><dd>{aed(p.project_value)} <small>inc. VAT · {p.vo_count} VO{p.vo_count === 1 ? "" : "s"}</small></dd>
               <dt>In this stage since</dt><dd>{fmtD(p.status_since)}</dd>
+              <dt>Updates go to</dt><dd>{(() => {
+                const ids = [p.pm_id, p.pm2_id, p.designer_id, ...watchers].filter(Boolean) as string[];
+                const names = [...new Set(ids)].map((id) => people.find((x) => x.id === id)).filter(Boolean).map((x) => title(x!.name));
+                return names.length ? names.join(", ") : <i style={{ color: "var(--fg3)" }}>nobody yet — assign a PM and a designer</i>;
+              })()}</dd>
             </dl>
           </div>
           <Variations projectId={p.id} signedQuote={p.signed_quote} vos={(vos ?? []) as Variation[]} canEdit={me.canProjects && !p.deleted_at} />
         </div>
+        {p.status !== "QUOTE" && p.status !== "LOST" && p.status !== "MERGED" && (
+          <>
+            {!p.designer_id && <div className="vobanner"><b>No designer assigned.</b> The project designer creates the item list — assign one in the form below before items go in.</div>}
+            <Suspense><ItemsPanel projectId={p.id} projectDesignerId={p.designer_id} data={itemsData} types={itemTypes} people={people} me={me} locked={!!p.deleted_at} /></Suspense>
+          </>
+        )}
         {canEdit ? (
           <div className="panel">
             <h2>Edit project</h2>
-            <ProjectForm project={p} people={people} contractors={contractors} estimationOnly={!me.canProjects} liveProjects={live} />
+            <ProjectForm project={p} people={people} contractors={contractors} estimationOnly={!me.canProjects} liveProjects={live} watchers={watchers} />
           </div>
         ) : (
           <div className="panel"><h2>Details</h2><dl>

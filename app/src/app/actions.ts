@@ -121,12 +121,28 @@ export async function createEnquiry(_prev: unknown, fd: FormData) {
   return { ok: true, enquiry_no: data.enquiry_no as string, id: data.id as string };
 }
 
+/** Tagged people (db/015): add the new ones, drop the removed ones. The triggers log each change,
+ *  so being added to a project turns up in that person's next digest. */
+async function syncWatchers(projectId: string, fd: FormData) {
+  if (!fd.has("watchers_present")) return;               // form didn't carry the control — leave the list alone
+  // (an all-unchecked checkbox group posts nothing, so the hidden marker is what tells us it was there)
+  const supabase = await createClient();
+  const want = [...new Set(fd.getAll("watchers").map(String).filter(Boolean))];
+  const { data: cur } = await supabase.from("project_watchers").select("person_id").eq("project_id", projectId);
+  const have = new Set(((cur ?? []) as { person_id: string }[]).map((r) => r.person_id));
+  const add = want.filter((id) => !have.has(id));
+  const drop = [...have].filter((id) => !want.includes(id));
+  if (add.length) await supabase.from("project_watchers").insert(add.map((person_id) => ({ project_id: projectId, person_id })));
+  if (drop.length) await supabase.from("project_watchers").delete().eq("project_id", projectId).in("person_id", drop);
+}
+
 export async function saveProject(id: string, _prev: unknown, fd: FormData) {
   const supabase = await createClient();
   const fields = projectFields(fd);
   if (fields.name === "") return { error: "Project name is required." };
   const { error } = await supabase.from("projects").update(fields).eq("id", id);
   if (error) return { error: error.message };
+  await syncWatchers(id, fd);
   revalidatePath("/board"); revalidatePath("/list"); revalidatePath(`/projects/${id}`);
   return { ok: true, at: new Date().toISOString() };
 }
@@ -137,6 +153,7 @@ export async function createProject(_prev: unknown, fd: FormData) {
   if (!fields.name) return { error: "Project name is required." };
   const { data, error } = await supabase.from("projects").insert(fields as { name: string }).select("id").single();
   if (error) return { error: error.message };
+  await syncWatchers(data.id as string, fd);
   revalidatePath("/board"); revalidatePath("/list");
   redirect(`/projects/${data.id}`);
 }
@@ -186,7 +203,7 @@ const phone = (v: FormDataEntryValue | null) => { const s = nz(v)?.replace(/[\s\
 export async function savePerson(id: string, _prev: unknown, fd: FormData) {
   const supabase = await createClient();
   try {
-    const patch = { full_name: nz(fd.get("full_name")), email: email(fd.get("email")), whatsapp: phone(fd.get("whatsapp")), is_active: fd.get("is_active") === "on" };
+    const patch = { full_name: nz(fd.get("full_name")), email: email(fd.get("email")), whatsapp: phone(fd.get("whatsapp")), is_active: fd.get("is_active") === "on", notify_on_award: fd.get("notify_on_award") === "on" };
     const { error } = await supabase.from("people").update(patch).eq("id", id);
     if (error) return { error: error.message.includes("people_email_key") ? "Another person already has that email." : error.message };
   } catch (e) { return { error: (e as Error).message }; }
@@ -267,5 +284,103 @@ export async function cancelMeeting(id: string) {
   const { data, error } = await supabase.from("meetings").update({ cancelled: true }).eq("id", id).select("project_id").single();
   if (error) return { error: error.message };
   bustMeetings(data?.project_id);
+  return { ok: true };
+}
+
+// ---------- items & production (db/014) ----------
+import type { DrawingStatus, MaterialStatus, StageStatus } from "@/lib/model";
+const DRAWING: DrawingStatus[] = ["A", "B", "C", "D", "UR"];
+const STAGE_STATUSES: StageStatus[] = ["NOT_STARTED", "IN_PROGRESS", "DELAYED", "ON_HOLD", "COMPLETE"];
+function bustItems(projectId: string) { revalidatePath(`/projects/${projectId}`); revalidatePath("/drawings"); revalidatePath("/board"); revalidatePath("/list"); }
+type R = { error?: string; ok?: boolean; at?: string; id?: string };
+
+export async function createItem(projectId: string, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const name = nz(fd.get("name"));
+  const type_id = nz(fd.get("type_id"));
+  if (!name) return { error: "Give the item a name (e.g. Main kitchen, Master wardrobe)." };
+  if (!type_id) return { error: "Pick an item type — it sets the letter in the drawing code." };
+  const { data, error } = await supabase.from("items").insert({
+    project_id: projectId, type_id, name, area: nz(fd.get("area")), designer_id: nz(fd.get("designer_id")), planned_submission: nz(fd.get("planned_submission")),
+  }).select("id").single();
+  if (error) return { error: error.message };
+  bustItems(projectId);
+  return { ok: true, id: data.id as string, at: new Date().toISOString() };
+}
+
+export async function saveItem(projectId: string, itemId: string, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const patch: Record<string, unknown> = {};
+  const has = (k: string) => fd.has(k);
+  if (has("name")) { const n = nz(fd.get("name")); if (!n) return { error: "The item needs a name." }; patch.name = n; }
+  if (has("area")) patch.area = nz(fd.get("area"));
+  if (has("type_id")) patch.type_id = nz(fd.get("type_id"));
+  if (has("designer_id")) patch.designer_id = nz(fd.get("designer_id"));
+  if (has("planned_submission")) patch.planned_submission = nz(fd.get("planned_submission"));
+  if (has("drawing_started_date")) patch.drawing_started_date = nz(fd.get("drawing_started_date"));
+  if (has("material_approval")) patch.material_approval = (nz(fd.get("material_approval")) ?? "PENDING") as MaterialStatus;
+  if (has("measurements_date")) patch.measurements_date = nz(fd.get("measurements_date"));
+  if (has("issued_date")) patch.issued_date = nz(fd.get("issued_date"));
+  if (has("notes")) patch.notes = nz(fd.get("notes"));
+  const { error } = await supabase.from("items").update(patch).eq("id", itemId);
+  if (error) return { error: error.message };
+  bustItems(projectId);
+  return { ok: true, at: new Date().toISOString() };
+}
+
+export async function setItemCancelled(projectId: string, itemId: string, cancelled: boolean): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("items").update({ cancelled }).eq("id", itemId);
+  if (error) return { error: error.message };
+  bustItems(projectId);
+  return { ok: true };
+}
+
+/** Submit the next revision (R0, R1 …) to the client. */
+export async function submitRevision(projectId: string, itemId: string, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const submitted_date = nz(fd.get("submitted_date")) ?? new Date().toISOString().slice(0, 10);
+  const { data: last } = await supabase.from("item_revisions").select("rev_no, status").eq("item_id", itemId).order("rev_no", { ascending: false }).limit(1);
+  const prev = last?.[0];
+  if (prev && prev.status == null) return { error: `R${prev.rev_no} is still with the client — record their response first.` };
+  const rev_no = prev ? prev.rev_no + 1 : 0;
+  const { error } = await supabase.from("item_revisions").insert({ item_id: itemId, rev_no, submitted_date, comments: nz(fd.get("comments")) });
+  if (error) return { error: error.message };
+  // submitting implies the drawing was started
+  await supabase.from("items").update({ drawing_started_date: submitted_date }).eq("id", itemId).is("drawing_started_date", null);
+  bustItems(projectId);
+  return { ok: true, at: new Date().toISOString() };
+}
+
+/** Record the client's response (A / B / C / D / UR) on a revision. */
+export async function returnRevision(projectId: string, revisionId: string, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const status = nz(fd.get("status")) as DrawingStatus | null;
+  if (!status || !DRAWING.includes(status)) return { error: "Pick the client's response (A, B, C, D or UR)." };
+  const returned_date = status === "UR" ? null : (nz(fd.get("returned_date")) ?? new Date().toISOString().slice(0, 10));
+  const { error } = await supabase.from("item_revisions").update({ status, returned_date, comments: nz(fd.get("comments")) }).eq("id", revisionId);
+  if (error) return { error: error.message };
+  bustItems(projectId);
+  return { ok: true, at: new Date().toISOString() };
+}
+
+export async function saveStage(projectId: string, stageId: string, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const status = (nz(fd.get("status")) ?? "NOT_STARTED") as StageStatus;
+  if (!STAGE_STATUSES.includes(status)) return { error: "Unknown stage status." };
+  const patch = { planned_start: nz(fd.get("planned_start")), planned_end: nz(fd.get("planned_end")), actual_start: nz(fd.get("actual_start")), actual_end: nz(fd.get("actual_end")), status, na: fd.get("na") === "on", notes: nz(fd.get("notes")) };
+  if (patch.planned_start && patch.planned_end && patch.planned_end < patch.planned_start) return { error: "The planned end is before the planned start." };
+  const { error } = await supabase.from("item_production_stages").update(patch).eq("id", stageId);
+  if (error) return { error: error.message };
+  bustItems(projectId);
+  return { ok: true, at: new Date().toISOString() };
+}
+
+/** Quick status change from the stage strip / schedule lists */
+export async function setStageStatus(projectId: string, stageId: string, status: StageStatus): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("item_production_stages").update({ status }).eq("id", stageId);
+  if (error) return { error: error.message };
+  bustItems(projectId);
   return { ok: true };
 }

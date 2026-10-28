@@ -3,9 +3,9 @@ import { useActionState, useState } from "react";
 import { ALL, QUOTE_STAGES, WAITING_ON, SCOPES, title, fmtD, type Project, type Person, type Contractor } from "@/lib/model";
 import { saveProject, createProject } from "@/app/actions";
 
-type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean; liveProjects?: Pick<Project, "id" | "name" | "enquiry_no">[] };
+type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean; liveProjects?: Pick<Project, "id" | "name" | "enquiry_no">[]; watchers?: string[] };
 
-export default function ProjectForm({ project, people, contractors, estimationOnly = false, liveProjects }: Props) {
+export default function ProjectForm({ project, people, contractors, estimationOnly = false, liveProjects, watchers = [] }: Props) {
   const lock = estimationOnly; // estimators: pricing fields only
   const action = project ? saveProject.bind(null, project.id) : createProject;
   const [state, formAction, pending] = useActionState(action, null as { error?: string; ok?: boolean; at?: string } | null);
@@ -14,6 +14,7 @@ export default function ProjectForm({ project, people, contractors, estimationOn
   const estimators = people.filter((p) => p.role === "ESTIMATOR" || p.role === "ADMIN" || p.role === "MANAGEMENT");
   const v = (k: keyof Project) => (project?.[k] ?? "") as string;
   const [target, setTarget] = useState(v("target_date"));
+  const [tagged, setTagged] = useState<Set<string>>(new Set(watchers));
   const targetChanged = !!project && target !== v("target_date");
   const nextRev = (project?.target_rev ?? -1) + 1;
   return (
@@ -31,6 +32,22 @@ export default function ProjectForm({ project, people, contractors, estimationOn
         <select id="pm2_id" name="pm2_id" disabled={lock} defaultValue={v("pm2_id")}><option value="">—</option>{pms.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
       <div className="field"><label htmlFor="designer_id">Designer <small>(assigned by Jinky)</small></label>
         <select id="designer_id" name="designer_id" disabled={lock} defaultValue={v("designer_id")}><option value="">—</option>{designers.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
+      {!lock && (
+        <div className="field wide tagged">
+          <label>Also keep updated <small>(anyone else who should get this project’s update emails — Jinky tags them)</small></label>
+          <input type="hidden" name="watchers_present" value="1" />
+          <div className="chips">
+            {people.filter((p) => p.is_active).map((p) => (
+              <label key={p.id} className={"chip" + (tagged.has(p.id) ? " on" : "")}>
+                <input type="checkbox" name="watchers" value={p.id} checked={tagged.has(p.id)}
+                  onChange={(e) => setTagged((s2) => { const n = new Set(s2); if (e.target.checked) n.add(p.id); else n.delete(p.id); return n; })} />
+                {title(p.name)}
+              </label>
+            ))}
+          </div>
+          <small className="note">The PM, second PM and designer are always included — no need to tag them.</small>
+        </div>
+      )}
       <div className="field"><label htmlFor="signed_quote">Signed quote (AED inc. VAT)</label><input id="signed_quote" name="signed_quote" disabled={lock} inputMode="decimal" defaultValue={project?.signed_quote ?? ""} /></div>
       <div className="field"><label htmlFor="received_date">Enquiry received</label><input id="received_date" name="received_date" type="date" defaultValue={v("received_date")} /></div>
       <div className="field"><label htmlFor="start_date">Project start <small>(date payment received)</small></label><input id="start_date" name="start_date" disabled={lock} type="date" defaultValue={v("start_date")} /></div>
