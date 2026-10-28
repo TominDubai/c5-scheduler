@@ -3,7 +3,7 @@ export type Status =
   | "INSTALLATION" | "SNAGGING" | "COMPLETED" | "SITE_ON_HOLD" | "LOST" | "MERGED";
 
 export const STAGES: [Status, string][] = [
-  ["QUOTE", "Quote"], ["DESIGN_DRAWINGS", "Design drawings"], ["PROD_DRAWINGS", "Prod drawings"],
+  ["QUOTE", "Quotation"], ["DESIGN_DRAWINGS", "Design drawings"], ["PROD_DRAWINGS", "Prod drawings"],
   ["PRODUCTION", "Production"], ["INSTALLATION", "Installation"], ["SNAGGING", "Snagging"], ["COMPLETED", "Completed"],
 ];
 export const SIDE: [Status, string][] = [["SITE_ON_HOLD", "Site on hold"], ["LOST", "Lost"]];
@@ -33,8 +33,56 @@ export type Project = TargetInfo & {
   // soft delete (filled in by getProjects from the projects table): removed projects stay in the database but leave every screen
   deleted_at: string | null; deleted_reason: string | null; deleted_by: string | null;
   project_value: number; vo_count: number; days_to_completion: number | null; duration_days: number | null; days_delayed: number | null; status_since: string | null;
+  // Workflow Rev 3 (db/016): one stage, one ball holder, a flow status; the rest comes from projects_live
+  stage: number | null; ball_holder_id: string | null; flow_status: FlowStatus; coordinator_id: string | null;
+  stage_entered_at: string | null; stage_migrated: boolean; stage_accepted_at: string | null;
+  next_action: string | null; next_action_owner_id: string | null; next_action_due: string | null; qualified_by: string | null; declined_at: string | null;
+  technical_designer: string | null; coordinator: string | null; ball_holder: string | null; ball_holder_full: string | null; ball_holder_position: string | null; ball_holder_can_sign_in: boolean | null;
+  next_action_owner: string | null; stage_name: string | null; stage_short: string | null; phase: Phase | null; department: string | null; owner_rule: string | null; next_stage: number | null; retains_ball: boolean | null;
+  stage_target_days: number | null; stage_age_days: number | null; stage_overdue: boolean;
+  hold_id: string | null; hold_reason: string | null; hold_waiting_on: string | null; hold_action: string | null; hold_action_due: string | null; hold_since: string | null; hold_review_date: string | null;
+  pending_handover_id: string | null; pending_to_person_id: string | null; pending_to_person: string | null; pending_to_stage: number | null; pending_since: string | null;
+  open_tasks: number;
 };
-export type Person = { id: string; name: string; full_name: string | null; role: string; email: string | null; whatsapp: string | null; is_active: boolean; can_edit_estimation: boolean; can_edit_projects: boolean; can_manage_team: boolean; is_admin: boolean; notify_on_award: boolean };
+export type FlowStatus = "ACTIVE" | "AWAITING_ACCEPTANCE" | "ON_HOLD";
+export const FLOW_LABEL: Record<FlowStatus, string> = { ACTIVE: "Active", AWAITING_ACCEPTANCE: "Awaiting acceptance", ON_HOLD: "On hold" };
+/** The five phases Darren's Rev 3 groups the 17 stages into — the Board's columns (decision 2). Stages 0–2 live on the Estimation tab. */
+export type Phase = "ENQUIRY" | "HANDOVER" | "DESIGN" | "PRODUCTION" | "INSTALLATION" | "COMPLETE";
+export const PHASES: { key: Phase; label: string; short: string; stages: number[] }[] = [
+  { key: "ENQUIRY", label: "Enquiry to allocation", short: "Allocation", stages: [3, 4] },
+  { key: "HANDOVER", label: "Handover and kick-off", short: "Kick-off", stages: [5, 6, 7] },
+  { key: "DESIGN", label: "Design to material readiness", short: "Design", stages: [8, 9, 10] },
+  { key: "PRODUCTION", label: "Production to dispatch", short: "Production", stages: [11, 12, 13] },
+  { key: "INSTALLATION", label: "Installation to closeout", short: "Installation", stages: [14, 15, 16] },
+];
+export const COMPLETED_STAGE = 17;
+/** A row of the `stages` reference table (seeded from Rev 3; admin-editable). */
+export type Stage = {
+  stage_no: number; name: string; short_name: string; phase: Phase; department: string; owner_rule: "PERSON" | "ALLOCATED_PM" | "NONE";
+  position: string | null; description: string | null; checklist: { key: string; text: string }[]; evidence: string | null;
+  supporting: string[]; loop: string[]; attendance: string[]; retains_ball: boolean; next_stage: number | null; is_active: boolean;
+};
+export type StageOwner = { stage_no: number; person_id: string; set_by: string | null; set_at: string };
+export type StageTarget = { stage_no: number; target_days: number | null; response_hours: number | null };
+export type Handover = {
+  id: string; project_id: string; from_stage: number | null; to_stage: number; from_person_id: string | null; to_person_id: string | null;
+  status: "PENDING" | "ACCEPTED" | "RETURNED" | "CANCELLED" | "OVERRIDE" | "MIGRATED" | "CHECKPOINT";
+  requested_at: string; requested_by: string | null; note: string | null; accepted_at: string | null; returned_at: string | null; return_reason: string | null;
+  recorded_by: string | null; acceptance_evidence: string | null; evidence_time: string | null; override: boolean; authorised_by: string | null; override_reason: string | null;
+};
+export type Hold = { id: string; project_id: string; reason: string; waiting_on_person_id: string | null; waiting_on: string | null; required_action: string | null; action_due: string | null; blocked_since: string; review_date: string | null; created_by: string | null; released_at: string | null; released_by: string | null; release_note: string | null };
+export type StageEvidence = { id: string; project_id: string; stage_no: number; item_key: string | null; done: boolean; note: string | null; file_path: string | null; file_name: string | null; link_url: string | null; by: string | null; at: string };
+export type ProjectTask = { id: string; project_id: string; title: string; owner_id: string | null; due: string | null; done_at: string | null; created_by: string | null; created_at: string };
+/** "in stage 12d" / "12d · target 10d" — overdue colouring only once Darren's targets are in stage_targets */
+export function stageAge(p: Pick<Project, "stage_age_days" | "stage_target_days" | "stage_overdue">): { text: string; tone: Tone } {
+  const d = p.stage_age_days;
+  if (d == null) return { text: "", tone: "none" };
+  const t = p.stage_target_days;
+  return { text: t == null ? `${d}d in stage` : `${d}d / ${t}d`, tone: p.stage_overdue ? "crit" : t != null && d >= t * 0.8 ? "warn" : "none" };
+}
+export const phaseOf = (stage: number | null | undefined): Phase | null => stage == null ? null : stage === COMPLETED_STAGE ? "COMPLETE" : stage <= 2 ? "ENQUIRY" : (PHASES.find((ph) => ph.stages.includes(stage))?.key ?? null);
+export type Person = { id: string; name: string; full_name: string | null; role: string; email: string | null; whatsapp: string | null; is_active: boolean; can_edit_estimation: boolean; can_edit_projects: boolean; can_manage_team: boolean; is_admin: boolean; notify_on_award: boolean; can_sign_in: boolean; position: string | null };
+export const ROLE_LABEL: Record<string, string> = { PM: "Project manager", DESIGNER: "Designer", TECHNICAL_DESIGNER: "Technical designer", ESTIMATOR: "Estimator", MANAGEMENT: "Management", ADMIN: "Admin", PRODUCTION: "Production", PROJECT_COORDINATOR: "Project coordinator", PROCUREMENT: "Procurement", STORE: "Store / dispatch", ACCOUNTS: "Accounts", SALES: "Sales" };
 export type Me = { id: string | null; name: string; role: string; canEstimation: boolean; canProjects: boolean; canTeam: boolean; isAdmin: boolean };
 /** Who may do what on items (plan §6). Admins (Tom, Aftab, Darren, Jinky) and project editors can do everything. */
 export function itemRights(me: Me) {

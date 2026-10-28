@@ -32,6 +32,8 @@ function projectFields(fd: FormData) {
   if (has("pm_id")) out.pm_id = nz(fd.get("pm_id"));
   if (has("pm2_id")) out.pm2_id = nz(fd.get("pm2_id"));
   if (has("designer_id")) out.designer_id = nz(fd.get("designer_id"));
+  if (has("technical_designer_id")) out.technical_designer_id = nz(fd.get("technical_designer_id"));
+  if (has("coordinator_id")) out.coordinator_id = nz(fd.get("coordinator_id"));
   if (has("status")) out.status = (nz(fd.get("status")) ?? "QUOTE") as Status;
   if (has("received_date")) out.received_date = nz(fd.get("received_date"));
   if (has("start_date")) out.start_date = nz(fd.get("start_date"));
@@ -86,7 +88,8 @@ export async function markWon(id: string) {
     bust(id); revalidatePath(`/projects/${p.parent_project_id}`);
     return { ok: true, vo_no: voNo as number, parent: p.parent_project_id as string };
   }
-  const patch: Record<string, unknown> = { status: "DESIGN_DRAWINGS", quote_stage: "SUBMITTED" };
+  // Rev 3: a won enquiry lands at stage 3 Award / contract with Jean (the trigger sets status and the ball holder)
+  const patch: Record<string, unknown> = { stage: 3, quote_stage: "SUBMITTED" };
   if (p && !(p.signed_quote > 0) && p.quoted_value) patch.signed_quote = p.quoted_value;
   const { error } = await supabase.from("projects").update(patch).eq("id", id);
   if (error) return { error: error.message };
@@ -196,7 +199,7 @@ export async function restoreProject(id: string) {
 }
 
 // ---------- team ----------
-const ROLES = ["PM", "DESIGNER", "TECHNICAL_DESIGNER", "ESTIMATOR", "MANAGEMENT", "ADMIN"];
+const ROLES = ["PM", "DESIGNER", "TECHNICAL_DESIGNER", "ESTIMATOR", "MANAGEMENT", "ADMIN", "PRODUCTION", "PROJECT_COORDINATOR", "PROCUREMENT", "STORE", "ACCOUNTS", "SALES"];
 const email = (v: FormDataEntryValue | null) => { const s = nz(v)?.toLowerCase() ?? null; if (s && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) throw new Error("That email address doesn't look right."); return s; };
 const phone = (v: FormDataEntryValue | null) => { const s = nz(v)?.replace(/[\s\-()]/g, "") ?? null; if (s && !/^\+?\d{7,15}$/.test(s)) throw new Error("WhatsApp number should be digits only, e.g. +9715xxxxxxx"); return s; };
 
@@ -382,5 +385,44 @@ export async function setStageStatus(projectId: string, stageId: string, status:
   const { error } = await supabase.from("item_production_stages").update({ status }).eq("id", stageId);
   if (error) return { error: error.message };
   bustItems(projectId);
+  return { ok: true };
+}
+
+// ---------- workflow Rev 3 (db/016) ----------
+/** Admin override (decision 4): move a card to a stage without the next owner accepting. The trigger records who authorised it. */
+export async function overrideMove(projectId: string, toStage: number, reason: string): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("handovers").insert({ project_id: projectId, to_stage: toStage, status: "OVERRIDE", override_reason: reason });
+  if (error) return { error: error.message };
+  bust(projectId);
+  return { ok: true };
+}
+
+/** Stage 0: a new opportunity in the Qualifying column, held by Sales until Tom or Aftab say proceed. */
+export async function createQualifying(_prev: unknown, fd: FormData): Promise<R & { id?: string }> {
+  const supabase = await createClient();
+  const name = (nz(fd.get("name")) ?? "").toUpperCase();
+  if (!name) return { error: "Give the opportunity a name (location / address)." };
+  const { data, error } = await supabase.from("projects").insert({
+    name, client: nz(fd.get("client"))?.toUpperCase() ?? null, notes: nz(fd.get("notes")), raised_by: nz(fd.get("raised_by"))?.toUpperCase() ?? null,
+    received_date: new Date().toISOString().slice(0, 10), status: "QUOTE", quote_stage: "QUEUED", stage: 0,
+  }).select("id").single();
+  if (error) return { error: error.message };
+  bust(data.id as string);
+  return { ok: true, id: data.id as string };
+}
+/** Proceed: Sales hand the enquiry to Ramus (stage 1), who registers it with a number. Decline closes it like Lost. */
+export async function qualify(projectId: string, proceed: boolean): Promise<R> {
+  const supabase = await createClient();
+  const { data: me } = await supabase.rpc("me");
+  const patch: Record<string, unknown> = proceed ? { stage: 1, qualified_by: (me as { id?: string } | null)?.id ?? null } : { status: "LOST", declined_at: new Date().toISOString() };
+  if (proceed) {
+    // the app issues the enquiry number the moment it enters estimating (Rev 3 stage 1)
+    const { data: cur } = await supabase.from("projects").select("enquiry_no").eq("id", projectId).single();
+    if (!cur?.enquiry_no) { const { data: no } = await supabase.rpc("next_enquiry_no"); patch.enquiry_no = no; }
+  }
+  const { error } = await supabase.from("projects").update(patch).eq("id", projectId);
+  if (error) return { error: error.message };
+  bust(projectId);
   return { ok: true };
 }

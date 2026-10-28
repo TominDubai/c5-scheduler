@@ -390,3 +390,81 @@ td.draw b { font-family: var(--mono); font-weight: 600; } td.flags { white-space
 .field.tagged .chips { max-height: 132px; overflow-y: auto; padding: 2px; }
 .field.tagged .note { margin-top: 2px; }
 .team td .check { font-size: 12px; }
+
+/* ---------- Workflow Rev 3 (db/016): phase-grouped board, ball holder cards, flow status ---------- */
+.ph-ENQUIRY { background: #9AA6BA; } .ph-HANDOVER { background: #7A6C9E; } .ph-DESIGN { background: #3C6CB5; } .ph-PRODUCTION { background: var(--bronze); } .ph-INSTALLATION { background: #B99B6B; } .ph-COMPLETE { background: #2E9E6F; }
+.stat.bronze b { color: var(--bronze); }
+/* phase columns: a touch wider than the old stage columns, since each carries two or three stages */
+.board.phases { gap: 18px; }
+.phase.col { flex: 0 0 330px; }
+.phase.col.side { opacity: .8; flex-basis: 300px; }
+.phase.open { flex: 0 0 auto; display: flex; flex-direction: column; scroll-snap-align: start; }
+.phasehead { display: flex; align-items: flex-start; gap: 10px; padding: 4px 4px 10px; border-bottom: 2px solid var(--line2); margin-bottom: 10px; }
+.phasehead > div { min-width: 0; flex: 1; }
+.phasehead h2 { margin: 0; font: 800 15px/1.2 var(--font); color: var(--navy); letter-spacing: -.01em; }
+.phase-k { display: block; font: 700 10px var(--font); color: var(--bronze); text-transform: uppercase; letter-spacing: .12em; margin-bottom: 2px; }
+.phasehead .count { font: 800 13px var(--font); color: var(--fg3); padding-top: 14px; }
+.expand { background: var(--bg2); border: 1px solid var(--line2); color: var(--fg2); font: 700 11px var(--font); padding: 4px 9px; border-radius: 999px; cursor: pointer; margin-top: 12px; }
+.expand:hover { color: var(--navy); border-color: var(--navy); } .expand[aria-expanded="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+.stagecols { display: flex; gap: 12px; align-items: flex-start; }
+.stagecol { flex: 0 0 300px; }
+.stagecol > header { display: flex; align-items: baseline; gap: 8px; padding: 2px 4px 8px; }
+.stagecol h3 { margin: 0; font: 800 13px var(--font); color: var(--navy); }
+.stage-no { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 6px; background: var(--navy); color: #fff; font: 800 11px var(--mono); }
+.stagegroup { display: flex; flex-direction: column; gap: 10px; border-radius: var(--r); transition: background .15s; }
+.stagegroup.over, .stagecol.over { background: var(--bg3); box-shadow: 0 0 0 2px var(--bronze) inset; }
+.stagehead { display: flex; align-items: center; gap: 8px; padding: 8px 4px 2px; font: 700 12px var(--font); color: var(--fg2); }
+.stagehead .count { margin-left: auto; color: var(--fg3); font-size: 11px; }
+.stagegroup + .stagegroup .stagehead { border-top: 1px dashed var(--line); margin-top: 2px; padding-top: 12px; }
+/* the card */
+.card-top { gap: 6px; }
+.stagechip { display: inline-flex; align-items: center; gap: 5px; font: 700 11px var(--font); color: var(--navy); background: var(--bg3); padding: 2px 8px 2px 3px; border-radius: 999px; white-space: nowrap; margin-right: auto; }
+.stagechip b { display: inline-grid; place-items: center; min-width: 17px; height: 17px; border-radius: 50%; background: var(--navy); color: #fff; font: 800 10px var(--mono); }
+td .stagechip { background: var(--bg3); } td .stagechip.ph-ENQUIRY, td .stagechip.ph-HANDOVER, td .stagechip.ph-DESIGN, td .stagechip.ph-PRODUCTION, td .stagechip.ph-INSTALLATION, td .stagechip.ph-COMPLETE { background: var(--bg3); }
+.ball { display: flex; align-items: center; gap: 9px; margin-top: 11px; padding: 9px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); }
+.ball.awaiting { border-color: #D9C6B5; background: #FBF6F0; }
+.ball.none { background: transparent; border-style: dashed; color: var(--fg3); }
+.av.lg { width: 32px; height: 32px; font-size: 12px; flex: none; }
+.ball.none .av.lg { background: var(--bg3); color: var(--fg3); }
+.ball-who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.ball-name { font: 800 13.5px/1.2 var(--font); color: var(--navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ball-name i { font-style: normal; color: var(--bronze); font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+.ball-pos { font: 600 11px/1.3 var(--font); color: var(--fg3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ball-pos em { font-style: normal; color: var(--warn); }
+.age { font: 700 11px var(--font); color: var(--fg3); white-space: nowrap; flex: none; align-self: flex-start; } .age.warn { color: var(--warn); } .age.crit { color: var(--crit); }
+.flow { margin-top: 8px; font: 700 12px var(--font); padding: 6px 10px; border-radius: 8px; display: flex; gap: 4px; flex-wrap: wrap; align-items: baseline; }
+.flow small { font-weight: 600; opacity: .8; }
+.flow.bronze { background: #F3E9DD; color: #7A5A3C; } .flow.grey { background: var(--bg3); color: var(--fg2); }
+.card.held::after { background: var(--line2); }
+.next { margin-top: 8px; display: flex; gap: 6px; align-items: baseline; font-size: 12.5px; color: var(--fg2); }
+.next .arrow { color: var(--bronze); font-weight: 800; } .next .next-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--navy); }
+.next small { color: var(--fg3); font-weight: 700; white-space: nowrap; } .next small.crit { color: var(--crit); }
+.who.sm { font-size: 12px; font-weight: 600; color: var(--fg3); } .who.sm b { color: var(--fg2); font-weight: 700; } .who.sm small { color: var(--fg3); }
+.card.mine { box-shadow: 0 0 0 2px var(--bronze), 0 1px 2px rgba(16,44,82,.05); }
+/* "My ball": what the signed-in person holds or has to accept */
+.myball { padding: 10px 24px 0; }
+.myball h2 { margin: 0 0 8px; font: 800 13px var(--font); color: var(--bronze); text-transform: uppercase; letter-spacing: .1em; display: flex; align-items: baseline; gap: 8px; }
+.myball h2 .count { color: var(--fg3); letter-spacing: 0; }
+.myball-cards { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 10px; scroll-snap-type: x proximity; }
+.myball-cards .card { flex: 0 0 300px; scroll-snap-align: start; }
+.flowtag { font: 700 11px var(--font); white-space: nowrap; color: var(--fg3); } .flowtag.bronze { color: #7A5A3C; background: #F3E9DD; padding: 2px 8px; border-radius: 999px; } .flowtag.grey { color: var(--fg2); background: var(--bg3); padding: 2px 8px; border-radius: 999px; }
+/* qualifying column (Estimation tab, stage 0) */
+.col.qualifying { flex-basis: 310px; border-right: 2px solid var(--line); padding-right: 16px; margin-right: 2px; }
+.col.qualifying header { gap: 8px; }
+.card.addq { display: flex; flex-direction: column; gap: 8px; cursor: default; border-style: dashed; }
+.card.addq input, .card.addq textarea { width: 100%; border-radius: 8px; font-size: 13px; padding: 7px 10px; }
+.card.addq .actions { display: flex; align-items: center; gap: 10px; }
+.qnotes { margin: 6px 0 0; font-size: 12.5px; color: var(--fg2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+/* dialog (admin override) */
+.dialog { margin: auto; width: min(520px, calc(100% - 32px)); background: var(--bg2); border-radius: var(--r); padding: 22px 24px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 60px rgba(16,44,82,.3); }
+.dialog h2 { margin: 0; font: 800 18px var(--font); color: var(--navy); letter-spacing: -.01em; }
+.dialog p { margin: 0; color: var(--fg2); font-size: 13.5px; }
+.dialog label { display: flex; flex-direction: column; gap: 6px; font: 700 12px var(--font); color: var(--fg3); } .dialog label small { font-weight: 600; }
+.dialog input { border-radius: 8px; font-size: 14px; }
+.ddim { align-items: center; justify-content: center; }
+.ddim:has(> .drawer) { justify-content: flex-end; }
+@media (max-width: 900px) {
+  .phase.col, .phase.col.side { flex-basis: 86vw; }
+  .stagecol { flex-basis: 80vw; }
+  .myball-cards .card { flex-basis: 86vw; }
+}

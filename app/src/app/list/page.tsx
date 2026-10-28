@@ -6,11 +6,11 @@ import Filters from "@/components/Filters";
 import ListTable from "@/components/ListTable";
 import Link from "next/link";
 import RemovedTable from "@/components/RemovedTable";
-import { getProjects, getRemovedProjects, getMe, pmCounts, applyFilters } from "@/lib/data";
+import { getProjects, getRemovedProjects, getMe, applyFilters, filterOptions, type BoardFilters } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
-async function Inner_ListPage({ searchParams }: { searchParams: Promise<{ pm?: string; q?: string; show?: string; done?: string }> }) {
+async function Inner_ListPage({ searchParams }: { searchParams: Promise<BoardFilters & { show?: string; done?: string }> }) {
   const sp = await searchParams;
   const [all, removed, me] = await Promise.all([getProjects(), getRemovedProjects(), getMe()]);
   if (sp.show === "removed") {
@@ -28,11 +28,13 @@ async function Inner_ListPage({ searchParams }: { searchParams: Promise<{ pm?: s
       </Shell>
     );
   }
+  const listed = all.filter((p) => p.status !== "MERGED");
+  const opts = filterOptions(listed);
   return (
-    <Shell active="list" tools={<Suspense><Filters pms={pmCounts(all)} /></Suspense>}>
+    <Shell active="list" tools={<Suspense><Filters full pms={opts.pms} balls={opts.balls} depts={opts.depts} waiting={opts.waiting} /></Suspense>}>
       <Summary projects={all} />
       <main className="fill column">
-        <ListTable projects={applyFilters(all, sp)} />
+        <ListTable projects={applyFilters(listed, sp)} />
         {removed.length > 0 && <p className="note" style={{ padding: "10px 18px" }}><Link href="/list?show=removed" style={{ color: "var(--bronze)", fontWeight: 700 }}>{removed.length} removed project{removed.length === 1 ? "" : "s"}</Link> — not shown or counted.</p>}
       </main>
     </Shell>
