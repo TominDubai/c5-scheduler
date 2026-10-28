@@ -99,6 +99,7 @@ export function describe(c: Change, p?: Proj): string {
     case "item_designer": return `${c.field}: designer ${tc(c.old_value ?? "—")} → ${tc(c.new_value ?? "—")}`;
     case "item_material": return `${c.field}: material ${(c.old_value ?? "—").toLowerCase()} → ${(c.new_value ?? "—").toLowerCase()}`;
     case "item_stage": return `${c.field}: ${(c.old_value ?? "").toLowerCase().replace("_", " ")} → ${(c.new_value ?? "").toLowerCase().replace("_", " ")}`;
+    case "item_stage_dates": return `${c.field} rescheduled: ${c.old_value} → ${c.new_value}`;
     case "watcher_added": return `${tc(c.new_value ?? "")} is now kept updated on this project`;
     case "watcher_removed": return `${tc(c.old_value ?? "")} is no longer kept updated on this project`;
     case "vo_added": return `${c.field} added — ${vo(c.new_value)}`;

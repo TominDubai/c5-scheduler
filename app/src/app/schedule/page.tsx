@@ -2,12 +2,14 @@ import Link from "next/link";
 import Shell from "@/components/Shell";
 import Failed from "@/components/Failed";
 import MonthByPerson, { type CalEvent } from "@/components/MonthByPerson";
+import ScheduleGantt, { type GanttProject } from "@/components/ScheduleGantt";
+import ScheduleWeek from "@/components/ScheduleWeek";
 import { getProjects, getMe, getPeople, getAllItems, getAllProductionStages, getMeetings, getStageTargets } from "@/lib/data";
 import { title, addDays, todayDubai, PSTAGE_LABEL, ROLE_LABEL, type Project } from "@/lib/model";
 
 export const dynamic = "force-dynamic";
 
-type SP = { m?: string; who?: string };
+type SP = { m?: string; who?: string; view?: string; f?: string };
 const ROLES = ["PM", "DESIGNER", "TECHNICAL_DESIGNER", "PRODUCTION", "ESTIMATOR", "PROJECT_COORDINATOR", "MANAGEMENT"];
 
 /** Schedule → by person. A month grid of everything that has a date and an owner: the stage each person holds the
@@ -16,6 +18,7 @@ const ROLES = ["PM", "DESIGNER", "TECHNICAL_DESIGNER", "PRODUCTION", "ESTIMATOR"
 async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
   const today = todayDubai();
+  const view = sp.view === "person" || sp.view === "week" ? sp.view : "project";
   const month = /^\d{4}-\d{2}$/.test(sp.m ?? "") ? (sp.m as string) : today.slice(0, 7);
   const first = `${month}-01`;
   const [y, mo] = month.split("-").map(Number);
@@ -72,20 +75,66 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
   const peopleOpts = active.map((p) => ({ id: p.id, name: p.full_name ?? title(p.name), role: p.role }));
   const prev = `${new Date(Date.UTC(y, mo - 2, 1)).toISOString().slice(0, 7)}`, next = `${new Date(Date.UTC(y, mo, 1)).toISOString().slice(0, 7)}`;
   const label = who === "me" ? "Just me" : who === "all" ? "Everyone" : who.startsWith("role:") ? `All ${(ROLE_LABEL[who.slice(5)] ?? who.slice(5)).toLowerCase()}s` : (byId.get(who)?.full_name ?? title(byId.get(who)?.name ?? ""));
+  // By project (Gantt) and This week share the production-stage rows
+  const gp: GanttProject[] = [];
+  for (const p of live) {
+    const rows = items.filter((i) => i.project_id === p.id && !i.cancelled).map((item) => ({ item, stages: stages.filter((s) => s.item_id === item.id).sort((a, b) => a.stage_no - b.stage_no) })).filter((r) => r.stages.length);
+    if (rows.length) gp.push({ id: p.id, enquiry_no: p.enquiry_no, name: p.name, pm: p.pm, rows });
+  }
+  gp.sort((a, b) => (a.enquiry_no ?? "").localeCompare(b.enquiry_no ?? ""));
+  const filter = sp.f === "factory" || sp.f === "site" ? sp.f : "all";
+  const wkStart = addDays(today, -new Date(today + "T00:00:00Z").getUTCDay()), wkEnd = addDays(wkStart, 6);
+  const canEdit = me.isAdmin || me.canProjects || me.role === "PRODUCTION" || me.role === "PM";
+  const tabs = (
+    <div className="mnav">
+      <span className="segs who">
+        <Link href={`/schedule?view=project`} className={"seg2" + (view === "project" ? " on" : "")}>By project</Link>
+        <Link href={`/schedule?view=person`} className={"seg2" + (view === "person" ? " on" : "")}>By person</Link>
+        <Link href={`/schedule?view=week`} className={"seg2" + (view === "week" ? " on" : "")}>This week</Link>
+      </span>
+      {view === "project" && <span className="segs who" style={{ marginLeft: 8 }}>
+        <Link href={`/schedule?view=project`} className={"seg2" + (filter === "all" ? " on" : "")}>Everything</Link>
+        <Link href={`/schedule?view=project&f=factory`} className={"seg2" + (filter === "factory" ? " on" : "")}>Factory</Link>
+        <Link href={`/schedule?view=project&f=site`} className={"seg2" + (filter === "site" ? " on" : "")}>Site</Link>
+      </span>}
+    </div>
+  );
+  if (view === "project") return (
+    <Shell active="schedule">
+      <main className="column">
+        <div className="meetings">
+          {tabs}
+          <ScheduleGantt projects={gp} today={today} filter={filter} canEdit={canEdit} />
+          <p className="note">One row per item, its six production stages along the row. Drag a bar to move it, drag its right edge to stretch it — the dates save and the stage owner hears in the next digest. Factory stages are Gajanand’s, site stages the PM’s.</p>
+        </div>
+      </main>
+    </Shell>
+  );
+  if (view === "week") return (
+    <Shell active="schedule">
+      <main className="column">
+        <div className="meetings">
+          {tabs}
+          <ScheduleWeek rows={stages.map((s) => ({ s, item: s.item }))} weekStart={wkStart} weekEnd={wkEnd} today={today} />
+        </div>
+      </main>
+    </Shell>
+  );
   return (
     <Shell active="schedule">
       <main className="column">
         <div className="meetings">
+          {tabs}
           <div className="mnav">
-            <Link href={`/schedule?m=${prev}&who=${who}`} className="btn ghost sm">‹ Prev</Link>
-            <Link href={`/schedule?who=${who}`} className="btn ghost sm">This month</Link>
-            <Link href={`/schedule?m=${next}&who=${who}`} className="btn ghost sm">Next ›</Link>
+            <Link href={`/schedule?view=person&m=${prev}&who=${who}`} className="btn ghost sm">‹ Prev</Link>
+            <Link href={`/schedule?view=person&who=${who}`} className="btn ghost sm">This month</Link>
+            <Link href={`/schedule?view=person&m=${next}&who=${who}`} className="btn ghost sm">Next ›</Link>
             <h2>{new Date(first + "T00:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" })}</h2>
             <span className="segs who">
-              <Link href={`/schedule?m=${month}&who=me`} className={"seg2" + (who === "me" ? " on" : "")}>Just me</Link>
-              <Link href={`/schedule?m=${month}&who=all`} className={"seg2" + (who === "all" ? " on" : "")}>Everyone</Link>
+              <Link href={`/schedule?view=person&m=${month}&who=me`} className={"seg2" + (who === "me" ? " on" : "")}>Just me</Link>
+              <Link href={`/schedule?view=person&m=${month}&who=all`} className={"seg2" + (who === "all" ? " on" : "")}>Everyone</Link>
             </span>
-            <form className="whoform" action="/schedule"><input type="hidden" name="m" value={month} />
+            <form className="whoform" action="/schedule"><input type="hidden" name="view" value="person" /><input type="hidden" name="m" value={month} />
               <select name="who" defaultValue={who} key={who}>
                 <option value="me">Just me</option><option value="all">Everyone</option>
                 <optgroup label="By role">{ROLES.map((r) => <option key={r} value={`role:${r}`}>All {(ROLE_LABEL[r] ?? r).toLowerCase()}s</option>)}</optgroup>
