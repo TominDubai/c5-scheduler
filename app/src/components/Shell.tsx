@@ -8,7 +8,7 @@ export function Monogram() {
   return <img className="mono" src="/c5-mark.png" alt="Concept 5" width={34} height={34} />;
 }
 
-export default async function Shell({ active, children, tools }: { active?: "board" | "list" | "estimation" | "team" | "meetings" | "drawings"; children: React.ReactNode; tools?: React.ReactNode }) {
+export default async function Shell({ active, children, tools }: { active?: "board" | "list" | "estimation" | "team" | "meetings" | "drawings" | "designers"; children: React.ReactNode; tools?: React.ReactNode }) {
   const [user, me] = await Promise.all([getUser(), getMe().catch(() => ({ name: "", canEstimation: false, canProjects: false, canTeam: false }))]);
   return (
     <>
@@ -19,6 +19,7 @@ export default async function Shell({ active, children, tools }: { active?: "boa
           <Link href="/board" className={"tab" + (active === "board" ? " on" : "")}>Board</Link>
           <Link href="/list" className={"tab" + (active === "list" ? " on" : "")}>List</Link>
           <Link href="/drawings" className={"tab" + (active === "drawings" ? " on" : "")}>Drawings</Link>
+          <Link href="/designers" className={"tab" + (active === "designers" ? " on" : "")}>Designers</Link>
           <Link href="/meetings" className={"tab" + (active === "meetings" ? " on" : "")}>Meetings</Link>
           <Link href="/team" className={"tab" + (active === "team" ? " on" : "")}>Team</Link>
         </nav>
