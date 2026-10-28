@@ -206,7 +206,7 @@ const phone = (v: FormDataEntryValue | null) => { const s = nz(v)?.replace(/[\s\
 export async function savePerson(id: string, _prev: unknown, fd: FormData) {
   const supabase = await createClient();
   try {
-    const patch = { full_name: nz(fd.get("full_name")), email: email(fd.get("email")), whatsapp: phone(fd.get("whatsapp")), is_active: fd.get("is_active") === "on", notify_on_award: fd.get("notify_on_award") === "on" };
+    const patch = { full_name: nz(fd.get("full_name")), email: email(fd.get("email")), whatsapp: phone(fd.get("whatsapp")), is_active: fd.get("is_active") === "on", notify_on_award: fd.get("notify_on_award") === "on", position: nz(fd.get("position")), can_sign_in: fd.get("whatsapp_only") !== "on" };
     const { error } = await supabase.from("people").update(patch).eq("id", id);
     if (error) return { error: error.message.includes("people_email_key") ? "Another person already has that email." : error.message };
   } catch (e) { return { error: (e as Error).message }; }
@@ -221,7 +221,7 @@ export async function addPerson(_prev: unknown, fd: FormData) {
   if (!name) return { error: "Short name is required (the name shown on cards, e.g. BASIM)." };
   if (!ROLES.includes(role)) return { error: "Pick a role." };
   try {
-    const { error } = await supabase.from("people").insert({ name, role, full_name: nz(fd.get("full_name")), email: email(fd.get("email")), whatsapp: phone(fd.get("whatsapp")) });
+    const { error } = await supabase.from("people").insert({ name, role, full_name: nz(fd.get("full_name")), email: email(fd.get("email")), whatsapp: phone(fd.get("whatsapp")), position: nz(fd.get("position")), can_sign_in: fd.get("whatsapp_only") !== "on" });
     if (error) return { error: error.message.includes("people_name_key") ? `${name} already exists.` : error.message.includes("people_email_key") ? "Another person already has that email." : error.message };
   } catch (e) { return { error: (e as Error).message }; }
   revalidatePath("/team");
@@ -584,5 +584,16 @@ export async function confirmMigratedStage(projectId: string): Promise<R> {
   const { error } = await supabase.from("projects").update({ stage_migrated: false, stage_accepted_at: new Date().toISOString() }).eq("id", projectId);
   if (error) return { error: error.message };
   bustWorkflow(projectId);
+  return { ok: true };
+}
+
+/** Team page: who holds each stage by default (names live here, never in code). Team managers only (RLS). */
+export async function setStageOwner(stageNo: number, personId: string | null): Promise<R> {
+  const supabase = await createClient();
+  const { error } = personId
+    ? await supabase.from("stage_owners").upsert({ stage_no: stageNo, person_id: personId }, { onConflict: "stage_no" })
+    : await supabase.from("stage_owners").delete().eq("stage_no", stageNo);
+  if (error) return { error: error.message };
+  revalidatePath("/team"); revalidatePath("/board");
   return { ok: true };
 }
