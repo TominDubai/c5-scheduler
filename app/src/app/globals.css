@@ -545,3 +545,9 @@ main.column { flex-direction: column; }
 /* reconcile */
 tr.changed td { background: #FBF6EC; }
 .team td .crit { color: var(--crit); font-style: normal; font-weight: 600; }
+
+/* stage meeting row on the ball block (Rev 3 §16) */
+.stagemeeting { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line2); font-size: 13px; }
+.stagemeeting .note { width: 100%; margin: 0; }
+.mstage { display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 3px; margin-right: 4px; border-radius: 4px; background: var(--navy); color: #fff; font: 700 10px var(--mono); font-style: normal; vertical-align: 1px; }
+.attendance .chips .chip.off { opacity: .55; }

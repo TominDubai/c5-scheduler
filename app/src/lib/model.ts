@@ -153,6 +153,8 @@ export type Meeting = {
   // from meetings_live
   project_name: string | null; enquiry_no: string | null; created_by_name: string | null; updated_by_name: string | null;
   attendee_ids: string[]; attendees: string[];
+  // Rev 3 stage meetings (db/018): the stage this meeting serves (5 Sales handover, 7 Kick-off), whether it was held, who attended
+  stage_no: number | null; held: boolean; stage_short: string | null; attended_ids: string[]; attended: string[];
 };
 /** Working week: Monday to Saturday, 08:00–18:00 Dubai. */
 export const WEEK_DAYS = 6;

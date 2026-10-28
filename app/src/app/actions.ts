@@ -260,8 +260,12 @@ export async function saveMeeting(id: string | null, _prev: unknown, fd: FormDat
   if (end_time <= start_time) return { error: "The end time must be after the start time." };
   if (location === "ROOM") { const clash = await roomClash(meeting_date, start_time, end_time, id); if (clash) return { error: clash }; }
 
-  const row = { title, meeting_date, start_time, end_time, location, project_id: nz(fd.get("project_id")), notes: nz(fd.get("notes")) };
+  const project_id = nz(fd.get("project_id"));
+  const stageRaw = nz(fd.get("stage_no"));
+  const held = fd.get("held") === "on";
+  const row = { title, meeting_date, start_time, end_time, location, project_id, notes: nz(fd.get("notes")), stage_no: project_id && stageRaw ? Number(stageRaw) : null, held };
   const attendees = fd.getAll("attendees").map(String).filter(Boolean);
+  const attended = new Set(fd.getAll("attended").map(String));
   let meetingId = id;
   if (id) {
     const { error } = await supabase.from("meetings").update(row).eq("id", id);
@@ -272,6 +276,8 @@ export async function saveMeeting(id: string | null, _prev: unknown, fd: FormDat
     const add = attendees.filter((a) => !have.has(a)); const drop = [...have].filter((a) => !attendees.includes(a));
     if (add.length) await supabase.from("meeting_attendees").insert(add.map((person_id) => ({ meeting_id: id, person_id })));
     if (drop.length) await supabase.from("meeting_attendees").delete().eq("meeting_id", id).in("person_id", drop);
+    // attendance record: once the meeting is held, every attendee is either present or not; before that it is unrecorded
+    for (const person_id of attendees) await supabase.from("meeting_attendees").update({ attended: held ? attended.has(person_id) : null }).eq("meeting_id", id).eq("person_id", person_id);
   } else {
     const { data, error } = await supabase.from("meetings").insert(row).select("id").single();
     if (error) return { error: error.code === "23P01" ? (await roomClash(meeting_date, start_time, end_time, null)) ?? "The room is already booked then." : error.message };

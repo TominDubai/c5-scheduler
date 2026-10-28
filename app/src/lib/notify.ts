@@ -84,10 +84,11 @@ export function describe(c: Change, p?: Proj): string {
     case "meeting_created": return "You've been added to this meeting";
     case "meeting_cancelled": return "Meeting cancelled";
     case "meeting_restored": return "Meeting is back on";
+    case "meeting_held": return "Meeting marked as held — attendance recorded";
     case "attendee_added": return `${tc(c.new_value ?? "")} added`;
     case "attendee_removed": return `${tc(c.old_value ?? "")} removed`;
     case "meeting_field": {
-      const f = c.field === "when" ? "Moved" : c.field === "location" ? "Where" : c.field === "project" ? "Project" : "Title";
+      const f = c.field === "when" ? "Moved" : c.field === "location" ? "Where" : c.field === "project" ? "Project" : c.field === "stage" ? "Workflow stage" : "Title";
       const v = (x: string | null) => x == null || x === "" ? "—" : c.field === "location" ? LOC[x] ?? x : c.field === "project" ? tc(x) : x;
       return `${f}: ${v(c.old_value)} → ${v(c.new_value)}`;
     }

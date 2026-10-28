@@ -7,6 +7,9 @@ import { addDays, fmtDay, fmtDayLong, hm, mins, title as tc, DAY_START, DAY_END,
 
 type PersonLite = { id: string; name: string; role: string };
 type ProjectLite = { id: string; name: string; enquiry_no: string | null };
+type StageOption = { stage_no: number; name: string };
+/** a booking pre-filled from a project page ("Book the Sales handover meeting") */
+export type Prefill = { project_id: string; stage_no: number; title: string; attendee_ids: string[] };
 type Draft = Partial<Meeting> & { meeting_date: string; location: MeetingLocation };
 const HOUR = 56; // px per hour on the desktop grid
 
@@ -34,16 +37,20 @@ function Block({ m, onOpen, pos }: { m: Meeting; onOpen: () => void; pos: { col:
   return (
     <button type="button" className={`mblock ${m.location.toLowerCase()}`} style={{ top, height: h, left: `${pos.col * w}%`, width: `calc(${w}% - 3px)` }} onClick={onOpen} title={`${hm(m.start_time)}–${hm(m.end_time)} ${m.title}`}>
       <span className="mtime">{hm(m.start_time)}–{hm(m.end_time)}</span>
-      <span className="mtitle">{m.title}</span>
+      <span className="mtitle">{m.stage_short ? <i className="mstage">{m.stage_no}</i> : null}{m.title}{m.held ? " ✓" : ""}</span>
       {h >= 44 && m.attendees.length > 0 && <span className="mwho">{m.attendees.map(tc).join(", ")}</span>}
     </button>
   );
 }
 
-function Form({ draft, people, projects, onClose }: { draft: Draft; people: PersonLite[]; projects: ProjectLite[]; onClose: (saved?: boolean) => void }) {
+function Form({ draft, people, projects, stageOptions, today, onClose }: { draft: Draft; people: PersonLite[]; projects: ProjectLite[]; stageOptions: StageOption[]; today: string; onClose: (saved?: boolean) => void }) {
   const [state, action, pending] = useActionState(saveMeeting.bind(null, draft.id ?? null), null as { error?: string; ok?: boolean; at?: string } | null);
   const [loc, setLoc] = useState<MeetingLocation>(draft.location);
   const [picked, setPicked] = useState<Set<string>>(new Set(draft.attendee_ids ?? []));
+  const [projectId, setProjectId] = useState<string>(draft.project_id ?? "");
+  const [held, setHeld] = useState<boolean>(!!draft.held);
+  const [attended, setAttended] = useState<Set<string>>(new Set(draft.attended_ids ?? []));
+  const canRecord = !!draft.id && draft.meeting_date <= today;   // attendance is recorded on or after the day
   const [cancelling, setCancelling] = useState(false);
   const [cancelErr, setCancelErr] = useState<string | null>(null);
   useEffect(() => { if (state?.ok) onClose(true); }, [state?.at]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -74,8 +81,14 @@ function Form({ draft, people, projects, onClose }: { draft: Draft; people: Pers
         <div className="field"><label>Date</label><input type="date" name="meeting_date" defaultValue={draft.meeting_date} required /></div>
         <div className="field times"><label>Time</label><div><input type="time" name="start_time" defaultValue={hm(draft.start_time) || "09:00"} step={900} required /><span>to</span><input type="time" name="end_time" defaultValue={hm(draft.end_time) || "10:00"} step={900} required /></div></div>
         <div className="field wide"><label>Project <small>optional</small></label>
-          <select name="project_id" defaultValue={draft.project_id ?? ""}><option value="">— none —</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.enquiry_no ? `${p.enquiry_no} · ` : ""}{tc(p.name)}</option>)}</select>
+          <select name="project_id" value={projectId} onChange={(e) => setProjectId(e.target.value)}><option value="">— none —</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.enquiry_no ? `${p.enquiry_no} · ` : ""}{tc(p.name)}</option>)}</select>
         </div>
+        {projectId && stageOptions.length > 0 && (
+          <div className="field wide"><label>Workflow stage <small>if this is one of the Rev 3 meetings</small></label>
+            <select name="stage_no" defaultValue={draft.stage_no ?? ""}><option value="">— just a meeting —</option>{stageOptions.map((s) => <option key={s.stage_no} value={s.stage_no}>{s.stage_no} · {s.name}</option>)}</select>
+            <small className="hint">Tagging it ticks the stage’s “meeting held” checklist item once you mark it held below.</small>
+          </div>
+        )}
         <div className="field wide"><label>Who's in it</label>
           <div className="chips">
             {people.map((p) => (
@@ -83,6 +96,19 @@ function Form({ draft, people, projects, onClose }: { draft: Draft; people: Pers
             ))}
           </div>
         </div>
+        {canRecord && (
+          <div className="field wide attendance">
+            <label className="check"><input type="checkbox" name="held" checked={held} onChange={(e) => setHeld(e.target.checked)} /> Meeting held</label>
+            {held && (
+              <div className="chips">
+                <small className="hint" style={{ width: "100%" }}>Who was there?</small>
+                {people.filter((p) => picked.has(p.id)).map((p) => (
+                  <label key={p.id} className={"chip" + (attended.has(p.id) ? " on" : " off")}><input type="checkbox" name="attended" value={p.id} checked={attended.has(p.id)} onChange={() => setAttended((s) => { const n = new Set(s); if (n.has(p.id)) n.delete(p.id); else n.add(p.id); return n; })} />{tc(p.name)}</label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <div className="field wide"><label>Notes <small>{loc === "SITE" ? "site address, what it's about" : loc === "ONLINE" ? "meeting link, what it's about" : "agenda, what it's about"}</small></label><textarea name="notes" rows={3} defaultValue={draft.notes ?? ""} /></div>
         <div className="actions">
           <button className="btn bronze" disabled={pending}>{pending ? "Saving…" : draft.id ? "Save changes" : "Book it"}</button>
@@ -96,9 +122,9 @@ function Form({ draft, people, projects, onClose }: { draft: Draft; people: Pers
   );
 }
 
-export default function MeetingsWeek({ start, meetings, people, projects, today }: { start: string; meetings: Meeting[]; people: PersonLite[]; projects: ProjectLite[]; today: string }) {
+export default function MeetingsWeek({ start, meetings, people, projects, today, stageOptions = [], prefill }: { start: string; meetings: Meeting[]; people: PersonLite[]; projects: ProjectLite[]; today: string; stageOptions?: StageOption[]; prefill?: Prefill | null }) {
   const router = useRouter();
-  const [draft, setDraft] = useState<Draft | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(prefill ? { meeting_date: today, location: "ROOM", start_time: "10:00", end_time: "11:00", project_id: prefill.project_id, stage_no: prefill.stage_no, title: prefill.title, attendee_ids: prefill.attendee_ids } : null);
   const days = useMemo(() => Array.from({ length: WEEK_DAYS }, (_, i) => addDays(start, i)), [start]);
   const byDay = useMemo(() => { const m = new Map<string, Meeting[]>(); for (const x of meetings) m.set(x.meeting_date, [...(m.get(x.meeting_date) ?? []), x]); return m; }, [meetings]);
   const hours = Array.from({ length: GRID_END - GRID_START + 1 }, (_, i) => GRID_START + i);
@@ -107,7 +133,7 @@ export default function MeetingsWeek({ start, meetings, people, projects, today 
   const roomN = meetings.filter((m) => m.location === "ROOM").length;
   const siteN = meetings.filter((m) => m.location === "SITE").length;
   const onlineN = meetings.length - roomN - siteN;
-  const close = (saved?: boolean) => { setDraft(null); if (saved) router.refresh(); };
+  const close = (saved?: boolean) => { setDraft(null); if (prefill) router.replace(`/meetings?w=${start}`); if (saved) router.refresh(); };
 
   const slotClick = (day: string, lane: MeetingLocation, e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
@@ -166,7 +192,7 @@ export default function MeetingsWeek({ start, meetings, people, projects, today 
         ); })}
       </div>
 
-      {draft && <Form key={draft.id ?? "new"} draft={draft} people={people} projects={projects} onClose={close} />}
+      {draft && <Form key={draft.id ?? "new"} draft={draft} people={people} projects={projects} stageOptions={stageOptions} today={today} onClose={close} />}
     </div>
   );
 }

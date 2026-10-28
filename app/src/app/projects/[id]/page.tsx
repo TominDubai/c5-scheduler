@@ -58,7 +58,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
           </div>
         )}
         {p.status !== "LOST" && p.status !== "MERGED" && (p.stage == null || p.stage >= 3) && (
-          <Workflow project={p} stages={stages} owners={owners} people={people} me={me} handovers={wf.handovers} holds={wf.holds} evidence={wf.evidence} tasks={wf.tasks} locked={!!p.deleted_at} />
+          <Workflow project={p} stages={stages} owners={owners} people={people} me={me} handovers={wf.handovers} holds={wf.holds} evidence={wf.evidence} tasks={wf.tasks} locked={!!p.deleted_at} meetings={meetings} />
         )}
         <div className="grid2">
           <div className="panel">

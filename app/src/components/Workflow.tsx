@@ -1,13 +1,15 @@
 "use client";
 import { useActionState, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { FLOW_LABEL, COMPLETED_STAGE, fmtD, fmtDShort, title, ini, stageAge, type Project, type Stage, type Person, type Me, type Handover, type Hold, type StageEvidence, type ProjectTask, type StageOwner } from "@/lib/model";
+import { FLOW_LABEL, COMPLETED_STAGE, fmtD, fmtDShort, title, ini, stageAge, type Project, type Stage, type Person, type Me, type Handover, type Hold, type StageEvidence, type ProjectTask, type StageOwner, type Meeting } from "@/lib/model";
 import { requestHandover, acceptHandover, recordAcceptance, returnHandover, cancelHandover, overrideAccept, putOnHold, releaseHold, saveNextAction, tickChecklist, addEvidence, removeEvidence, evidenceUrl, addTask, setTaskDone, reassignBall } from "@/app/actions";
 
 type Props = {
   project: Project; stages: Stage[]; owners: StageOwner[]; people: Person[]; me: Me;
   handovers: Handover[]; holds: Hold[]; evidence: StageEvidence[]; tasks: ProjectTask[]; locked?: boolean;
+  meetings?: Meeting[];   // the project's meetings, for the stage-meeting row (Sales handover, Kick-off)
 };
 type S = { error?: string; ok?: boolean; at?: string } | null;
 const fmtWhen = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Dubai", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
@@ -17,7 +19,7 @@ const fmtWhen = (iso: string | null | undefined) => iso ? new Date(iso).toLocale
  * (request / accept / return / Anne's record-on-behalf), the hold panel, next action, supporting tasks and the
  * handover history. Rules live in the database triggers; this component only shows the buttons each person can use.
  */
-export default function Workflow({ project: p, stages, owners, people, me, handovers, holds, evidence, tasks, locked }: Props) {
+export default function Workflow({ project: p, stages, owners, people, me, handovers, holds, evidence, tasks, locked, meetings = [] }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -96,6 +98,23 @@ export default function Workflow({ project: p, stages, owners, people, me, hando
             {stage?.attendance?.length ? <div><span className="loop-k">Must attend</span>{stage.attendance.map((s, i) => <span key={i} className="loop-chip" title={s}>{s.split(" | ")[0]}</span>)}</div> : null}
           </div>
         )}
+        {/* Rev 3 §16: the Sales handover and Kick-off are booked meetings with an attendance record */}
+        {stage?.attendance?.length ? (() => {
+          const sm = meetings.filter((m) => m.stage_no === p.stage && !m.cancelled).sort((a, b) => a.meeting_date < b.meeting_date ? 1 : -1)[0];
+          if (!sm) return <div className="stagemeeting"><span className="loop-k">Meeting</span><span>Not booked yet.</span>{!locked && <Link href={`/meetings?book=${p.id}:${p.stage}`} className="btn sm bronze">Book the {stage.short_name.toLowerCase()} meeting →</Link>}</div>;
+          const must = stage.attendance.map((a) => a.split(" | ")[0].trim());
+          const absent = sm.held ? sm.attendees.filter((n) => !sm.attended.includes(n)) : [];
+          return (
+            <div className="stagemeeting">
+              <span className="loop-k">Meeting</span>
+              <span><Link href={`/meetings?w=${sm.meeting_date}`}>{fmtD(sm.meeting_date)} {sm.start_time.slice(0, 5)}–{sm.end_time.slice(0, 5)}</Link> · {sm.attendees.map(title).join(", ") || "no attendees yet"}</span>
+              {sm.held
+                ? <span className={`pill ${absent.length ? "warn" : "ok"}`}>Held{absent.length ? ` · absent: ${absent.map(title).join(", ")}` : " · all present"}</span>
+                : <span className="pill">{sm.meeting_date < new Date().toISOString().slice(0, 10) ? "Not yet marked held — record attendance in the diary" : "Booked"}</span>}
+              <small className="note">Must attend: {must.join(", ")}</small>
+            </div>
+          );
+        })() : null}
       </div>
 
       {/* ---- hold ---- */}
