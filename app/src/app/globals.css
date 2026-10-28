@@ -541,3 +541,7 @@ td .stagechip { background: var(--bg3); } td .stagechip.ph-ENQUIRY, td .stagechi
 main.column { flex-direction: column; }
 .section-h { margin: 6px 24px 0; font: 800 14px var(--font); color: var(--fg3); text-transform: uppercase; letter-spacing: .08em; } .section-h small { text-transform: none; letter-spacing: 0; color: var(--bronze); margin-left: 8px; }
 .stageowners select { border-radius: 8px; padding: 6px 10px; font-size: 13px; max-width: 320px; }
+
+/* reconcile */
+tr.changed td { background: #FBF6EC; }
+.team td .crit { color: var(--crit); font-style: normal; font-weight: 600; }

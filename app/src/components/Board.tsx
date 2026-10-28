@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PHASES, COMPLETED_STAGE, aedS, fmtDShort, title, ini, tone, delayText, stageAge, type Project, type Stage, type Phase } from "@/lib/model";
@@ -57,6 +58,7 @@ export default function Board({ projects, stages, isAdmin, myId }: { projects: P
   const mine = myId ? rows.filter((p) => p.stage !== COMPLETED_STAGE && (p.ball_holder_id === myId || p.pending_to_person_id === myId)).sort(sortCards) : [];
   const completed = rows.filter((p) => p.stage === COMPLETED_STAGE).sort((a, b) => (b.completed_date ?? "") < (a.completed_date ?? "") ? -1 : 1);
   const unstaged = rows.filter((p) => p.stage == null).sort((a, b) => a.name.localeCompare(b.name));
+  const toConfirm = rows.filter((p) => p.stage_migrated || p.stage == null).length;
 
   const card = (p: Project) => (
     <Card key={p.id} p={p} canDrag={isAdmin} dragging={dragId === p.id} mine={!!myId && (p.ball_holder_id === myId || p.pending_to_person_id === myId)}
@@ -71,6 +73,9 @@ export default function Board({ projects, stages, isAdmin, myId }: { projects: P
   return (
     <div className="boardwrap">
       {err && <div className="msg err" style={{ padding: "0 24px" }}>Couldn’t move that project: {err}</div>}
+      {toConfirm > 0 && (
+        <div className="msg" style={{ margin: "8px 24px 0" }}>{toConfirm} card{toConfirm === 1 ? "" : "s"} still carr{toConfirm === 1 ? "ies" : "y"} the stage the migration guessed. <Link href="/reconcile">Confirm or correct them →</Link></div>
+      )}
       {mine.length > 0 && (
         <section className="myball">
           <h2>My ball <span className="count">{mine.length}</span></h2>
@@ -134,7 +139,7 @@ export default function Board({ projects, stages, isAdmin, myId }: { projects: P
           <section className="phase col side">
             <header className="phasehead"><div><span className="phase-k">Needs reconciliation</span><h2>Stage unknown</h2></div><span className="count">{unstaged.length}</span></header>
             <div className="cards">
-              <p className="note" style={{ padding: "0 4px" }}>Carried over from the old “Site on hold” column. Anne or Jinky set the true stage on each card.</p>
+              <p className="note" style={{ padding: "0 4px" }}>Carried over from the old “Site on hold” column. Anne or Jinky set the true stage on each card <Link href="/reconcile">here</Link>.</p>
               {unstaged.map(card)}
             </div>
           </section>

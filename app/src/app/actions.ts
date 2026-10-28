@@ -597,3 +597,16 @@ export async function setStageOwner(stageNo: number, personId: string | null): P
   revalidatePath("/team"); revalidatePath("/board");
   return { ok: true };
 }
+
+/** /reconcile (Rev 3 rollout step 1): Anne or Jinky set the true stage and owner on a migrated card and mark it accepted.
+ *  The stage/status trigger keeps status in step; a stage change with no holder picked falls back to the stage's default owner. */
+export async function reconcileCard(projectId: string, stage: number | null, ballHolderId: string | null): Promise<R> {
+  const supabase = await createClient();
+  const patch: Record<string, unknown> = { stage_migrated: false, stage_accepted_at: new Date().toISOString() };
+  if (stage != null) patch.stage = stage;
+  if (ballHolderId !== undefined) patch.ball_holder_id = ballHolderId;
+  const { error } = await supabase.from("projects").update(patch).eq("id", projectId);
+  if (error) return { error: error.message };
+  bustWorkflow(projectId); revalidatePath("/reconcile");
+  return { ok: true, at: new Date().toISOString() };
+}
