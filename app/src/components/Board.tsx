@@ -69,7 +69,7 @@ export default function Board({ projects, stages, isAdmin, myId }: { projects: P
   });
 
   return (
-    <>
+    <div className="boardwrap">
       {err && <div className="msg err" style={{ padding: "0 24px" }}>Couldn’t move that project: {err}</div>}
       {mine.length > 0 && (
         <section className="myball">
@@ -141,7 +141,7 @@ export default function Board({ projects, stages, isAdmin, myId }: { projects: P
         )}
       </div>
       {ask && <OverrideDialog p={ask.p} stage={byNo.get(ask.stage)} onCancel={() => setAsk(null)} onConfirm={confirmMove} />}
-    </>
+    </div>
   );
 }
 

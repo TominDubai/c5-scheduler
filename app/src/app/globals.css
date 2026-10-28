@@ -68,6 +68,10 @@ main { flex: 1; min-height: 0; display: flex; }
 .app:has(> main.fill) { height: 100dvh; min-height: 0; }
 main.fill { min-height: 0; overflow: hidden; }
 .board { display: flex; gap: 16px; padding: 14px 24px 18px; overflow: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; width: 100%; min-width: 0; height: 100%; align-items: flex-start; scrollbar-gutter: stable; }
+/* The Board renders a "My ball" strip above the columns; the wrapper stacks them and hands the board the rest of the
+   window height, so the board (not the page) is still the thing that scrolls sideways. */
+.boardwrap { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.boardwrap .board { flex: 1; height: auto; min-height: 0; }
 main.fill .col { max-height: 100%; }
 /* List: the table is the scroll area, header row stays put, horizontal scrollbar stays at the bottom of the window */
 main.fill.column { flex-direction: column; }
@@ -399,7 +403,7 @@ td.draw b { font-family: var(--mono); font-weight: 600; } td.flags { white-space
 .phase.col { flex: 0 0 330px; }
 .phase.col.side { opacity: .8; flex-basis: 300px; }
 .phase.col.emptyphase { flex-basis: 230px; }   /* an empty phase shouldn't push the live ones off screen */
-.phase.open { flex: 0 0 auto; display: flex; flex-direction: column; scroll-snap-align: start; }
+.phase.open { flex: 0 0 auto; display: flex; flex-direction: column; scroll-snap-align: start; max-height: 100%; }
 .phasehead { display: flex; align-items: flex-start; gap: 10px; padding: 4px 4px 10px; border-bottom: 2px solid var(--line2); margin-bottom: 10px; }
 .phasehead > div { min-width: 0; flex: 1; }
 .phasehead h2 { margin: 0; font: 800 15px/1.2 var(--font); color: var(--navy); letter-spacing: -.01em; }
@@ -407,7 +411,7 @@ td.draw b { font-family: var(--mono); font-weight: 600; } td.flags { white-space
 .phasehead .count { font: 800 13px var(--font); color: var(--fg3); padding-top: 14px; }
 .expand { background: var(--bg2); border: 1px solid var(--line2); color: var(--fg2); font: 700 11px var(--font); padding: 4px 9px; border-radius: 999px; cursor: pointer; margin-top: 12px; }
 .expand:hover { color: var(--navy); border-color: var(--navy); } .expand[aria-expanded="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
-.stagecols { display: flex; gap: 12px; align-items: flex-start; }
+.stagecols { display: flex; gap: 12px; align-items: flex-start; flex: 1; min-height: 0; }   /* stage columns scroll inside the phase, not the page */
 .stagecol { flex: 0 0 300px; }
 .stagecol > header { display: flex; align-items: baseline; gap: 8px; padding: 2px 4px 8px; }
 .stagecol h3 { margin: 0; font: 800 13px var(--font); color: var(--navy); }
