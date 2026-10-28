@@ -616,3 +616,28 @@ export async function reconcileCard(projectId: string, stage: number | null, bal
   bustWorkflow(projectId); revalidatePath("/reconcile");
   return { ok: true, at: new Date().toISOString() };
 }
+
+/** /stages: admins edit the Rev 3 stage reference in the app (Rev 4 is a data change, not a deploy). RLS: write_admin on stages. */
+export async function saveStageDefinition(stageNo: number, _prev: unknown, fd: FormData): Promise<R> {
+  const supabase = await createClient();
+  const lines = (k: string) => (nz(fd.get(k)) ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const name = nz(fd.get("name")); const short_name = nz(fd.get("short_name"));
+  if (!name || !short_name) return { error: "Name and short name are required." };
+  // checklist lines are "key | text"; a line without a key gets one from its text (keys are what ticks are stored against — keep them stable)
+  const seen = new Set<string>();
+  const checklist = lines("checklist").map((l) => {
+    const [a, b] = l.includes("|") ? l.split("|").map((x) => x.trim()) : ["", l];
+    let key = (a || b).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 24) || "item";
+    while (seen.has(key)) key += "_"; seen.add(key);
+    return { key, text: b };
+  });
+  const patch = {
+    name, short_name, department: nz(fd.get("department")) ?? "", position: nz(fd.get("position")), description: nz(fd.get("description")),
+    checklist, evidence: nz(fd.get("evidence")), supporting: lines("supporting"), loop: lines("loop"), attendance: lines("attendance"),
+    retains_ball: fd.get("retains_ball") === "on",
+  };
+  const { error } = await supabase.from("stages").update(patch).eq("stage_no", stageNo);
+  if (error) return { error: error.message };
+  revalidatePath("/stages"); revalidatePath("/board"); revalidatePath("/team");
+  return { ok: true, at: new Date().toISOString() };
+}

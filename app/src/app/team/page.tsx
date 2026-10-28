@@ -27,7 +27,7 @@ async function Inner_TeamPage() {
       </section>
       <main className="column">
         <TeamTable people={people} canEdit={me.canTeam} />
-        <h2 className="section-h">Stage owners <small>who holds the ball by default — Rev 3</small></h2>
+        <h2 className="section-h">Stage owners <small>who holds the ball by default — Rev 3 · <a href="/stages">edit what each stage means</a></small></h2>
         <StageOwners stages={stages} owners={owners} targets={targets} people={active} canEdit={me.canTeam} />
       </main>
     </Shell>

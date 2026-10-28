@@ -551,3 +551,19 @@ tr.changed td { background: #FBF6EC; }
 .stagemeeting .note { width: 100%; margin: 0; }
 .mstage { display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 3px; margin-right: 4px; border-radius: 4px; background: var(--navy); color: #fff; font: 700 10px var(--mono); font-style: normal; vertical-align: 1px; }
 .attendance .chips .chip.off { opacity: .55; }
+
+/* stage settings (/stages) */
+.stagelist details { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 8px; }
+.stagelist summary { display: flex; align-items: center; gap: 14px; padding: 12px 16px; cursor: pointer; list-style: none; }
+.stagelist summary::-webkit-details-marker { display: none; }
+.stagelist summary .stagemeta { color: var(--fg3); font-size: 12px; }
+.stagelist details[open] summary { border-bottom: 1px solid var(--line); }
+.stageform { border: 0; border-radius: 0; box-shadow: none; }
+.stageform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
+.stageform-grid label { display: flex; flex-direction: column; gap: 4px; font: 600 12px var(--font); color: var(--fg2); }
+.stageform-grid label small { font-weight: 500; color: var(--fg3); }
+.stageform-grid label.wide { grid-column: 1 / -1; }
+.stageform-grid input, .stageform-grid textarea { font: 400 13px/1.45 var(--font); }
+.stageform-grid label.check { flex-direction: row; align-items: center; grid-column: 1 / -1; }
+.stageform input[readonly], .stageform textarea[readonly] { background: var(--bg); color: var(--fg2); }
+@media (max-width: 760px) { .stageform-grid { grid-template-columns: 1fr; } .stagelist summary { flex-wrap: wrap; gap: 6px; } }
