@@ -101,8 +101,8 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
   );
   if (view === "project") return (
     <Shell active="schedule">
-      <main className="column">
-        <div className="meetings">
+      <main className="fill column">
+        <div className="meetings ganttpage">
           {tabs}
           <ScheduleGantt projects={gp} today={today} filter={filter} canEdit={canEdit} />
           <p className="note">One row per item, its six production stages along the row. Drag a bar to move it, drag its right edge to stretch it — the dates save and the stage owner hears in the next digest. Factory stages are Gajanand’s, site stages the PM’s.</p>
