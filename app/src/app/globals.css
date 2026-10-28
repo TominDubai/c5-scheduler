@@ -398,6 +398,7 @@ td.draw b { font-family: var(--mono); font-weight: 600; } td.flags { white-space
 .board.phases { gap: 18px; }
 .phase.col { flex: 0 0 330px; }
 .phase.col.side { opacity: .8; flex-basis: 300px; }
+.phase.col.emptyphase { flex-basis: 230px; }   /* an empty phase shouldn't push the live ones off screen */
 .phase.open { flex: 0 0 auto; display: flex; flex-direction: column; scroll-snap-align: start; }
 .phasehead { display: flex; align-items: flex-start; gap: 10px; padding: 4px 4px 10px; border-bottom: 2px solid var(--line2); margin-bottom: 10px; }
 .phasehead > div { min-width: 0; flex: 1; }

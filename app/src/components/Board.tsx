@@ -107,7 +107,7 @@ export default function Board({ projects, stages, isAdmin, myId }: { projects: P
             );
           }
           return (
-            <section key={ph.key} className="phase col">
+            <section key={ph.key} className={`phase col${items.length === 0 ? " emptyphase" : ""}`}>
               {head}
               <div className="cards">
                 {items.length === 0 && <div className="empty">Nothing in this phase</div>}
