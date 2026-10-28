@@ -76,13 +76,13 @@ export default function Board({ projects, stages, isAdmin, myId }: { projects: P
       {toConfirm > 0 && (
         <div className="msg" style={{ margin: "8px 24px 0" }}>{toConfirm} card{toConfirm === 1 ? "" : "s"} still carr{toConfirm === 1 ? "ies" : "y"} the stage the migration guessed. <Link href="/reconcile">Confirm or correct them →</Link></div>
       )}
-      {mine.length > 0 && (
-        <section className="myball">
-          <h2>My ball <span className="count">{mine.length}</span></h2>
-          <div className="myball-cards">{mine.map(card)}</div>
-        </section>
-      )}
       <div className="board phases" aria-busy={pending}>
+        {mine.length > 0 && (
+          <section className="phase col myball">
+            <header className="phasehead"><div><span className="phase-k">Signed in as you</span><h2>My ball</h2></div><span className="count">{mine.length}</span></header>
+            <div className="cards">{mine.map(card)}</div>
+          </section>
+        )}
         {PHASES.map((ph) => {
           const items = rows.filter((p) => p.stage != null && ph.stages.includes(p.stage)).sort(sortCards);
           const expanded = open.has(ph.key);

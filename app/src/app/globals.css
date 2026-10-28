@@ -447,11 +447,10 @@ td .stagechip { background: var(--bg3); } td .stagechip.ph-ENQUIRY, td .stagechi
 .who.sm { font-size: 12px; font-weight: 600; color: var(--fg3); } .who.sm b { color: var(--fg2); font-weight: 700; } .who.sm small { color: var(--fg3); }
 .card.mine { box-shadow: 0 0 0 2px var(--bronze), 0 1px 2px rgba(16,44,82,.05); }
 /* "My ball": what the signed-in person holds or has to accept */
-.myball { padding: 10px 24px 0; }
-.myball h2 { margin: 0 0 8px; font: 800 13px var(--font); color: var(--bronze); text-transform: uppercase; letter-spacing: .1em; display: flex; align-items: baseline; gap: 8px; }
-.myball h2 .count { color: var(--fg3); letter-spacing: 0; }
-.myball-cards { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 10px; scroll-snap-type: x proximity; }
-.myball-cards .card { flex: 0 0 300px; scroll-snap-align: start; }
+/* "My ball" is the first column of the board — it scrolls up and down like every other column, nothing runs across the top */
+.phase.col.myball { flex-basis: 310px; background: #FBF6EC; border: 1px solid #E8D9BF; border-radius: var(--r); padding: 0 8px 8px; }
+.phase.col.myball .phasehead { border-bottom-color: var(--bronze); }
+.phase.col.myball .phasehead h2 { color: var(--bronze); }
 .flowtag { font: 700 11px var(--font); white-space: nowrap; color: var(--fg3); } .flowtag.bronze { color: #7A5A3C; background: #F3E9DD; padding: 2px 8px; border-radius: 999px; } .flowtag.grey { color: var(--fg2); background: var(--bg3); padding: 2px 8px; border-radius: 999px; }
 /* qualifying column (Estimation tab, stage 0) */
 .col.qualifying { flex-basis: 310px; border-right: 2px solid var(--line); padding-right: 16px; margin-right: 2px; }
@@ -471,7 +470,6 @@ td .stagechip { background: var(--bg3); } td .stagechip.ph-ENQUIRY, td .stagechi
 @media (max-width: 900px) {
   .phase.col, .phase.col.side { flex-basis: 86vw; }
   .stagecol { flex-basis: 80vw; }
-  .myball-cards .card { flex-basis: 86vw; }
 }
 /* ---- project page: Rev 3 blocks ---- */
 .stagechip.big { font-size: 13px; padding: 4px 12px 4px 4px; } .stagechip.big b { min-width: 22px; height: 22px; font-size: 12px; }
