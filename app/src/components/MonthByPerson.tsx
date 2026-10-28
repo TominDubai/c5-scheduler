@@ -24,7 +24,7 @@ export default function MonthByPerson({ month, gridStart, gridEnd, today, events
           <div key={ws} className="mweek" style={{ minHeight: 34 + lanes * 24 }}>
             {wk.map((d) => <div key={d} className={`mcell${d.slice(0, 7) !== month ? " out" : ""}${d === today ? " today" : ""}${[5, 6].includes(new Date(d + "T00:00:00Z").getUTCDay()) ? " we" : ""}`}><span className="mnum">{Number(d.slice(8))}</span></div>)}
             {segs.map(({ e, c0, c1, lane }) => (
-              <Link key={e.id + ws} href={e.href} className={`mev ${e.kind} ${e.tone}${e.start < ws ? " cont-l" : ""}${e.end > we ? " cont-r" : ""}`} style={{ gridColumn: `${c0 + 1} / ${c1 + 2}`, top: 30 + lane * 24 }} title={e.title}>
+              <Link key={e.id + ws} href={e.href} className={`mev ${e.kind} ${e.tone}${e.start < ws ? " cont-l" : ""}${e.end > we ? " cont-r" : ""}`} style={{ left: `${(c0 / 7) * 100}%`, width: `calc(${((c1 - c0 + 1) / 7) * 100}% - 6px)`, top: 30 + lane * 24 }} title={e.title}>
                 {multi && e.person && <b className="mini">{ini(e.person)}</b>}<span>{e.title}</span>
               </Link>
             ))}
