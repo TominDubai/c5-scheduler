@@ -206,7 +206,7 @@ const phone = (v: FormDataEntryValue | null) => { const s = nz(v)?.replace(/[\s\
 export async function savePerson(id: string, _prev: unknown, fd: FormData) {
   const supabase = await createClient();
   try {
-    const patch = { full_name: nz(fd.get("full_name")), email: email(fd.get("email")), whatsapp: phone(fd.get("whatsapp")), is_active: fd.get("is_active") === "on", notify_on_award: fd.get("notify_on_award") === "on", position: nz(fd.get("position")), can_sign_in: fd.get("whatsapp_only") !== "on" };
+    const patch = { full_name: nz(fd.get("full_name")), email: email(fd.get("email")), whatsapp: phone(fd.get("whatsapp")), is_active: fd.get("is_active") === "on", notify_on_award: fd.get("notify_on_award") === "on", handles_escalations: fd.get("handles_escalations") === "on", position: nz(fd.get("position")), can_sign_in: fd.get("whatsapp_only") !== "on" };
     const { error } = await supabase.from("people").update(patch).eq("id", id);
     if (error) return { error: error.message.includes("people_email_key") ? "Another person already has that email." : error.message };
   } catch (e) { return { error: (e as Error).message }; }

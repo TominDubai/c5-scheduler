@@ -13,7 +13,7 @@ function Row({ p, canEdit }: { p: Person; canEdit: boolean }) {
   const flags = [p.can_edit_projects && "projects", p.can_edit_estimation && "estimation", p.can_manage_team && "team"].filter(Boolean).join(" + ");
   if (!canEdit) return (
     <tr className={p.is_active ? "" : "off"}>
-      <td className="name">{title(p.name)}</td><td>{p.full_name ?? "—"}{p.position ? <small className="pos">{p.position}</small> : null}</td><td>{p.email ?? <i>{p.can_sign_in ? "no email" : "WhatsApp only"}</i>}</td><td>{p.whatsapp ?? "—"}</td><td><span className="pill">{flags || "view"}</span></td><td>{p.notify_on_award ? <span className="pill ok">signings</span> : "—"}</td><td>{p.is_active ? "Active" : "Left"}</td><td />
+      <td className="name">{title(p.name)}</td><td>{p.full_name ?? "—"}{p.position ? <small className="pos">{p.position}</small> : null}</td><td>{p.email ?? <i>{p.can_sign_in ? "no email" : "WhatsApp only"}</i>}</td><td>{p.whatsapp ?? "—"}</td><td><span className="pill">{flags || "view"}</span></td><td>{[p.notify_on_award && <span key="s" className="pill ok">signings</span>, p.handles_escalations && <span key="e" className="pill ok">escalations</span>].filter(Boolean)}{!p.notify_on_award && !p.handles_escalations && "—"}</td><td>{p.is_active ? "Active" : "Left"}</td><td />
     </tr>
   );
   return (
@@ -24,7 +24,7 @@ function Row({ p, canEdit }: { p: Person; canEdit: boolean }) {
         <label className="check"><input form={`f-${p.id}`} type="checkbox" name="whatsapp_only" defaultChecked={!p.can_sign_in} onChange={() => setDirty(true)} /> WhatsApp only</label></td>
       <td><input form={`f-${p.id}`} name="whatsapp" defaultValue={p.whatsapp ?? ""} placeholder="+9715…" onChange={() => setDirty(true)} /></td>
       <td><span className="pill">{flags || "view"}</span></td>
-      <td><label className="check"><input form={`f-${p.id}`} type="checkbox" name="notify_on_award" defaultChecked={p.notify_on_award} onChange={() => setDirty(true)} /> Told</label></td>
+      <td><label className="check"><input form={`f-${p.id}`} type="checkbox" name="notify_on_award" defaultChecked={p.notify_on_award} onChange={() => setDirty(true)} /> Signings</label><label className="check"><input form={`f-${p.id}`} type="checkbox" name="handles_escalations" defaultChecked={p.handles_escalations} onChange={() => setDirty(true)} /> Escalations</label></td>
       <td><label className="check"><input form={`f-${p.id}`} type="checkbox" name="is_active" defaultChecked={p.is_active} onChange={() => setDirty(true)} /> Active</label></td>
       <td className="save">
         <form id={`f-${p.id}`} action={action} onSubmit={() => setDirty(false)}>
@@ -64,7 +64,7 @@ export default function TeamTable({ people, canEdit }: { people: Person[]; canEd
     <div className="listview">
       <div className="tablewrap team">
         <table>
-          <thead><tr><th>Name</th><th>Full name</th><th>Email</th><th>WhatsApp</th><th>Can edit</th><th>Told when a project is signed</th><th>Status</th><th /></tr></thead>
+          <thead><tr><th>Name</th><th>Full name</th><th>Email</th><th>WhatsApp</th><th>Can edit</th><th>Also emailed about</th><th>Status</th><th /></tr></thead>
           <tbody>
             {groups.map(([role, ps]) => (
               <Fragment key={role}>

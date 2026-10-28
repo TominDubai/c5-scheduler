@@ -282,3 +282,113 @@ export async function runMeetingsToday(opts: { dryRun?: boolean; date?: string }
   }
   return { date, meetings: all.length, recipients: perPerson.size, sent, failures, ...(opts.dryRun ? { preview } : {}) };
 }
+
+
+// ---------- 07:30 daily reminders (Rev 3 plan, step 4) ----------
+// One "Waiting on you" email per person. Thresholds come from alert_settings (W1–W4) and stage_targets, so Darren's
+// numbers are a data change. People who can't sign in (WhatsApp-only) have their reminders routed to the
+// project coordinator, who chases them — that is Rev 3's rule, so the app does the same.
+type LiveRow = {
+  id: string; enquiry_no: string | null; name: string; client: string | null; status: Status;
+  stage: number | null; stage_name: string | null; stage_short: string | null; ball_holder_id: string | null; flow_status: string | null;
+  stage_age_days: number | null; stage_target_days: number | null; stage_overdue: boolean | null;
+  hold_id: string | null; hold_reason: string | null; hold_waiting_on: string | null; hold_review_date: string | null; hold_action_due: string | null; hold_action: string | null;
+  pending_handover_id: string | null; pending_to_person_id: string | null; pending_to_stage: number | null; pending_since: string | null;
+  next_action: string | null; next_action_owner_id: string | null; next_action_due: string | null;
+};
+type Reminder = { p: LiveRow; kind: "accept" | "escalated" | "hold" | "action" | "stage"; text: string; onBehalfOf?: string };
+type RPerson = Person & { role: string; can_sign_in: boolean; handles_escalations: boolean };
+
+export async function runDailyReminders(opts: { dryRun?: boolean; date?: string } = {}) {
+  const db = admin();
+  const today = opts.date ?? todayDubai();
+  const now = opts.date ? new Date(opts.date + "T03:30:00Z").getTime() : Date.now();
+  const [{ data: rows, error }, { data: ppl }, { data: settings }, { data: targets }, { data: stages }] = await Promise.all([
+    db.from("projects_live").select("id, enquiry_no, name, client, status, stage, stage_name, stage_short, ball_holder_id, flow_status, stage_age_days, stage_target_days, stage_overdue, hold_id, hold_reason, hold_waiting_on, hold_review_date, hold_action_due, hold_action, pending_handover_id, pending_to_person_id, pending_to_stage, pending_since, next_action, next_action_owner_id, next_action_due")
+      .is("deleted_at", null).not("status", "in", "(LOST,MERGED,COMPLETED)"),
+    db.from("people").select("id, name, full_name, email, is_active, notify_on_award, role, can_sign_in, handles_escalations"),
+    db.from("alert_settings").select("rule, threshold, enabled").in("rule", ["W1", "W2", "W3", "W4"]),
+    db.from("stage_targets").select("stage_no, response_hours"),
+    db.from("stages").select("stage_no, short_name"),
+  ]);
+  if (error) throw new Error(error.message);
+  const people = new Map(((ppl ?? []) as RPerson[]).map((p) => [p.id, p]));
+  const setting = (r: string) => { const s = (settings ?? []).find((x) => x.rule === r); return { on: s ? s.enabled !== false : true, n: s?.threshold ?? 0 }; };
+  const responseHours = new Map((targets ?? []).map((t) => [t.stage_no as number, t.response_hours as number | null]));
+  const stageShort = new Map((stages ?? []).map((s) => [s.stage_no as number, s.short_name as string]));
+  const coordinator = [...people.values()].find((p) => p.role === "PROJECT_COORDINATOR" && p.is_active && p.email) ?? null;
+  const escalation = [...people.values()].filter((p) => p.handles_escalations && p.is_active && p.email);
+  const days = (d: string | null) => d ? Math.floor((now - new Date(d + "T00:00:00Z").getTime()) / 86400000) : 0;
+  const hoursSince = (iso: string | null) => iso ? (now - new Date(iso).getTime()) / 3600000 : 0;
+  const nm = (id: string | null) => (id && (people.get(id)?.full_name?.split(" ")[0] ?? tc(people.get(id)?.name ?? ""))) || "someone";
+
+  const per = new Map<string, Reminder[]>();
+  // A reminder meant for someone who can't sign in goes to the coordinator, marked with their name.
+  const add = (toId: string | null, r: Reminder) => {
+    if (!toId) return;
+    const to = people.get(toId);
+    if (!to || !to.is_active) return;
+    if (!to.email || !to.can_sign_in) { if (coordinator && coordinator.id !== toId) add(coordinator.id, { ...r, onBehalfOf: nm(toId) }); return; }
+    const list = per.get(toId) ?? [];
+    if (!list.some((x) => x.p.id === r.p.id && x.kind === r.kind && x.text === r.text)) list.push(r);
+    per.set(toId, list);
+  };
+
+  const W1 = setting("W1"), W2 = setting("W2"), W3 = setting("W3"), W4 = setting("W4");
+  for (const p of (rows ?? []) as LiveRow[]) {
+    // W1: a handover nobody has accepted
+    if (W1.on && p.flow_status === "AWAITING_ACCEPTANCE" && p.pending_handover_id && p.pending_to_person_id) {
+      const h = hoursSince(p.pending_since);
+      if (h >= W1.n) {
+        const text = `Handover to ${stageShort.get(p.pending_to_stage ?? -1) ?? `stage ${p.pending_to_stage}`} waiting for ${nm(p.pending_to_person_id)} to accept — ${Math.floor(h / 24)}d ${Math.round(h % 24)}h`;
+        add(p.pending_to_person_id, { p, kind: "accept", text });
+        if (coordinator) add(coordinator.id, { p, kind: "accept", text });
+        const limit = responseHours.get(p.pending_to_stage ?? -1);
+        if (limit != null && h > limit) for (const e of escalation) add(e.id, { p, kind: "escalated", text: `${text} — past the ${limit}h response time` });
+      }
+    }
+    // W2: a hold nobody has reviewed
+    if (W2.on && p.hold_id) {
+      const late = (p.hold_review_date && days(p.hold_review_date) > W2.n) ? `review was due ${fmtDate(p.hold_review_date)}` : (p.hold_action_due && days(p.hold_action_due) > W2.n) ? `action was due ${fmtDate(p.hold_action_due)}` : null;
+      if (late) {
+        const text = `On hold — ${p.hold_reason ?? "no reason recorded"}${p.hold_waiting_on ? ` (waiting on ${tc(p.hold_waiting_on)})` : ""}; ${late}`;
+        add(p.ball_holder_id, { p, kind: "hold", text });
+        if (coordinator) add(coordinator.id, { p, kind: "hold", text });
+      }
+    }
+    // W3: next action past its date
+    if (W3.on && p.next_action && p.next_action_due && days(p.next_action_due) > W3.n) {
+      add(p.next_action_owner_id ?? p.ball_holder_id, { p, kind: "action", text: `Next action overdue — ${p.next_action} (due ${fmtDate(p.next_action_due)})` });
+    }
+    // W4: stage sat longer than its target (only once stage_targets has numbers)
+    if (W4.on && p.stage_overdue && p.stage_target_days != null && (p.stage_age_days ?? 0) - p.stage_target_days > W4.n) {
+      add(p.ball_holder_id, { p, kind: "stage", text: `In ${p.stage_name ?? "this stage"} for ${p.stage_age_days} days — target is ${p.stage_target_days}` });
+    }
+  }
+
+  const KIND: Record<Reminder["kind"], string> = { accept: "Waiting for acceptance", escalated: "Escalated", hold: "On hold", action: "Next action", stage: "Stage overdue" };
+  let sent = 0; const failures: string[] = []; const preview: Record<string, string[]> = {};
+  for (const [id, list] of per) {
+    const to = people.get(id)!;
+    const first = to.full_name?.split(" ")[0] ?? tc(to.name);
+    const byProject = new Map<string, Reminder[]>();
+    for (const r of list) byProject.set(r.p.id, [...(byProject.get(r.p.id) ?? []), r]);
+    const subject = list.length === 1 ? `${KIND[list[0].kind]}: ${list[0].p.name}` : `${list.length} things waiting on you`;
+    const html = `<!doctype html><html><body style="margin:0;background:#f6f3ee;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+    <div style="max-width:600px;margin:0 auto;padding:28px 18px">
+      <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a7a5c;margin-bottom:6px">Concept 5 Projects</div>
+      <div style="font-size:15px;color:#2b2b2b;margin-bottom:18px">Morning ${esc(first)}, these are waiting on you${list.some((r) => r.onBehalfOf) ? " or on someone you chase" : ""}.</div>
+      ${[...byProject.values()].map((rs) => { const p = rs[0].p; return `<div style="margin:0 0 14px 0;padding:14px 18px;border:1px solid #e6e1d8;border-radius:10px;background:#fff">
+        <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a7a5c">${esc(p.enquiry_no ?? "")}${p.client ? ` · ${esc(p.client)}` : ""}${p.stage != null ? ` · ${p.stage} ${esc(p.stage_short ?? "")}` : ""}</div>
+        <div style="font-size:17px;font-weight:600;color:#14213d;margin:2px 0 8px"><a href="${APP_URL}/projects/${p.id}" style="color:#14213d;text-decoration:none">${esc(tc(p.name))}</a></div>
+        <ul style="margin:0;padding:0 0 0 18px;color:#2b2b2b;font-size:14px;line-height:1.55">${rs.map((r) => `<li>${r.kind === "escalated" ? '<b style="color:#b85c5c">Escalated:</b> ' : ""}${esc(r.text)}${r.onBehalfOf ? ` <span style="color:#8a8a8a;font-size:12px">— for ${esc(r.onBehalfOf)}</span>` : ""}</li>`).join("")}</ul>
+        <div style="margin-top:8px"><a href="${APP_URL}/projects/${p.id}" style="font-size:13px;color:#8a7a5c">Open project →</a></div></div>`; }).join("")}
+      <div style="font-size:12px;color:#9a9a9a;margin-top:8px">Sent at 07:30 on days something is waiting. <a href="${APP_URL}/board" style="color:#8a7a5c">Open the board</a></div>
+    </div></body></html>`;
+    const text = [...byProject.values()].map((rs) => `${rs[0].p.enquiry_no ?? ""} ${tc(rs[0].p.name)}\n${rs.map((r) => `  - ${r.kind === "escalated" ? "ESCALATED: " : ""}${r.text}${r.onBehalfOf ? ` (for ${r.onBehalfOf})` : ""}`).join("\n")}\n  ${APP_URL}/projects/${rs[0].p.id}`).join("\n\n");
+    if (opts.dryRun) { preview[to.email!] = list.map((r) => `${r.p.enquiry_no ?? "?"} ${r.kind}: ${r.text}${r.onBehalfOf ? ` (for ${r.onBehalfOf})` : ""}`); continue; }
+    try { await sendEmail(to.email!, { subject, html, text }); sent++; }
+    catch (e) { failures.push(`${to.email}: ${(e as Error).message}`); }
+  }
+  return { date: today, projects: (rows ?? []).length, recipients: per.size, sent, failures, ...(opts.dryRun ? { preview } : {}) };
+}
