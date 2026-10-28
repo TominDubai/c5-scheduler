@@ -579,3 +579,21 @@ tr.changed td { background: #FBF6EC; }
 .dsec li .dname small, .dsec li .dproj { color: var(--fg3); font-size: 12px; }
 .dsec li .dnote { grid-column: 1 / -1; font-size: 12px; color: var(--fg3); } .dsec li .dnote.crit { color: var(--crit); font-weight: 600; }
 @media (max-width: 760px) { .designers { grid-template-columns: 1fr; } .dsec li { grid-template-columns: 1fr auto; } .dsec li .dproj { grid-column: 1 / -1; } }
+
+/* schedule — month by person */
+.mnav .who .seg2 { padding: 5px 10px; } .whoform { display: flex; gap: 6px; align-items: center } .whoform select { font-size: 12px; padding: 5px 8px; border-radius: 8px; }
+.mgrid { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.mgrid-head { display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid var(--line); } .mgrid-head div { padding: 8px 10px; font: 700 10px var(--font); letter-spacing: .1em; text-transform: uppercase; color: var(--fg3); }
+.mweek { display: grid; grid-template-columns: repeat(7, 1fr); position: relative; border-top: 1px solid var(--line); }
+.mcell { border-left: 1px solid var(--line); padding: 6px 8px; min-height: 58px; } .mcell:first-child { border-left: 0 } .mcell.out { background: var(--bg); } .mcell.we { background: #F4F2EE; } .mcell.out.we { background: #F1EFEB; }
+.mnum { font: 700 12px var(--font); color: var(--fg2); } .mcell.out .mnum { color: var(--fg3); } .mcell.today .mnum { background: var(--bronze); color: #fff; border-radius: 999px; padding: 1px 7px; margin-left: -4px; }
+.mev { position: absolute; height: 20px; margin: 0 3px; border-radius: 5px; display: flex; align-items: center; gap: 5px; padding: 0 7px; font: 700 11px var(--font); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; z-index: 1; }
+.mev span { overflow: hidden; text-overflow: ellipsis; }
+.mev.navy { background: var(--navy); } .mev.site { background: #2F5A8F; } .mev.crit { background: var(--crit); } .mev.warn { background: var(--warn); } .mev.bronze { background: var(--bronze); } .mev.meet { background: #E8DCCB; color: var(--navy); }
+.mev.plan { background: #fff; color: var(--fg2); border: 1.5px dashed var(--line2); }
+.mev.ball { border-left: 4px solid rgba(0,0,0,.25); }
+.mev.dot, .mev.flag { background: transparent !important; color: var(--navy); padding-left: 4px; } .mev.dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--navy); flex: none; } .mev.dot.crit::before { background: var(--crit); } .mev.dot.warn::before { background: var(--warn); }
+.mev.flag::before { content: "⚑"; color: var(--bronze); font-size: 12px; } .mev.flag.crit::before { color: var(--crit); }
+.mev.cont-l { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; } .mev.cont-r { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
+.mev .mini { display: inline-grid; place-items: center; min-width: 18px; height: 16px; padding: 0 3px; border-radius: 4px; background: rgba(255,255,255,.3); font: 800 9px var(--font); flex: none; } .mev.dot .mini, .mev.flag .mini, .mev.meet .mini, .mev.plan .mini { background: var(--bg3); color: var(--navy); }
+@media (max-width: 760px) { .mgrid-head div { padding: 6px 4px; font-size: 9px; } .mcell { padding: 4px; min-height: 44px; } .mev { font-size: 10px; padding: 0 4px; } }

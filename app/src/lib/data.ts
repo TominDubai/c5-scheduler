@@ -187,3 +187,16 @@ export async function getProjectWorkflow(projectId: string): Promise<{ handovers
   ]);
   return { handovers: (handovers ?? []) as Handover[], holds: (holds ?? []) as Hold[], evidence: (evidence ?? []) as StageEvidence[], tasks: (tasks ?? []) as ProjectTask[] };
 }
+
+// ---------- schedule (month by person) ----------
+/** every production stage row on a live, non-cancelled item — for the schedule views */
+export const getAllProductionStages = cache(async function getAllProductionStages(): Promise<(ItemProductionStage & { item: Item })[]> {
+  const supabase = await createClient();
+  const items = await getAllItems();
+  const live = items.filter((i) => !i.cancelled && i.project_status !== "COMPLETED");
+  if (!live.length) return [];
+  const { data, error } = await supabase.from("item_production_stages").select("*").in("item_id", live.map((i) => i.id));
+  if (error) throw new Error(`item_production_stages: ${error.message}`);
+  const byId = new Map(live.map((i) => [i.id, i]));
+  return ((data ?? []) as ItemProductionStage[]).map((s) => ({ ...s, item: byId.get(s.item_id)! }));
+});
