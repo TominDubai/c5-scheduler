@@ -404,6 +404,13 @@ begin
       if new.to_person_id is null then new.to_person_id := default_ball_holder(new.to_stage, p.pm_id); end if;
       if new.to_person_id is null and new.to_stage <> 17 then raise exception 'Name the next owner — nobody is set up to hold stage %', new.to_stage; end if;
       if who is distinct from p.ball_holder_id and coord and not coalesce(mine.is_admin, false) then new.recorded_by := who; end if;
+      -- the same person carries on (1→2 Ramus, 11→12 Gaju, 14→15 the PM): a checkpoint, recorded and time-stamped, no acceptance needed
+      if new.to_person_id is not null and new.to_person_id = p.ball_holder_id then
+        new.status := 'CHECKPOINT'; new.accepted_at := now();
+        update projects set stage = new.to_stage, ball_holder_id = new.to_person_id, stage_migrated = false, stage_accepted_at = now(),
+          next_action = null, next_action_owner_id = null, next_action_due = null where id = new.project_id;
+        return new;
+      end if;
       update projects set flow_status = 'AWAITING_ACCEPTANCE' where id = new.project_id and flow_status <> 'ON_HOLD';
     elsif new.status = 'OVERRIDE' then
       if auth.role() = 'authenticated' and not coalesce(mine.is_admin, false) then raise exception 'Only Tom, Aftab, Darren or Jinky can move a card without acceptance'; end if;
@@ -462,6 +469,8 @@ declare who uuid := current_person_id(); nm text := (select name from stages whe
 begin
   if tg_op = 'INSERT' and new.status = 'PENDING' then
     insert into change_log(project_id, kind, field, old_value, new_value, changed_by) values (new.project_id, 'handover_requested', nm, person_name(new.from_person_id), person_name(new.to_person_id), who);
+  elsif tg_op = 'INSERT' and new.status = 'CHECKPOINT' then
+    insert into change_log(project_id, kind, field, old_value, new_value, changed_by) values (new.project_id, 'checkpoint', nm, person_name(new.from_person_id), new.note, who);
   elsif tg_op = 'INSERT' and new.status = 'OVERRIDE' then
     insert into change_log(project_id, kind, field, old_value, new_value, changed_by) values (new.project_id, 'handover_override', nm, person_name(new.from_person_id), person_name(new.to_person_id) || ' — ' || new.override_reason, who);
   elsif tg_op = 'UPDATE' and new.status is distinct from old.status then

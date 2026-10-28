@@ -473,6 +473,7 @@ td .stagechip { background: var(--bg3); } td .stagechip.ph-ENQUIRY, td .stagechi
 .stagechip.big { font-size: 13px; padding: 4px 12px 4px 4px; } .stagechip.big b { min-width: 22px; height: 22px; font-size: 12px; }
 .stagebar17 { display: flex; gap: 6px; }
 .sb-phase { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sb-bar { display: block; height: 3px; border-radius: 2px; opacity: .55; } .sb-phase.cur .sb-bar { opacity: 1; }
 .sb-phase small { font: 700 10px var(--font); color: var(--fg3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sb-phase.cur small { color: var(--navy); }
 .sb-segs { display: flex; gap: 3px; }

@@ -74,6 +74,7 @@ export function describe(c: Change, p?: Proj): string {
     case "handover_requested": return `Handover requested — ${c.field}: ${tc(c.old_value ?? "—")} → ${tc(c.new_value ?? "—")}. Waiting for ${tc(c.new_value ?? "them")} to accept.`;
     case "handover_accepted": return `Handover accepted — ${c.field} now with ${tc((c.new_value ?? "").split(" — ")[0])}${c.new_value?.includes(" — recorded by ") ? ` (recorded by ${tc(c.new_value.split(" — recorded by ")[1])})` : ""}`;
     case "handover_returned": return `Handover returned by ${tc(c.old_value ?? "—")} — ${c.new_value ?? "no reason given"}`;
+    case "checkpoint": return `Checkpoint recorded — now at ${c.field}, same owner${c.new_value ? ` — ${c.new_value}` : ""}`;
     case "handover_cancelled": return `Handover request withdrawn (${c.field})`;
     case "handover_override": return `Moved to ${c.field} without acceptance — ${c.new_value ?? ""}`;
     case "hold": return `On hold${c.field ? ` — waiting on ${tc(c.field)}` : ""}: ${c.new_value ?? ""}`;

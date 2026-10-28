@@ -359,7 +359,7 @@ function RequestDrawer({ project: p, stages, owners, people, me, checklistMissin
   const [owner, setOwner] = useState<string>(defaultOwner ?? "");
   const [state, action, pending] = useActionState(async (prev: unknown, fd: FormData) => { const r = await requestHandover(p.id, prev, fd); if (r.ok) { onClose(); router.refresh(); } return r; }, null as S);
   const strict = checklistMissing.length > 0 && !me.isAdmin;
-  const retains = p.retains_ball && toStage === p.next_stage;
+  const retains = owner !== "" && owner === p.ball_holder_id;   // same person carries on: a checkpoint, no acceptance needed
   const who = people.find((x) => x.id === owner);
   return (
     <div className="ddim" onClick={onClose}>
@@ -399,7 +399,7 @@ function RequestDrawer({ project: p, stages, owners, people, me, checklistMissin
           <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
           {state?.error && <span className="msg err">{state.error}</span>}
         </div>
-        <small className="note">The card stays with {p.ball_holder ? title(p.ball_holder) : "the current owner"} as “Awaiting acceptance” until {who ? (who.full_name ?? title(who.name)).split(" ")[0] : "the next owner"} accepts. No answer, no move.</small>
+        <small className="note">{retains ? `${p.ball_holder ? title(p.ball_holder) : "The owner"} keeps the ball — the stage moves now and the checkpoint is time-stamped.` : `The card stays with ${p.ball_holder ? title(p.ball_holder) : "the current owner"} as “Awaiting acceptance” until ${who ? (who.full_name ?? title(who.name)).split(" ")[0] : "the next owner"} accepts. No answer, no move.`}</small>
       </form>
     </div>
   );

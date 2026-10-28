@@ -49,7 +49,8 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
         {p.stage != null && (
           <div className="stagebar17" aria-label="Stages 0 to 16, then Completed">
             {[...PHASES, { key: "COMPLETE" as const, label: "Completed", short: "Done", stages: [COMPLETED_STAGE] }].map((ph) => (
-              <div key={ph.key} className={`sb-phase ph-${ph.key}${ph.stages.some((n) => n === p.stage) ? " cur" : ""}`} style={{ flex: ph.stages.length }}>
+              <div key={ph.key} className={`sb-phase${ph.stages.some((n) => n === p.stage) ? " cur" : ""}`} style={{ flex: ph.stages.length }}>
+                <i className={`sb-bar ph-${ph.key}`} />
                 <div className="sb-segs">{ph.stages.map((n) => <span key={n} className={(n < p.stage! ? "on " : "") + (n === p.stage ? "cur" : "")} title={stages.find((s) => s.stage_no === n)?.name}>{n === COMPLETED_STAGE ? "✓" : n}</span>)}</div>
                 <small>{ph.key === "COMPLETE" ? "Completed" : ph.label}</small>
               </div>
