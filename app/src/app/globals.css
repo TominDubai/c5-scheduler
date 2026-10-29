@@ -225,7 +225,8 @@ dt { color: var(--fg3); font-size: 12px; font-weight: 700; padding-top: 2px; } d
 .mlegend { display: inline-flex; align-items: center; gap: 6px; font: 600 12px var(--font); color: var(--fg3); margin-left: 6px; }
 .mlegend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-left: 10px; } .mlegend i:first-child { margin-left: 0; }
 .mlegend i.room { background: var(--bronze); } .mlegend i.site { background: #3C6CB5; } .mlegend i.online { background: #6E7F99; }
-.mgrid { display: grid; gap: 0 6px; align-content: start; background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); padding: 0 10px 14px; overflow-y: auto; max-height: calc(100vh - 190px); min-height: 420px; scrollbar-gutter: stable; }
+/* The grid grows with its content and the page scrolls — a capped grid with overflow hidden was cutting the month off (Tom, 29 Oct). */
+.mgrid { display: grid; gap: 0 6px; align-content: start; background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); padding: 0 10px 14px; min-height: 420px; }
 .mhead { position: sticky; top: 0; z-index: 3; background: var(--bg2); padding: 12px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 1px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
 .mhead b { font: 800 13px var(--font); color: var(--fg2); text-transform: uppercase; letter-spacing: .08em; } .mhead span { font: 700 13px var(--font); color: var(--navy); }
 .mhead.today b, .mhead.today span { color: var(--bronze); }
@@ -582,7 +583,7 @@ tr.changed td { background: #FBF6EC; }
 
 /* schedule — month by person */
 .mnav .who .seg2 { padding: 5px 10px; } .whoform { display: flex; gap: 6px; align-items: center } .whoform select { font-size: 12px; padding: 5px 8px; border-radius: 8px; }
-.mgrid { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.mgrid { padding: 0; }
 .mgrid-head { display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid var(--line); } .mgrid-head div { padding: 8px 10px; font: 700 10px var(--font); letter-spacing: .1em; text-transform: uppercase; color: var(--fg3); }
 .mweek { display: grid; grid-template-columns: repeat(7, 1fr); position: relative; border-top: 1px solid var(--line); }
 .mcell { border-left: 1px solid var(--line); padding: 6px 8px; min-height: 58px; } .mcell:first-child { border-left: 0 } .mcell.out { background: var(--bg); } .mcell.we { background: #F4F2EE; } .mcell.out.we { background: #F1EFEB; }
