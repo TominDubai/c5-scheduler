@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { addDays } from "@/lib/model";
 
-export type CalEvent = { id: string; kind: "ball" | "bar" | "dot" | "flag" | "meet"; title: string; person: string | null; start: string; end: string; tone: "navy" | "site" | "crit" | "warn" | "plan" | "bronze" | "meet"; href: string };
+export type CalEvent = { id: string; kind: "ball" | "bar" | "dot" | "flag" | "meet"; title: string; person: string | null; start: string; end: string; tone: "navy" | "site" | "crit" | "warn" | "plan" | "bronze" | "meet"; href: string; tag?: string };
 type PersonLite = { id: string; name: string; role: string };
 
 /** A month grid with spanning bars, Google-calendar style. Server component: no state, links do the navigation. */
@@ -25,7 +25,7 @@ export default function MonthByPerson({ month, gridStart, gridEnd, today, events
             {wk.map((d) => <div key={d} className={`mcell${d.slice(0, 7) !== month ? " out" : ""}${d === today ? " today" : ""}${[5, 6].includes(new Date(d + "T00:00:00Z").getUTCDay()) ? " we" : ""}`}><span className="mnum">{Number(d.slice(8))}</span></div>)}
             {segs.map(({ e, c0, c1, lane }) => (
               <Link key={e.id + ws} href={e.href} className={`mev ${e.kind} ${e.tone}${e.start < ws ? " cont-l" : ""}${e.end > we ? " cont-r" : ""}`} style={{ left: `${(c0 / 7) * 100}%`, width: `calc(${((c1 - c0 + 1) / 7) * 100}% - 6px)`, top: 30 + lane * 24 }} title={e.title}>
-                {multi && e.person && <b className="mini">{ini(e.person)}</b>}<span>{e.title}</span>
+                {e.tag ? <b className="mini">{e.tag}</b> : multi && e.person && <b className="mini">{ini(e.person)}</b>}<span>{e.title}</span>
               </Link>
             ))}
           </div>

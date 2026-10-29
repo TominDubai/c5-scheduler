@@ -2,14 +2,13 @@ import Link from "next/link";
 import Shell from "@/components/Shell";
 import Failed from "@/components/Failed";
 import MonthByPerson, { type CalEvent } from "@/components/MonthByPerson";
-import ScheduleGantt, { type GanttProject } from "@/components/ScheduleGantt";
 import ScheduleWeek from "@/components/ScheduleWeek";
 import { getProjects, getMe, getPeople, getAllItems, getAllProductionStages, getMeetings, getStageTargets } from "@/lib/data";
 import { title, addDays, todayDubai, PSTAGE_LABEL, ROLE_LABEL, type Project } from "@/lib/model";
 
 export const dynamic = "force-dynamic";
 
-type SP = { m?: string; who?: string; view?: string; f?: string };
+type SP = { m?: string; who?: string; view?: string; proj?: string };
 const ROLES = ["PM", "DESIGNER", "TECHNICAL_DESIGNER", "PRODUCTION", "ESTIMATOR", "PROJECT_COORDINATOR", "MANAGEMENT"];
 
 /** Schedule → by person. A month grid of everything that has a date and an owner: the stage each person holds the
@@ -75,16 +74,40 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
   const peopleOpts = active.map((p) => ({ id: p.id, name: p.full_name ?? title(p.name), role: p.role }));
   const prev = `${new Date(Date.UTC(y, mo - 2, 1)).toISOString().slice(0, 7)}`, next = `${new Date(Date.UTC(y, mo, 1)).toISOString().slice(0, 7)}`;
   const label = who === "me" ? "Just me" : who === "all" ? "Everyone" : who.startsWith("role:") ? `All ${(ROLE_LABEL[who.slice(5)] ?? who.slice(5)).toLowerCase()}s` : (byId.get(who)?.full_name ?? title(byId.get(who)?.name ?? ""));
-  // By project (Gantt) and This week share the production-stage rows
-  const gp: GanttProject[] = [];
-  for (const p of live) {
-    const rows = items.filter((i) => i.project_id === p.id && !i.cancelled).map((item) => ({ item, stages: stages.filter((s) => s.item_id === item.id).sort((a, b) => a.stage_no - b.stage_no) })).filter((r) => r.stages.length);
-    if (rows.length) gp.push({ id: p.id, enquiry_no: p.enquiry_no, name: p.name, pm: p.pm, rows });
+  // By project: the same month grid, one row of bars per project — Tom, 29 Oct: read-only, week rows, not the
+  // long Gantt strip. A project is "mine" if I'm PM, supporting PM, ball holder, coordinator or designer on it,
+  // so a PM sees his projects before anyone has typed items in (Darren's D3 Loose Furniture had none).
+  const proj = sp.proj ?? "";
+  const onProject = (p: Project) => [p.pm_id, p.pm2_id, p.ball_holder_id, p.coordinator_id, p.designer_id, p.technical_designer_id];
+  const projInScope = (p: Project) => proj ? p.id === proj : who === "all" || onProject(p).some(inScope);
+  const pev: CalEvent[] = [];
+  const stageOf = new Map<string, number>();
+  for (const p of live as Project[]) {
+    if (!projInScope(p)) continue;
+    const tag = p.enquiry_no ?? "";
+    if (p.stage_entered_at) {
+      const st = p.stage_entered_at.slice(0, 10); const dn = p.stage_target_days ?? tgt.get(p.stage ?? -1) ?? 14;
+      const e = addDays(st, Math.max(1, dn));
+      if (overlaps(st, e)) pev.push({ id: `pball-${p.id}`, kind: "ball", title: `${title(p.name)} — ${p.stage_short ?? "stage"}${p.ball_holder ? ` · ${title(p.ball_holder)}` : ""}`, person: p.ball_holder_id, start: st, end: e, tone: p.stage_overdue ? "crit" : p.flow_status === "ON_HOLD" ? "warn" : "navy", href: `/projects/${p.id}`, tag });
+    }
+    if (p.target_date && overlaps(p.target_date, p.target_date)) pev.push({ id: `ptgt-${p.id}`, kind: "flag", title: `Target: ${title(p.name)}`, person: p.pm_id, start: p.target_date, end: p.target_date, tone: p.target_date < today ? "crit" : "bronze", href: `/projects/${p.id}`, tag });
+    if (p.next_action && p.next_action_due && overlaps(p.next_action_due, p.next_action_due)) pev.push({ id: `pna-${p.id}`, kind: "dot", title: `${p.next_action} — ${title(p.name)}${p.next_action_owner ? ` · ${title(p.next_action_owner)}` : ""}`, person: p.next_action_owner_id, start: p.next_action_due, end: p.next_action_due, tone: p.next_action_due < today ? "crit" : "navy", href: `/projects/${p.id}`, tag });
+    if (p.hold_id && p.hold_review_date && overlaps(p.hold_review_date, p.hold_review_date)) pev.push({ id: `phold-${p.id}`, kind: "dot", title: `Hold review — ${title(p.name)}`, person: p.ball_holder_id, start: p.hold_review_date, end: p.hold_review_date, tone: "warn", href: `/projects/${p.id}`, tag });
+    stageOf.set(p.id, p.stage ?? 0);
   }
-  gp.sort((a, b) => (a.enquiry_no ?? "").localeCompare(b.enquiry_no ?? ""));
-  const filter = sp.f === "factory" || sp.f === "site" ? sp.f : "all";
+  for (const i of items) {
+    if (i.cancelled || !stageOf.has(i.project_id)) continue;
+    if (i.planned_submission && ["NOT_STARTED", "DRAWING"].includes(i.stage) && overlaps(i.planned_submission, i.planned_submission))
+      pev.push({ id: `pr0-${i.id}`, kind: "dot", title: `R0 due: ${i.drawing_code} ${i.name}`, person: i.designer_id, start: i.planned_submission, end: i.planned_submission, tone: i.submission_overdue ? "crit" : "navy", href: `/projects/${i.project_id}?item=${i.id}`, tag: i.drawing_code });
+  }
+  for (const s of stages) {
+    if (s.na || !s.planned_start || !s.planned_end || !stageOf.has(s.item.project_id) || !overlaps(s.planned_start, s.planned_end)) continue;
+    const factory = ["JOINERY", "PAINT", "DELIVERY"].includes(s.stage);
+    pev.push({ id: `pps-${s.id}`, kind: "bar", title: `${PSTAGE_LABEL[s.stage]}: ${s.item.drawing_code} ${s.item.name}`, person: factory ? gaju : s.item.pm_id, start: s.planned_start, end: s.planned_end, tone: s.status === "COMPLETE" ? "plan" : s.status === "DELAYED" || s.planned_end < today ? "crit" : s.status === "ON_HOLD" ? "warn" : s.status === "IN_PROGRESS" ? (factory ? "navy" : "site") : "plan", href: `/projects/${s.item.project_id}?item=${s.item.id}`, tag: s.item.drawing_code });
+  }
+  const projOpts = (live as Project[]).filter((p) => who === "all" || onProject(p).some(inScope) || p.id === proj).sort((a, b) => (a.enquiry_no ?? "").localeCompare(b.enquiry_no ?? ""));
+  const nProj = stageOf.size;
   const wkStart = addDays(today, -new Date(today + "T00:00:00Z").getUTCDay()), wkEnd = addDays(wkStart, 6);
-  const canEdit = me.isAdmin || me.canProjects || me.role === "PRODUCTION" || me.role === "PM";
   const tabs = (
     <div className="mnav">
       <span className="segs who">
@@ -92,20 +115,32 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
         <Link href={`/schedule?view=person`} className={"seg2" + (view === "person" ? " on" : "")}>By person</Link>
         <Link href={`/schedule?view=week`} className={"seg2" + (view === "week" ? " on" : "")}>This week</Link>
       </span>
-      {view === "project" && <span className="segs who" style={{ marginLeft: 8 }}>
-        <Link href={`/schedule?view=project`} className={"seg2" + (filter === "all" ? " on" : "")}>Everything</Link>
-        <Link href={`/schedule?view=project&f=factory`} className={"seg2" + (filter === "factory" ? " on" : "")}>Factory</Link>
-        <Link href={`/schedule?view=project&f=site`} className={"seg2" + (filter === "site" ? " on" : "")}>Site</Link>
-      </span>}
     </div>
   );
   if (view === "project") return (
     <Shell active="schedule">
-      <main className="fill column">
-        <div className="meetings ganttpage">
+      <main className="column">
+        <div className="meetings">
           {tabs}
-          <ScheduleGantt projects={gp} today={today} filter={filter} canEdit={canEdit} />
-          <p className="note">One row per item, its six production stages along the row. Drag a bar to move it, drag its right edge to stretch it — the dates save and the stage owner hears in the next digest. Factory stages are Gajanand’s, site stages the PM’s.</p>
+          <div className="mnav">
+            <Link href={`/schedule?view=project&m=${prev}&who=${who}${proj ? `&proj=${proj}` : ""}`} className="btn ghost sm">‹ Prev</Link>
+            <Link href={`/schedule?view=project&who=${who}${proj ? `&proj=${proj}` : ""}`} className="btn ghost sm">This month</Link>
+            <Link href={`/schedule?view=project&m=${next}&who=${who}${proj ? `&proj=${proj}` : ""}`} className="btn ghost sm">Next ›</Link>
+            <h2>{new Date(first + "T00:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" })}</h2>
+            <span className="segs who">
+              <Link href={`/schedule?view=project&m=${month}&who=me`} className={"seg2" + (who === "me" && !proj ? " on" : "")}>My projects</Link>
+              <Link href={`/schedule?view=project&m=${month}&who=all`} className={"seg2" + (who === "all" && !proj ? " on" : "")}>Everyone</Link>
+            </span>
+            <form className="whoform" action="/schedule"><input type="hidden" name="view" value="project" /><input type="hidden" name="m" value={month} /><input type="hidden" name="who" value={who} />
+              <select name="proj" defaultValue={proj} key={proj + who}>
+                <option value="">{who === "all" ? "All projects" : `All of ${label === "Just me" ? "my" : label + "’s"} projects`}</option>
+                {projOpts.map((p) => <option key={p.id} value={p.id}>{p.enquiry_no ?? "—"} {title(p.name)}</option>)}
+              </select><button className="btn ghost sm">Show</button>
+            </form>
+            <span className="mlegend">Showing <b>{proj ? title(projOpts.find((p) => p.id === proj)?.name ?? "") : label === "Just me" ? "my projects" : label}</b> · {nProj} project{nProj === 1 ? "" : "s"} · {pev.length} thing{pev.length === 1 ? "" : "s"} this month</span>
+          </div>
+          <MonthByPerson month={month} gridStart={gridStart} gridEnd={gridEnd} today={today} events={pev} people={peopleOpts} multi={false} />
+          <p className="note">Each bar is tagged with its enquiry number or drawing code. Solid bar: the stage the project is in now (entered → target) with who holds the ball. Flag: target date. Dashed bars: planned production stages of its items; blue when in progress, red when late. Dots: next action, hold review, R0 due. Dates are changed on the project or the item.{nProj === 0 && who === "me" ? " Nothing here because you’re not PM, ball holder, coordinator or designer on a live project — try Everyone." : ""}</p>
         </div>
       </main>
     </Shell>
