@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
+import { useWheelSideways } from "@/lib/useWheelSideways";
 import { useRouter } from "next/navigation";
 import { PHASES, COMPLETED_STAGE, aedS, fmtDShort, title, ini, tone, delayText, stageAge, type Project, type Stage, type Phase } from "@/lib/model";
 import { overrideMove } from "@/app/actions";
@@ -70,13 +71,14 @@ export default function Board({ projects, stages, isAdmin, myId }: { projects: P
     onDrop: () => drop(stageNo),
   });
 
+  const boardRef = useWheelSideways<HTMLDivElement>();
   return (
     <div className="boardwrap">
       {err && <div className="msg err" style={{ padding: "0 24px" }}>Couldn’t move that project: {err}</div>}
       {toConfirm > 0 && (
         <div className="msg" style={{ margin: "8px 24px 0" }}>{toConfirm} card{toConfirm === 1 ? "" : "s"} still carr{toConfirm === 1 ? "ies" : "y"} the stage the migration guessed. <Link href="/reconcile">Confirm or correct them →</Link></div>
       )}
-      <div className="board phases" aria-busy={pending}>
+      <div className="board phases" aria-busy={pending} ref={boardRef}>
         {mine.length > 0 && (
           <section className="phase col myball">
             <header className="phasehead"><div><span className="phase-k">Signed in as you</span><h2>My ball</h2></div><span className="count">{mine.length}</span></header>

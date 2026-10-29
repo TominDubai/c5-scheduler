@@ -1,4 +1,5 @@
 "use client";
+import { useWheelSideways } from "@/lib/useWheelSideways";
 import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { QUOTE_STAGES, WAITING_ON, aedS, fmtDShort, title, ini, dueTone, type Project, type QuoteStage } from "@/lib/model";
@@ -35,10 +36,11 @@ export default function EstimationBoard({ projects, canEdit, canQualify, qualify
     });
   }
 
+  const boardRef = useWheelSideways<HTMLDivElement>();
   return (
     <>
       {err && <div className="msg err" style={{ padding: "0 24px" }}>Couldn’t save that change: {err}</div>}
-      <div className="board" aria-busy={pending}>
+      <div className="board" aria-busy={pending} ref={boardRef}>
         <QualifyingColumn projects={qualifying} canQualify={canQualify} canAdd={canQualify || canEdit} onDecide={(p, ok) => {
           start(async () => { const res = await qualify(p.id, ok); if (res?.error) setErr(res.error); else { setErr(null); router.refresh(); } });
         }} />
