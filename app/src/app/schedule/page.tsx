@@ -79,7 +79,9 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
   // so a PM sees his projects before anyone has typed items in (Darren's D3 Loose Furniture had none).
   const proj = sp.proj ?? "";
   const onProject = (p: Project) => [p.pm_id, p.pm2_id, p.ball_holder_id, p.coordinator_id, p.designer_id, p.technical_designer_id];
-  const projInScope = (p: Project) => proj ? p.id === proj : who === "all" || onProject(p).some(inScope);
+  // Awarded work only: stages 0–2 (registered / quotation) are the sales pipeline, not a schedule — Tom, 29 Oct.
+  const awarded = (p: Project) => p.stage != null && p.stage >= 3;
+  const projInScope = (p: Project) => awarded(p) && (proj ? p.id === proj : who === "all" || onProject(p).some(inScope));
   const pev: CalEvent[] = [];
   const stageOf = new Map<string, number>();
   for (const p of live as Project[]) {
@@ -105,7 +107,7 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
     const factory = ["JOINERY", "PAINT", "DELIVERY"].includes(s.stage);
     pev.push({ id: `pps-${s.id}`, kind: "bar", title: `${PSTAGE_LABEL[s.stage]}: ${s.item.drawing_code} ${s.item.name}`, person: factory ? gaju : s.item.pm_id, start: s.planned_start, end: s.planned_end, tone: s.status === "COMPLETE" ? "plan" : s.status === "DELAYED" || s.planned_end < today ? "crit" : s.status === "ON_HOLD" ? "warn" : s.status === "IN_PROGRESS" ? (factory ? "navy" : "site") : "plan", href: `/projects/${s.item.project_id}?item=${s.item.id}`, tag: s.item.drawing_code });
   }
-  const projOpts = (live as Project[]).filter((p) => who === "all" || onProject(p).some(inScope) || p.id === proj).sort((a, b) => (a.enquiry_no ?? "").localeCompare(b.enquiry_no ?? ""));
+  const projOpts = (live as Project[]).filter((p) => awarded(p)).filter((p) => who === "all" || onProject(p).some(inScope) || p.id === proj).sort((a, b) => (a.enquiry_no ?? "").localeCompare(b.enquiry_no ?? ""));
   const nProj = stageOf.size;
   const wkStart = addDays(today, -new Date(today + "T00:00:00Z").getUTCDay()), wkEnd = addDays(wkStart, 6);
   const tabs = (
@@ -140,7 +142,7 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
             <span className="mlegend">Showing <b>{proj ? title(projOpts.find((p) => p.id === proj)?.name ?? "") : label === "Just me" ? "my projects" : label}</b> · {nProj} project{nProj === 1 ? "" : "s"} · {pev.length} thing{pev.length === 1 ? "" : "s"} this month</span>
           </div>
           <MonthByPerson month={month} gridStart={gridStart} gridEnd={gridEnd} today={today} events={pev} people={peopleOpts} multi={false} />
-          <p className="note">Each bar is tagged with its enquiry number or drawing code. Solid bar: the stage the project is in now (entered → target) with who holds the ball. Flag: target date. Dashed bars: planned production stages of its items; blue when in progress, red when late. Dots: next action, hold review, R0 due. Dates are changed on the project or the item.{nProj === 0 && who === "me" ? " Nothing here because you’re not PM, ball holder, coordinator or designer on a live project — try Everyone." : ""}</p>
+          <p className="note">Each bar is tagged with its enquiry number or drawing code. Solid bar: the stage the project is in now (entered → target) with who holds the ball. Flag: target date. Dashed bars: planned production stages of its items; blue when in progress, red when late. Dots: next action, hold review, R0 due. Quotation-stage enquiries aren’t shown — they live on the Estimation tab. Dates are changed on the project or the item.{nProj === 0 && who === "me" ? " Nothing here because you’re not PM, ball holder, coordinator or designer on an awarded project — try Everyone." : ""}</p>
         </div>
       </main>
     </Shell>
