@@ -600,3 +600,16 @@ tr.changed td { background: #FBF6EC; }
 @media (max-width: 760px) { .mgrid-head div { padding: 6px 4px; font-size: 9px; } .mcell { padding: 4px; min-height: 44px; } .mev { font-size: 10px; padding: 0 4px; } }
 
 @media (max-width: 760px) { .week .dsec li { grid-template-columns: 1fr auto; } }
+
+/* Phones: the Board, Estimation and List pages scroll like an ordinary page. Pinning the app to the window height
+   left the board a thin strip under the header, stats and today's meetings, and nothing above it answered a swipe
+   (Akash, 29 Oct). Columns grow to their cards; the board still scrolls sideways; the header scrolls away too. */
+@media (max-width: 700px) {
+  .app:has(> main.fill) { height: auto; min-height: 100dvh; }
+  main.fill { overflow: visible; }
+  .top { position: static; }
+  .boardwrap .board, .board { height: auto; }
+  main.fill .col, .phase.open { max-height: none; }
+  main.fill .cards { overflow-y: visible; padding-right: 0; }
+  main.fill .tablewrap { flex: none; }
+}
