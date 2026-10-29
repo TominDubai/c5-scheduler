@@ -67,9 +67,28 @@ export const getMe = cache(async function getMe(): Promise<Me> {
   return { id: p?.id ?? null, name: p?.name ?? "", role: p?.role ?? "", canEstimation: !!p?.can_edit_estimation, canProjects: !!p?.can_edit_projects, canTeam: !!p?.can_manage_team, isAdmin: !!p?.is_admin };
 });
 
-export function applyFilters<T extends { name: string; client: string | null; enquiry_no: string | null; pm: string | null; pm2: string | null }>(rows: T[], sp: { pm?: string; q?: string }) {
+export type BoardFilters = { pm?: string; q?: string; ball?: string; dept?: string; phase?: string; waiting?: string; overdue?: string; flow?: string };
+/** Rev 3 filters: ball holder, department, waiting on, stage overdue, phase — and the PM filter stays. */
+export function applyFilters<T extends { name: string; client: string | null; enquiry_no: string | null; pm: string | null; pm2: string | null; ball_holder?: string | null; department?: string | null; phase?: string | null; hold_waiting_on?: string | null; stage_overdue?: boolean; flow_status?: string; stage?: number | null }>(rows: T[], sp: BoardFilters) {
   const q = (sp.q ?? "").toLowerCase();
-  return rows.filter((p) => (!sp.pm || p.pm === sp.pm || p.pm2 === sp.pm) && (!q || `${p.name} ${p.client ?? ""} ${p.enquiry_no ?? ""}`.toLowerCase().includes(q)));
+  return rows.filter((p) =>
+    (!sp.pm || p.pm === sp.pm || p.pm2 === sp.pm) &&
+    (!sp.ball || p.ball_holder === sp.ball) &&
+    (!sp.dept || p.department === sp.dept) &&
+    (!sp.phase || p.phase === sp.phase) &&
+    (!sp.waiting || (sp.waiting === "*" ? !!p.hold_waiting_on : p.hold_waiting_on === sp.waiting)) &&
+    (!sp.flow || p.flow_status === sp.flow) &&
+    (!sp.overdue || p.stage_overdue) &&
+    (!q || `${p.name} ${p.client ?? ""} ${p.enquiry_no ?? ""}`.toLowerCase().includes(q)));
+}
+/** distinct values for the filter menus, with counts */
+export function filterOptions(projects: Project[]) {
+  const count = (pick: (p: Project) => string | null | undefined) => {
+    const m = new Map<string, number>();
+    for (const p of projects) { const v = pick(p); if (v) m.set(v, (m.get(v) ?? 0) + 1); }
+    return [...m.entries()].sort().map(([name, n]) => ({ name, n }));
+  };
+  return { pms: pmCounts(projects), balls: count((p) => p.ball_holder), depts: count((p) => p.department), waiting: count((p) => p.hold_waiting_on) };
 }
 
 export const getUser = cache(async function getUser() {
@@ -138,3 +157,46 @@ export async function getProjectWatchers(projectId: string): Promise<string[]> {
   const { data } = await supabase.from("project_watchers").select("person_id").eq("project_id", projectId);
   return ((data ?? []) as { person_id: string }[]).map((r) => r.person_id);
 }
+
+// ---------- workflow Rev 3 (db/016) ----------
+import type { Stage, StageOwner, StageTarget, Handover, Hold, StageEvidence, ProjectTask } from "@/lib/model";
+export const getStages = cache(async function getStages(): Promise<Stage[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("stages").select("*").eq("is_active", true).order("stage_no");
+  if (error) throw new Error(`stages: ${error.message}`);
+  return (data ?? []) as Stage[];
+});
+export const getStageOwners = cache(async function getStageOwners(): Promise<StageOwner[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("stage_owners").select("*");
+  return (data ?? []) as StageOwner[];
+});
+export const getStageTargets = cache(async function getStageTargets(): Promise<StageTarget[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("stage_targets").select("*");
+  return (data ?? []) as StageTarget[];
+});
+/** everything the project page's workflow blocks need, in one round trip */
+export async function getProjectWorkflow(projectId: string): Promise<{ handovers: Handover[]; holds: Hold[]; evidence: StageEvidence[]; tasks: ProjectTask[] }> {
+  const supabase = await createClient();
+  const [{ data: handovers }, { data: holds }, { data: evidence }, { data: tasks }] = await Promise.all([
+    supabase.from("handovers").select("*").eq("project_id", projectId).order("requested_at", { ascending: false }),
+    supabase.from("holds").select("*").eq("project_id", projectId).order("blocked_since", { ascending: false }),
+    supabase.from("stage_evidence").select("*").eq("project_id", projectId).order("at"),
+    supabase.from("project_tasks").select("*").eq("project_id", projectId).order("done_at", { nullsFirst: true }).order("due", { nullsFirst: false }).order("created_at"),
+  ]);
+  return { handovers: (handovers ?? []) as Handover[], holds: (holds ?? []) as Hold[], evidence: (evidence ?? []) as StageEvidence[], tasks: (tasks ?? []) as ProjectTask[] };
+}
+
+// ---------- schedule (month by person) ----------
+/** every production stage row on a live, non-cancelled item — for the schedule views */
+export const getAllProductionStages = cache(async function getAllProductionStages(): Promise<(ItemProductionStage & { item: Item })[]> {
+  const supabase = await createClient();
+  const items = await getAllItems();
+  const live = items.filter((i) => !i.cancelled && i.project_status !== "COMPLETED");
+  if (!live.length) return [];
+  const { data, error } = await supabase.from("item_production_stages").select("*").in("item_id", live.map((i) => i.id));
+  if (error) throw new Error(`item_production_stages: ${error.message}`);
+  const byId = new Map(live.map((i) => [i.id, i]));
+  return ((data ?? []) as ItemProductionStage[]).map((s) => ({ ...s, item: byId.get(s.item_id)! }));
+});

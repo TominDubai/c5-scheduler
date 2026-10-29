@@ -10,7 +10,7 @@ const QUIET_MS = 3 * 60 * 1000;        // skip a project edited in the last 3 mi
 const MAX_AGE_MS = 7 * 24 * 3600 * 1000; // never email about something older than a week (e.g. a backlog after an outage)
 
 type Change = { id: number; project_id: string | null; meeting_id: string | null; kind: string; field: string | null; old_value: string | null; new_value: string | null; changed_by: string | null; changed_at: string };
-type Proj = { id: string; enquiry_no: string | null; name: string; client: string | null; status: Status; pm_id: string | null; pm2_id: string | null; designer_id: string | null; estimator_id: string | null; signed_quote: number | null };
+type Proj = { id: string; enquiry_no: string | null; name: string; client: string | null; status: Status; pm_id: string | null; pm2_id: string | null; designer_id: string | null; estimator_id: string | null; signed_quote: number | null; ball_holder_id?: string | null; stage?: number | null };
 type Person = { id: string; name: string; full_name: string | null; email: string | null; is_active: boolean; notify_on_award: boolean };
 type Meet = { id: string; title: string; project_id: string | null; project_name: string | null; location: "ROOM" | "SITE" | "ONLINE"; meeting_date: string; start_time: string; end_time: string; notes: string | null; cancelled: boolean; created_by: string | null; attendee_ids: string[]; attendees: string[] };
 const LOC: Record<string, string> = { ROOM: "Meeting room", SITE: "On site", ONLINE: "Online" };
@@ -29,6 +29,7 @@ export function admin() {
 const FIELD: Record<string, string> = {
   name: "Project name", client: "Client", enquiry_no: "Enquiry no", status: "Status", quote_stage: "Quote stage",
   pm_id: "PM", pm2_id: "Second PM", designer_id: "Designer", estimator_id: "Estimator", contractor_id: "Contractor",
+  coordinator_id: "Project coordinator", technical_designer_id: "Technical designer",
   start_date: "Start date", target_date: "Target completion", completed_date: "Completed date", quote_due_date: "Quote due",
   signed_quote: "Signed quote", quoted_value: "Quoted value",
 };
@@ -58,20 +59,36 @@ export function describe(c: Change, p?: Proj): string {
     const value = p?.signed_quote ? ` — ${fmtAed(String(p.signed_quote))}` : "";
     const missing = p ? [!p.pm_id && "a project manager", !p.designer_id && "a designer"].filter(Boolean) as string[] : [];
     const needs = missing.length ? ` Still needs ${missing.join(" and ")}.` : "";
-    return `Signed${value}. Now at ${LABEL[c.new_value as Status] ?? c.new_value}.${needs}`;
+    // the stage change rides in the same batch; name the Rev 3 stage rather than the coarse status
+    return `Signed${value}. Now at ${p?.stage === 3 ? "Award / contract with Jean" : LABEL[c.new_value as Status] ?? c.new_value}.${needs}`;
   }
+  if (c.kind === "field" && c.field === "status" && p?.stage != null) return "";   // the 'stage' row says it better
   const vo = (s: string | null) => { const [d, v] = (s ?? "").split(" | "); return `${d || "no description"} (${fmtAed(v ?? null)})`; };
   switch (c.kind) {
     case "created": return "New project created";
+    // workflow Rev 3 (db/016)
+    case "stage": return `Stage: ${c.old_value ?? "—"} → ${c.new_value ?? "—"}`;
+    case "ball": return c.new_value ? `${tc(c.new_value)} now holds the ball` : "No one holds the ball";
+    case "flow": return "";  // the handover / hold rows carry the story
+    case "next_action": return `Next action: ${c.new_value ?? "—"}`;
+    case "handover_requested": return `Handover requested — ${c.field}: ${tc(c.old_value ?? "—")} → ${tc(c.new_value ?? "—")}. Waiting for ${tc(c.new_value ?? "them")} to accept.`;
+    case "handover_accepted": return `Handover accepted — ${c.field} now with ${tc((c.new_value ?? "").split(" — ")[0])}${c.new_value?.includes(" — recorded by ") ? ` (recorded by ${tc(c.new_value.split(" — recorded by ")[1])})` : ""}`;
+    case "handover_returned": return `Handover returned by ${tc(c.old_value ?? "—")} — ${c.new_value ?? "no reason given"}`;
+    case "checkpoint": return `Checkpoint recorded — now at ${c.field}, same owner${c.new_value ? ` — ${c.new_value}` : ""}`;
+    case "handover_cancelled": return `Handover request withdrawn (${c.field})`;
+    case "handover_override": return `Moved to ${c.field} without acceptance — ${c.new_value ?? ""}`;
+    case "hold": return `On hold${c.field ? ` — waiting on ${tc(c.field)}` : ""}: ${c.new_value ?? ""}`;
+    case "hold_released": return `Hold released${c.new_value ? ` — ${c.new_value}` : ""}`;
     case "removed": return `Project removed from the board — ${c.new_value ?? "no reason given"}`;
     case "restored": return "Project restored to the board";
     case "meeting_created": return "You've been added to this meeting";
     case "meeting_cancelled": return "Meeting cancelled";
     case "meeting_restored": return "Meeting is back on";
+    case "meeting_held": return "Meeting marked as held — attendance recorded";
     case "attendee_added": return `${tc(c.new_value ?? "")} added`;
     case "attendee_removed": return `${tc(c.old_value ?? "")} removed`;
     case "meeting_field": {
-      const f = c.field === "when" ? "Moved" : c.field === "location" ? "Where" : c.field === "project" ? "Project" : "Title";
+      const f = c.field === "when" ? "Moved" : c.field === "location" ? "Where" : c.field === "project" ? "Project" : c.field === "stage" ? "Workflow stage" : "Title";
       const v = (x: string | null) => x == null || x === "" ? "—" : c.field === "location" ? LOC[x] ?? x : c.field === "project" ? tc(x) : x;
       return `${f}: ${v(c.old_value)} → ${v(c.new_value)}`;
     }
@@ -82,6 +99,7 @@ export function describe(c: Change, p?: Proj): string {
     case "item_designer": return `${c.field}: designer ${tc(c.old_value ?? "—")} → ${tc(c.new_value ?? "—")}`;
     case "item_material": return `${c.field}: material ${(c.old_value ?? "—").toLowerCase()} → ${(c.new_value ?? "—").toLowerCase()}`;
     case "item_stage": return `${c.field}: ${(c.old_value ?? "").toLowerCase().replace("_", " ")} → ${(c.new_value ?? "").toLowerCase().replace("_", " ")}`;
+    case "item_stage_dates": return `${c.field} rescheduled: ${c.old_value} → ${c.new_value}`;
     case "watcher_added": return `${tc(c.new_value ?? "")} is now kept updated on this project`;
     case "watcher_removed": return `${tc(c.old_value ?? "")} is no longer kept updated on this project`;
     case "vo_added": return `${c.field} added — ${vo(c.new_value)}`;
@@ -112,8 +130,13 @@ const meetingCard = (m: Meet) => `
  *  so without them the signing would go to an empty list. */
 export function recipients(p: Proj, changes: Change[], people: Map<string, Person>, watchers: Set<string>): Person[] {
   const ids = new Set<string>();
-  for (const id of [p.pm_id, p.pm2_id, p.designer_id]) if (id) ids.add(id);
+  for (const id of [p.pm_id, p.pm2_id, p.designer_id, p.ball_holder_id]) if (id) ids.add(id);
   if (p.status === "QUOTE" && p.estimator_id) ids.add(p.estimator_id);
+  // Rev 3: the next owner hears the moment a handover is requested; the previous owner hears the outcome
+  for (const c of changes) {
+    if (c.kind === "handover_requested" && c.new_value) for (const person of people.values()) if (person.name === c.new_value) ids.add(person.id);
+    if ((c.kind === "handover_accepted" || c.kind === "handover_returned" || c.kind === "handover_override") && c.old_value) for (const person of people.values()) if (person.name === c.old_value) ids.add(person.id);
+  }
   for (const id of watchers) ids.add(id);
   const wonOrNew = changes.some((c) => (c.kind === "created" && p.status !== "QUOTE") || isAward(c));
   if (wonOrNew) for (const person of people.values()) if (person.notify_on_award) ids.add(person.id);
@@ -128,7 +151,7 @@ function renderEmail(to: Person, groups: Group[], people: Map<string, Person>): 
   const g0 = groups[0];
   const firstName = g0.p ? `${g0.p.name}${g0.p.enquiry_no ? ` (${g0.p.enquiry_no})` : ""}` : `Meeting: ${g0.m!.title}`;
   const subject = groups.length === 1
-    ? `${firstName} — ${g0.changes.length === 1 ? describe(g0.changes[0], g0.p) : g0.changes.length + " updates"}`
+    ? `${firstName} — ${(() => { const d = g0.changes.map((c) => describe(c, g0.p)).filter(Boolean); return d.length === 1 ? d[0] : d.length + " updates"; })()}`
     : `${firstName} and ${groups.length - 1} other update${groups.length > 2 ? "s" : ""}`;
 
   const who = (id: string | null) => (id && people.get(id)?.name) || "someone";
@@ -137,7 +160,7 @@ function renderEmail(to: Person, groups: Group[], people: Map<string, Person>): 
       ${p ? `<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a7a5c">${esc(p.enquiry_no ?? "")}${p.client ? ` · ${esc(p.client)}` : ""}</div>
       <div style="font-size:17px;font-weight:600;color:#14213d;margin:2px 0 10px"><a href="${APP_URL}/projects/${p.id}" style="color:#14213d;text-decoration:none">${esc(p.name)}</a></div>` : meetingCard(m!)}
       <ul style="margin:0;padding:0 0 0 18px;color:#2b2b2b;font-size:14px;line-height:1.55">
-        ${changes.map((c) => `<li>${esc(describe(c, p))} <span style="color:#8a8a8a;font-size:12px">— ${esc(who(c.changed_by))}, ${fmtTime(c.changed_at)}</span></li>`).join("")}
+        ${changes.filter((c) => describe(c, p)).map((c) => `<li>${esc(describe(c, p))} <span style="color:#8a8a8a;font-size:12px">— ${esc(who(c.changed_by))}, ${fmtTime(c.changed_at)}</span></li>`).join("")}
       </ul>
       <div style="margin-top:10px"><a href="${p ? `${APP_URL}/projects/${p.id}` : `${APP_URL}/meetings?w=${m!.meeting_date}`}" style="font-size:13px;color:#8a7a5c">${p ? "Open project" : "Open the diary"} →</a></div>
     </div>`).join("");
@@ -150,7 +173,7 @@ function renderEmail(to: Person, groups: Group[], people: Map<string, Person>): 
       <div style="font-size:12px;color:#9a9a9a;margin-top:8px">You get this because you're the PM, designer or estimator on these projects, you've been tagged to be kept updated, or you're in these meetings. Updates are grouped and sent at most every 10 minutes. <a href="${APP_URL}/board" style="color:#8a7a5c">Open the board</a></div>
     </div></body></html>`;
 
-  const text = groups.map(({ p, m, changes }) => `${p ? `${p.enquiry_no ?? ""} ${p.name}` : `Meeting: ${m!.title} — ${fmtDay(m!.meeting_date)} ${hm(m!.start_time)}–${hm(m!.end_time)} (${LOC[m!.location]})`}\n${changes.map((c) => `  - ${describe(c, p)} (${who(c.changed_by)}, ${fmtTime(c.changed_at)})`).join("\n")}\n  ${p ? `${APP_URL}/projects/${p.id}` : `${APP_URL}/meetings?w=${m!.meeting_date}`}`).join("\n\n");
+  const text = groups.map(({ p, m, changes }) => `${p ? `${p.enquiry_no ?? ""} ${p.name}` : `Meeting: ${m!.title} — ${fmtDay(m!.meeting_date)} ${hm(m!.start_time)}–${hm(m!.end_time)} (${LOC[m!.location]})`}\n${changes.filter((c) => describe(c, p)).map((c) => `  - ${describe(c, p)} (${who(c.changed_by)}, ${fmtTime(c.changed_at)})`).join("\n")}\n  ${p ? `${APP_URL}/projects/${p.id}` : `${APP_URL}/meetings?w=${m!.meeting_date}`}`).join("\n\n");
   return { subject, html, text };
 }
 
@@ -189,7 +212,7 @@ export async function runNotifications(opts: { dryRun?: boolean } = {}) {
   const pIds = ready.filter(([k]) => k.startsWith("p:")).map(([k]) => k.slice(2));
   const mIds = ready.filter(([k]) => k.startsWith("m:")).map(([k]) => k.slice(2));
   const [{ data: projs }, { data: meets }, { data: ppl }] = await Promise.all([
-    pIds.length ? db.from("projects").select("id, enquiry_no, name, client, status, pm_id, pm2_id, designer_id, estimator_id, signed_quote").in("id", pIds) : { data: [] },
+    pIds.length ? db.from("projects").select("id, enquiry_no, name, client, status, pm_id, pm2_id, designer_id, estimator_id, signed_quote, ball_holder_id, stage").in("id", pIds) : { data: [] },
     mIds.length ? db.from("meetings_live").select("id, title, project_id, project_name, location, meeting_date, start_time, end_time, notes, cancelled, created_by, attendee_ids, attendees").in("id", mIds) : { data: [] },
     db.from("people").select("id, name, full_name, email, is_active, notify_on_award"),
   ]);
@@ -260,4 +283,165 @@ export async function runMeetingsToday(opts: { dryRun?: boolean; date?: string }
     catch (e) { failures.push(`${to.email}: ${(e as Error).message}`); }
   }
   return { date, meetings: all.length, recipients: perPerson.size, sent, failures, ...(opts.dryRun ? { preview } : {}) };
+}
+
+
+// ---------- 07:30 daily reminders (Rev 3 plan, step 4) ----------
+// One "Waiting on you" email per person. Thresholds come from alert_settings (W1–W4) and stage_targets, so Darren's
+// numbers are a data change. People who can't sign in (WhatsApp-only) have their reminders routed to the
+// project coordinator, who chases them — that is Rev 3's rule, so the app does the same.
+type LiveRow = {
+  id: string; enquiry_no: string | null; name: string; client: string | null; status: Status;
+  stage: number | null; stage_name: string | null; stage_short: string | null; ball_holder_id: string | null; flow_status: string | null;
+  stage_age_days: number | null; stage_target_days: number | null; stage_overdue: boolean | null;
+  hold_id: string | null; hold_reason: string | null; hold_waiting_on: string | null; hold_review_date: string | null; hold_action_due: string | null; hold_action: string | null;
+  pm_id: string | null; designer_id: string | null; stage_entered_at: string | null;
+  pending_handover_id: string | null; pending_to_person_id: string | null; pending_to_stage: number | null; pending_since: string | null;
+  next_action: string | null; next_action_owner_id: string | null; next_action_due: string | null;
+};
+type Reminder = { p: LiveRow; kind: "accept" | "escalated" | "hold" | "action" | "stage" | "item"; text: string; onBehalfOf?: string };
+type ItemRow = { id: string; project_id: string; drawing_code: string; name: string; stage: string; designer_id: string | null; pm_id: string | null; planned_submission: string | null; material_approval: string; measurements_date: string | null; issued_date: string | null; submission_overdue: boolean; client_overdue: boolean; last_submitted: string | null; cancelled: boolean; project_status: string; project_deleted_at: string | null };
+type PStage = { id: string; item_id: string; stage: string; stage_no: number; planned_start: string | null; planned_end: string | null; status: string; na: boolean };
+type RPerson = Person & { role: string; can_sign_in: boolean; handles_escalations: boolean };
+
+export async function runDailyReminders(opts: { dryRun?: boolean; date?: string } = {}) {
+  const db = admin();
+  const today = opts.date ?? todayDubai();
+  const now = opts.date ? new Date(opts.date + "T03:30:00Z").getTime() : Date.now();
+  const [{ data: rows, error }, { data: ppl }, { data: settings }, { data: targets }, { data: stages }] = await Promise.all([
+    db.from("projects_live").select("id, enquiry_no, name, client, status, stage, stage_name, stage_short, ball_holder_id, flow_status, stage_age_days, stage_target_days, stage_overdue, pm_id, designer_id, stage_entered_at, hold_id, hold_reason, hold_waiting_on, hold_review_date, hold_action_due, hold_action, pending_handover_id, pending_to_person_id, pending_to_stage, pending_since, next_action, next_action_owner_id, next_action_due")
+      .is("deleted_at", null).not("status", "in", "(LOST,MERGED,COMPLETED)"),
+    db.from("people").select("id, name, full_name, email, is_active, notify_on_award, role, can_sign_in, handles_escalations"),
+    db.from("alert_settings").select("rule, threshold, enabled").in("rule", ["W1", "W2", "W3", "W4"]),
+    db.from("stage_targets").select("stage_no, response_hours"),
+    db.from("stages").select("stage_no, short_name"),
+  ]);
+  const [{ data: itemRows }, { data: pstages }, { data: isettings }] = await Promise.all([
+    db.from("items_live").select("id, project_id, drawing_code, name, stage, designer_id, pm_id, planned_submission, material_approval, measurements_date, issued_date, submission_overdue, client_overdue, last_submitted, cancelled, project_status, project_deleted_at").eq("cancelled", false).is("project_deleted_at", null).not("project_status", "in", "(LOST,MERGED,COMPLETED)"),
+    db.from("item_production_stages").select("id, item_id, stage, stage_no, planned_start, planned_end, status, na").eq("na", false).neq("status", "COMPLETE"),
+    db.from("alert_settings").select("rule, threshold, enabled").like("rule", "I%"),
+  ]);
+  if (error) throw new Error(error.message);
+  const people = new Map(((ppl ?? []) as RPerson[]).map((p) => [p.id, p]));
+  const setting = (r: string) => { const s = (settings ?? []).find((x) => x.rule === r); return { on: s ? s.enabled !== false : true, n: s?.threshold ?? 0 }; };
+  const responseHours = new Map((targets ?? []).map((t) => [t.stage_no as number, t.response_hours as number | null]));
+  const stageShort = new Map((stages ?? []).map((s) => [s.stage_no as number, s.short_name as string]));
+  const coordinator = [...people.values()].find((p) => p.role === "PROJECT_COORDINATOR" && p.is_active && p.email) ?? null;
+  const escalation = [...people.values()].filter((p) => p.handles_escalations && p.is_active && p.email);
+  const days = (d: string | null) => d ? Math.floor((now - new Date(d + "T00:00:00Z").getTime()) / 86400000) : 0;
+  const hoursSince = (iso: string | null) => iso ? (now - new Date(iso).getTime()) / 3600000 : 0;
+  const nm = (id: string | null) => (id && (people.get(id)?.full_name?.split(" ")[0] ?? tc(people.get(id)?.name ?? ""))) || "someone";
+
+  const per = new Map<string, Reminder[]>();
+  // A reminder meant for someone who can't sign in goes to the coordinator, marked with their name.
+  const add = (toId: string | null, r: Reminder) => {
+    if (!toId) return;
+    const to = people.get(toId);
+    if (!to || !to.is_active) return;
+    if (!to.email || !to.can_sign_in) { if (coordinator && coordinator.id !== toId) add(coordinator.id, { ...r, onBehalfOf: nm(toId) }); return; }
+    const list = per.get(toId) ?? [];
+    if (!list.some((x) => x.p.id === r.p.id && x.kind === r.kind && x.text === r.text)) list.push(r);
+    per.set(toId, list);
+  };
+
+  const W1 = setting("W1"), W2 = setting("W2"), W3 = setting("W3"), W4 = setting("W4");
+  const iset = (r: string) => { const x = (isettings ?? []).find((y) => y.rule === r); return { on: x ? x.enabled !== false : true, n: x?.threshold ?? 0 }; };
+  const production = [...people.values()].find((p) => p.role === "PRODUCTION" && p.is_active) ?? null;   // Gajanand
+  const projRow = new Map(((rows ?? []) as LiveRow[]).map((p) => [p.id, p]));
+  const projectsById = projRow;
+  for (const p of (rows ?? []) as LiveRow[]) {
+    // W1: a handover nobody has accepted
+    if (W1.on && p.flow_status === "AWAITING_ACCEPTANCE" && p.pending_handover_id && p.pending_to_person_id) {
+      const h = hoursSince(p.pending_since);
+      if (h >= W1.n) {
+        const text = `Handover to ${stageShort.get(p.pending_to_stage ?? -1) ?? `stage ${p.pending_to_stage}`} waiting for ${nm(p.pending_to_person_id)} to accept — ${Math.floor(h / 24)}d ${Math.round(h % 24)}h`;
+        add(p.pending_to_person_id, { p, kind: "accept", text });
+        if (coordinator) add(coordinator.id, { p, kind: "accept", text });
+        const limit = responseHours.get(p.pending_to_stage ?? -1);
+        if (limit != null && h > limit) for (const e of escalation) add(e.id, { p, kind: "escalated", text: `${text} — past the ${limit}h response time` });
+      }
+    }
+    // W2: a hold nobody has reviewed
+    if (W2.on && p.hold_id) {
+      const late = (p.hold_review_date && days(p.hold_review_date) > W2.n) ? `review was due ${fmtDate(p.hold_review_date)}` : (p.hold_action_due && days(p.hold_action_due) > W2.n) ? `action was due ${fmtDate(p.hold_action_due)}` : null;
+      if (late) {
+        const text = `On hold — ${p.hold_reason ?? "no reason recorded"}${p.hold_waiting_on ? ` (waiting on ${tc(p.hold_waiting_on)})` : ""}; ${late}`;
+        add(p.ball_holder_id, { p, kind: "hold", text });
+        if (coordinator) add(coordinator.id, { p, kind: "hold", text });
+      }
+    }
+    // W3: next action past its date
+    if (W3.on && p.next_action && p.next_action_due && days(p.next_action_due) > W3.n) {
+      add(p.next_action_owner_id ?? p.ball_holder_id, { p, kind: "action", text: `Next action overdue — ${p.next_action} (due ${fmtDate(p.next_action_due)})` });
+    }
+    // W4: stage sat longer than its target (only once stage_targets has numbers)
+    if (W4.on && p.stage_overdue && p.stage_target_days != null && (p.stage_age_days ?? 0) - p.stage_target_days > W4.n) {
+      add(p.ball_holder_id, { p, kind: "stage", text: `In ${p.stage_name ?? "this stage"} for ${p.stage_age_days} days — target is ${p.stage_target_days}` });
+    }
+  }
+
+  // ---- items & production (Items plan §7, rules I1–I10; I3 rides the 10-minute digest) ----
+  const stagesByItem = new Map<string, PStage[]>();
+  for (const st of (pstages ?? []) as PStage[]) stagesByItem.set(st.item_id, [...(stagesByItem.get(st.item_id) ?? []), st]);
+  const itemsByProject = new Map<string, ItemRow[]>();
+  for (const i of (itemRows ?? []) as ItemRow[]) itemsByProject.set(i.project_id, [...(itemsByProject.get(i.project_id) ?? []), i]);
+  const I = { I1: iset("I1"), I2: iset("I2"), I4: iset("I4"), I5: iset("I5"), I6: iset("I6"), I7: iset("I7"), I8: iset("I8"), I9: iset("I9"), I10: iset("I10") };
+  const soon = (d: string | null, n: number) => !!d && days(d) <= 0 && days(d) >= -n;   // within the next n days (inclusive of today)
+  for (const i of (itemRows ?? []) as ItemRow[]) {
+    const p = projRow.get(i.project_id); if (!p) continue;
+    const code = `${i.drawing_code} ${i.name}`;
+    const sts = stagesByItem.get(i.id) ?? [];
+    const joinery = sts.find((x) => x.stage === "JOINERY"), delivery = sts.find((x) => x.stage === "DELIVERY"), install = sts.find((x) => x.stage === "INSTALL");
+    if (I.I1.on && i.submission_overdue) { const t = `${code} — R0 was due ${fmtDate(i.planned_submission)}`; add(i.designer_id, { p, kind: "item", text: t }); add(i.pm_id, { p, kind: "item", text: t }); }
+    if (I.I2.on && i.client_overdue) add(i.pm_id, { p, kind: "item", text: `${code} — with the client since ${fmtDate(i.last_submitted)}, chase them` });
+    if (I.I4.on && joinery && soon(joinery.planned_start, I.I4.n) && (i.material_approval === "PENDING" || !i.measurements_date)) {
+      const t = `${code} — joinery starts ${fmtDate(joinery.planned_start)} but ${[i.material_approval === "PENDING" && "material approval is pending", !i.measurements_date && "final measurements aren't taken"].filter(Boolean).join(" and ")}`;
+      add(i.pm_id, { p, kind: "item", text: t }); if (production) add(production.id, { p, kind: "item", text: t });
+    }
+    if (I.I5.on) for (const st of sts) if (st.planned_end && days(st.planned_end) > I.I5.n) {
+      const factory = st.stage_no <= 3; const t = `${code} — ${st.stage.toLowerCase()} should have finished ${fmtDate(st.planned_end)}`;
+      add(factory ? production?.id ?? null : i.pm_id, { p, kind: "item", text: t }); if (factory) add(i.pm_id, { p, kind: "item", text: t });
+    }
+    if (I.I6.on && install && soon(install.planned_start, I.I6.n) && delivery) {
+      const t = `${code} — install starts ${fmtDate(install.planned_start)} and delivery isn't complete`;
+      if (production) add(production.id, { p, kind: "item", text: t }); add(i.pm_id, { p, kind: "item", text: t });
+    }
+    if (I.I9.on && i.issued_date && days(i.issued_date) > I.I9.n && joinery && !joinery.planned_start) add(production?.id ?? null, { p, kind: "item", text: `${code} — issued ${fmtDate(i.issued_date)}, no joinery dates yet` });
+    // delivery complete (so it is no longer in the open-stage list) and the item has moved to Install with no dates
+    if (I.I10.on && delivery == null && install && !install.planned_start && i.stage === "INSTALL") add(i.pm_id, { p, kind: "item", text: `${code} — delivered, no install date` });
+  }
+  // I7 awarded, no items / I8 awarded, no designer — per project
+  for (const p of (rows ?? []) as LiveRow[]) {
+    const awarded = p.status !== "QUOTE" && p.status !== "SITE_ON_HOLD";
+    if (!awarded) continue;
+    const pr = projectsById.get(p.id);
+    if (I.I8.on && !pr?.designer_id) { const t = `No designer assigned yet`; add(pr?.pm_id ?? null, { p, kind: "item", text: t }); if (coordinator) add(coordinator.id, { p, kind: "item", text: t }); }
+    else if (I.I7.on && !(itemsByProject.get(p.id)?.length) && pr?.stage_entered_at && Math.floor((now - new Date(pr.stage_entered_at).getTime()) / 86400000) >= I.I7.n && (p.stage ?? 0) >= 6) { const t = `No item list yet — add the items so drawings can start`; add(pr.designer_id ?? null, { p, kind: "item", text: t }); add(pr.pm_id ?? null, { p, kind: "item", text: t }); }
+  }
+
+  const KIND: Record<Reminder["kind"], string> = { accept: "Waiting for acceptance", escalated: "Escalated", hold: "On hold", action: "Next action", stage: "Stage overdue", item: "Drawings & production" };
+  let sent = 0; const failures: string[] = []; const preview: Record<string, string[]> = {};
+  for (const [id, list] of per) {
+    const to = people.get(id)!;
+    const first = to.full_name?.split(" ")[0] ?? tc(to.name);
+    const byProject = new Map<string, Reminder[]>();
+    for (const r of list) byProject.set(r.p.id, [...(byProject.get(r.p.id) ?? []), r]);
+    const subject = list.length === 1 ? `${KIND[list[0].kind]}: ${list[0].p.name}` : `${list.length} things waiting on you`;
+    const html = `<!doctype html><html><body style="margin:0;background:#f6f3ee;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+    <div style="max-width:600px;margin:0 auto;padding:28px 18px">
+      <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a7a5c;margin-bottom:6px">Concept 5 Projects</div>
+      <div style="font-size:15px;color:#2b2b2b;margin-bottom:18px">Morning ${esc(first)}, these are waiting on you${list.some((r) => r.onBehalfOf) ? " or on someone you chase" : ""}.</div>
+      ${[...byProject.values()].map((rs) => { const p = rs[0].p; return `<div style="margin:0 0 14px 0;padding:14px 18px;border:1px solid #e6e1d8;border-radius:10px;background:#fff">
+        <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a7a5c">${esc(p.enquiry_no ?? "")}${p.client ? ` · ${esc(p.client)}` : ""}${p.stage != null ? ` · ${p.stage} ${esc(p.stage_short ?? "")}` : ""}</div>
+        <div style="font-size:17px;font-weight:600;color:#14213d;margin:2px 0 8px"><a href="${APP_URL}/projects/${p.id}" style="color:#14213d;text-decoration:none">${esc(tc(p.name))}</a></div>
+        <ul style="margin:0;padding:0 0 0 18px;color:#2b2b2b;font-size:14px;line-height:1.55">${rs.map((r) => `<li>${r.kind === "escalated" ? '<b style="color:#b85c5c">Escalated:</b> ' : ""}${esc(r.text)}${r.onBehalfOf ? ` <span style="color:#8a8a8a;font-size:12px">— for ${esc(r.onBehalfOf)}</span>` : ""}</li>`).join("")}</ul>
+        <div style="margin-top:8px"><a href="${APP_URL}/projects/${p.id}" style="font-size:13px;color:#8a7a5c">Open project →</a></div></div>`; }).join("")}
+      <div style="font-size:12px;color:#9a9a9a;margin-top:8px">Sent at 07:30 on days something is waiting. <a href="${APP_URL}/board" style="color:#8a7a5c">Open the board</a></div>
+    </div></body></html>`;
+    const text = [...byProject.values()].map((rs) => `${rs[0].p.enquiry_no ?? ""} ${tc(rs[0].p.name)}\n${rs.map((r) => `  - ${r.kind === "escalated" ? "ESCALATED: " : ""}${r.text}${r.onBehalfOf ? ` (for ${r.onBehalfOf})` : ""}`).join("\n")}\n  ${APP_URL}/projects/${rs[0].p.id}`).join("\n\n");
+    if (opts.dryRun) { preview[to.email!] = list.map((r) => `${r.p.enquiry_no ?? "?"} ${r.kind}: ${r.text}${r.onBehalfOf ? ` (for ${r.onBehalfOf})` : ""}`); continue; }
+    try { await sendEmail(to.email!, { subject, html, text }); sent++; }
+    catch (e) { failures.push(`${to.email}: ${(e as Error).message}`); }
+  }
+  return { date: today, projects: (rows ?? []).length, recipients: per.size, sent, failures, ...(opts.dryRun ? { preview } : {}) };
 }

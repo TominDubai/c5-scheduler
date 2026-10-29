@@ -1,0 +1,197 @@
+import Link from "next/link";
+import Shell from "@/components/Shell";
+import Failed from "@/components/Failed";
+import MonthByPerson, { type CalEvent } from "@/components/MonthByPerson";
+import ScheduleWeek from "@/components/ScheduleWeek";
+import { getProjects, getMe, getPeople, getAllItems, getAllProductionStages, getMeetings, getStageTargets } from "@/lib/data";
+import { title, addDays, todayDubai, PSTAGE_LABEL, ROLE_LABEL, type Project } from "@/lib/model";
+
+export const dynamic = "force-dynamic";
+
+type SP = { m?: string; who?: string; view?: string; proj?: string };
+const ROLES = ["PM", "DESIGNER", "TECHNICAL_DESIGNER", "PRODUCTION", "ESTIMATOR", "PROJECT_COORDINATOR", "MANAGEMENT"];
+
+/** Schedule → by person. A month grid of everything that has a date and an owner: the stage each person holds the
+ *  ball on (started → target), their drawings' R0 dates, their production stages, their meetings, next actions and
+ *  hold reviews. Everyone lands on "Just me" and can switch to a person, a role or everyone — Darren, 28 Oct. */
+async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> }) {
+  const sp = await searchParams;
+  const today = todayDubai();
+  const view = sp.view === "person" || sp.view === "week" ? sp.view : "project";
+  const month = /^\d{4}-\d{2}$/.test(sp.m ?? "") ? (sp.m as string) : today.slice(0, 7);
+  const first = `${month}-01`;
+  const [y, mo] = month.split("-").map(Number);
+  const last = new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
+  // the grid shows whole weeks, Sunday → Saturday, so fetch a little either side
+  const gridStart = addDays(first, -new Date(first + "T00:00:00Z").getUTCDay());
+  const gridEnd = addDays(last, 6 - new Date(last + "T00:00:00Z").getUTCDay());
+
+  const [projects, me, people, items, stages, meetings, targets] = await Promise.all([getProjects(), getMe(), getPeople(), getAllItems(), getAllProductionStages(), getMeetings(gridStart, gridEnd), getStageTargets()]);
+  const who = sp.who ?? "me";
+  const active = people.filter((p) => p.is_active);
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const inScope = (id: string | null): boolean => {
+    if (!id) return false;
+    if (who === "all") return true;
+    if (who === "me") return id === me.id;
+    if (who.startsWith("role:")) return byId.get(id)?.role === who.slice(5);
+    return id === who;
+  };
+  const tgt = new Map(targets.map((t) => [t.stage_no, t.target_days]));
+  const overlaps = (a: string, b: string) => a <= gridEnd && b >= gridStart;
+  const ev: CalEvent[] = [];
+  const live = projects.filter((p) => !["LOST", "MERGED", "COMPLETED"].includes(p.status));
+
+  for (const p of live as Project[]) {
+    // the ball: stage entered → target (or +14 days when no target yet)
+    if (p.ball_holder_id && inScope(p.ball_holder_id) && p.stage_entered_at) {
+      const s = p.stage_entered_at.slice(0, 10); const days = p.stage_target_days ?? tgt.get(p.stage ?? -1) ?? 14;
+      const e = addDays(s, Math.max(1, days));
+      if (overlaps(s, e)) ev.push({ id: `ball-${p.id}`, kind: "ball", title: `${p.enquiry_no ?? ""} ${title(p.name)} — ${p.stage_short ?? "stage"}`, person: p.ball_holder_id, start: s, end: e, tone: p.stage_overdue ? "crit" : p.flow_status === "ON_HOLD" ? "warn" : "navy", href: `/projects/${p.id}` });
+    }
+    if (p.target_date && overlaps(p.target_date, p.target_date) && [p.pm_id, p.ball_holder_id].some(inScope)) ev.push({ id: `tgt-${p.id}`, kind: "flag", title: `Target: ${title(p.name)}`, person: p.pm_id ?? p.ball_holder_id, start: p.target_date, end: p.target_date, tone: p.target_date < today ? "crit" : "bronze", href: `/projects/${p.id}` });
+    if (p.next_action && p.next_action_due && overlaps(p.next_action_due, p.next_action_due) && inScope(p.next_action_owner_id ?? p.ball_holder_id)) ev.push({ id: `na-${p.id}`, kind: "dot", title: `${p.next_action} — ${title(p.name)}`, person: p.next_action_owner_id ?? p.ball_holder_id, start: p.next_action_due, end: p.next_action_due, tone: p.next_action_due < today ? "crit" : "navy", href: `/projects/${p.id}` });
+    if (p.hold_id && p.hold_review_date && overlaps(p.hold_review_date, p.hold_review_date) && inScope(p.ball_holder_id)) ev.push({ id: `hold-${p.id}`, kind: "dot", title: `Hold review — ${title(p.name)}`, person: p.ball_holder_id, start: p.hold_review_date, end: p.hold_review_date, tone: "warn", href: `/projects/${p.id}` });
+  }
+  for (const i of items) {
+    if (i.cancelled || i.project_status === "COMPLETED") continue;
+    if (i.planned_submission && ["NOT_STARTED", "DRAWING"].includes(i.stage) && overlaps(i.planned_submission, i.planned_submission) && inScope(i.designer_id))
+      ev.push({ id: `r0-${i.id}`, kind: "dot", title: `R0 due: ${i.drawing_code} ${i.name}`, person: i.designer_id, start: i.planned_submission, end: i.planned_submission, tone: i.submission_overdue ? "crit" : "navy", href: `/projects/${i.project_id}?item=${i.id}` });
+  }
+  const gaju = active.find((p) => p.role === "PRODUCTION")?.id ?? null;
+  for (const s of stages) {
+    if (s.na || s.status === "COMPLETE" || !s.planned_start || !s.planned_end) continue;
+    const factory = ["JOINERY", "PAINT", "DELIVERY"].includes(s.stage);
+    const owner = factory ? gaju : s.item.pm_id;
+    if (!inScope(owner) || !overlaps(s.planned_start, s.planned_end)) continue;
+    ev.push({ id: `ps-${s.id}`, kind: "bar", title: `${PSTAGE_LABEL[s.stage]}: ${s.item.drawing_code} ${s.item.name}`, person: owner, start: s.planned_start, end: s.planned_end, tone: s.status === "DELAYED" || (s.planned_end < today) ? "crit" : s.status === "ON_HOLD" ? "warn" : s.status === "IN_PROGRESS" ? (factory ? "navy" : "site") : "plan", href: `/projects/${s.item.project_id}?item=${s.item.id}` });
+  }
+  for (const m of meetings) {
+    const ids = m.attendee_ids.filter(inScope); if (!ids.length) continue;
+    ev.push({ id: `m-${m.id}`, kind: "meet", title: `${m.start_time.slice(0, 5)} ${m.title}`, person: ids[0], start: m.meeting_date, end: m.meeting_date, tone: "meet", href: `/meetings?w=${m.meeting_date}` });
+  }
+
+  const peopleOpts = active.map((p) => ({ id: p.id, name: p.full_name ?? title(p.name), role: p.role }));
+  const prev = `${new Date(Date.UTC(y, mo - 2, 1)).toISOString().slice(0, 7)}`, next = `${new Date(Date.UTC(y, mo, 1)).toISOString().slice(0, 7)}`;
+  const label = who === "me" ? "Just me" : who === "all" ? "Everyone" : who.startsWith("role:") ? `All ${(ROLE_LABEL[who.slice(5)] ?? who.slice(5)).toLowerCase()}s` : (byId.get(who)?.full_name ?? title(byId.get(who)?.name ?? ""));
+  // By project: the same month grid, one row of bars per project — Tom, 29 Oct: read-only, week rows, not the
+  // long Gantt strip. A project is "mine" if I'm PM, supporting PM, ball holder, coordinator or designer on it,
+  // so a PM sees his projects before anyone has typed items in (Darren's D3 Loose Furniture had none).
+  const proj = sp.proj ?? "";
+  const onProject = (p: Project) => [p.pm_id, p.pm2_id, p.ball_holder_id, p.coordinator_id, p.designer_id, p.technical_designer_id];
+  // Awarded work only: stages 0–2 (registered / quotation) are the sales pipeline, not a schedule — Tom, 29 Oct.
+  const awarded = (p: Project) => p.stage != null && p.stage >= 3;
+  const projInScope = (p: Project) => awarded(p) && (proj ? p.id === proj : who === "all" || onProject(p).some(inScope));
+  const pev: CalEvent[] = [];
+  const stageOf = new Map<string, number>();
+  for (const p of live as Project[]) {
+    if (!projInScope(p)) continue;
+    const tag = p.enquiry_no ?? "";
+    if (p.stage_entered_at) {
+      const st = p.stage_entered_at.slice(0, 10); const dn = p.stage_target_days ?? tgt.get(p.stage ?? -1) ?? 14;
+      const e = addDays(st, Math.max(1, dn));
+      if (overlaps(st, e)) pev.push({ id: `pball-${p.id}`, kind: "ball", title: `${title(p.name)} — ${p.stage_short ?? "stage"}${p.ball_holder ? ` · ${title(p.ball_holder)}` : ""}`, person: p.ball_holder_id, start: st, end: e, tone: p.stage_overdue ? "crit" : p.flow_status === "ON_HOLD" ? "warn" : "navy", href: `/projects/${p.id}`, tag });
+    }
+    if (p.target_date && overlaps(p.target_date, p.target_date)) pev.push({ id: `ptgt-${p.id}`, kind: "flag", title: `Target: ${title(p.name)}`, person: p.pm_id, start: p.target_date, end: p.target_date, tone: p.target_date < today ? "crit" : "bronze", href: `/projects/${p.id}`, tag });
+    if (p.next_action && p.next_action_due && overlaps(p.next_action_due, p.next_action_due)) pev.push({ id: `pna-${p.id}`, kind: "dot", title: `${p.next_action} — ${title(p.name)}${p.next_action_owner ? ` · ${title(p.next_action_owner)}` : ""}`, person: p.next_action_owner_id, start: p.next_action_due, end: p.next_action_due, tone: p.next_action_due < today ? "crit" : "navy", href: `/projects/${p.id}`, tag });
+    if (p.hold_id && p.hold_review_date && overlaps(p.hold_review_date, p.hold_review_date)) pev.push({ id: `phold-${p.id}`, kind: "dot", title: `Hold review — ${title(p.name)}`, person: p.ball_holder_id, start: p.hold_review_date, end: p.hold_review_date, tone: "warn", href: `/projects/${p.id}`, tag });
+    stageOf.set(p.id, p.stage ?? 0);
+  }
+  for (const i of items) {
+    if (i.cancelled || !stageOf.has(i.project_id)) continue;
+    if (i.planned_submission && ["NOT_STARTED", "DRAWING"].includes(i.stage) && overlaps(i.planned_submission, i.planned_submission))
+      pev.push({ id: `pr0-${i.id}`, kind: "dot", title: `R0 due: ${i.drawing_code} ${i.name}`, person: i.designer_id, start: i.planned_submission, end: i.planned_submission, tone: i.submission_overdue ? "crit" : "navy", href: `/projects/${i.project_id}?item=${i.id}`, tag: i.drawing_code });
+  }
+  for (const s of stages) {
+    if (s.na || !s.planned_start || !s.planned_end || !stageOf.has(s.item.project_id) || !overlaps(s.planned_start, s.planned_end)) continue;
+    const factory = ["JOINERY", "PAINT", "DELIVERY"].includes(s.stage);
+    pev.push({ id: `pps-${s.id}`, kind: "bar", title: `${PSTAGE_LABEL[s.stage]}: ${s.item.drawing_code} ${s.item.name}`, person: factory ? gaju : s.item.pm_id, start: s.planned_start, end: s.planned_end, tone: s.status === "COMPLETE" ? "plan" : s.status === "DELAYED" || s.planned_end < today ? "crit" : s.status === "ON_HOLD" ? "warn" : s.status === "IN_PROGRESS" ? (factory ? "navy" : "site") : "plan", href: `/projects/${s.item.project_id}?item=${s.item.id}`, tag: s.item.drawing_code });
+  }
+  const projOpts = (live as Project[]).filter((p) => awarded(p)).filter((p) => who === "all" || onProject(p).some(inScope) || p.id === proj).sort((a, b) => (a.enquiry_no ?? "").localeCompare(b.enquiry_no ?? ""));
+  const nProj = stageOf.size;
+  const wkStart = addDays(today, -new Date(today + "T00:00:00Z").getUTCDay()), wkEnd = addDays(wkStart, 6);
+  const tabs = (
+    <div className="mnav">
+      <span className="segs who">
+        <Link href={`/schedule?view=project`} className={"seg2" + (view === "project" ? " on" : "")}>By project</Link>
+        <Link href={`/schedule?view=person`} className={"seg2" + (view === "person" ? " on" : "")}>By person</Link>
+        <Link href={`/schedule?view=week`} className={"seg2" + (view === "week" ? " on" : "")}>This week</Link>
+      </span>
+    </div>
+  );
+  if (view === "project") return (
+    <Shell active="schedule">
+      <main className="column">
+        <div className="meetings">
+          {tabs}
+          <div className="mnav">
+            <Link href={`/schedule?view=project&m=${prev}&who=${who}${proj ? `&proj=${proj}` : ""}`} className="btn ghost sm">‹ Prev</Link>
+            <Link href={`/schedule?view=project&who=${who}${proj ? `&proj=${proj}` : ""}`} className="btn ghost sm">This month</Link>
+            <Link href={`/schedule?view=project&m=${next}&who=${who}${proj ? `&proj=${proj}` : ""}`} className="btn ghost sm">Next ›</Link>
+            <h2>{new Date(first + "T00:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" })}</h2>
+            <span className="segs who">
+              <Link href={`/schedule?view=project&m=${month}&who=me`} className={"seg2" + (who === "me" && !proj ? " on" : "")}>My projects</Link>
+              <Link href={`/schedule?view=project&m=${month}&who=all`} className={"seg2" + (who === "all" && !proj ? " on" : "")}>Everyone</Link>
+            </span>
+            <form className="whoform" action="/schedule"><input type="hidden" name="view" value="project" /><input type="hidden" name="m" value={month} /><input type="hidden" name="who" value={who} />
+              <select name="proj" defaultValue={proj} key={proj + who}>
+                <option value="">{who === "all" ? "All projects" : `All of ${label === "Just me" ? "my" : label + "’s"} projects`}</option>
+                {projOpts.map((p) => <option key={p.id} value={p.id}>{p.enquiry_no ?? "—"} {title(p.name)}</option>)}
+              </select><button className="btn ghost sm">Show</button>
+            </form>
+            <span className="mlegend">Showing <b>{proj ? title(projOpts.find((p) => p.id === proj)?.name ?? "") : label === "Just me" ? "my projects" : label}</b> · {nProj} project{nProj === 1 ? "" : "s"} · {pev.length} thing{pev.length === 1 ? "" : "s"} this month</span>
+          </div>
+          <MonthByPerson month={month} gridStart={gridStart} gridEnd={gridEnd} today={today} events={pev} people={peopleOpts} multi={false} />
+          <p className="note">Each bar is tagged with its enquiry number or drawing code. Solid bar: the stage the project is in now (entered → target) with who holds the ball. Flag: target date. Dashed bars: planned production stages of its items; blue when in progress, red when late. Dots: next action, hold review, R0 due. Quotation-stage enquiries aren’t shown — they live on the Estimation tab. Dates are changed on the project or the item.{nProj === 0 && who === "me" ? " Nothing here because you’re not PM, ball holder, coordinator or designer on an awarded project — try Everyone." : ""}</p>
+        </div>
+      </main>
+    </Shell>
+  );
+  if (view === "week") return (
+    <Shell active="schedule">
+      <main className="column">
+        <div className="meetings">
+          {tabs}
+          <ScheduleWeek rows={stages.map((s) => ({ s, item: s.item }))} weekStart={wkStart} weekEnd={wkEnd} today={today} />
+        </div>
+      </main>
+    </Shell>
+  );
+  return (
+    <Shell active="schedule">
+      <main className="column">
+        <div className="meetings">
+          {tabs}
+          <div className="mnav">
+            <Link href={`/schedule?view=person&m=${prev}&who=${who}`} className="btn ghost sm">‹ Prev</Link>
+            <Link href={`/schedule?view=person&who=${who}`} className="btn ghost sm">This month</Link>
+            <Link href={`/schedule?view=person&m=${next}&who=${who}`} className="btn ghost sm">Next ›</Link>
+            <h2>{new Date(first + "T00:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" })}</h2>
+            <span className="segs who">
+              <Link href={`/schedule?view=person&m=${month}&who=me`} className={"seg2" + (who === "me" ? " on" : "")}>Just me</Link>
+              <Link href={`/schedule?view=person&m=${month}&who=all`} className={"seg2" + (who === "all" ? " on" : "")}>Everyone</Link>
+            </span>
+            <form className="whoform" action="/schedule"><input type="hidden" name="view" value="person" /><input type="hidden" name="m" value={month} />
+              <select name="who" defaultValue={who} key={who}>
+                <option value="me">Just me</option><option value="all">Everyone</option>
+                <optgroup label="By role">{ROLES.map((r) => <option key={r} value={`role:${r}`}>All {(ROLE_LABEL[r] ?? r).toLowerCase()}s</option>)}</optgroup>
+                <optgroup label="By person">{peopleOpts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
+              </select><button className="btn ghost sm">Show</button>
+            </form>
+            <span className="mlegend">Showing <b>{label}</b> · {ev.length} thing{ev.length === 1 ? "" : "s"} this month</span>
+          </div>
+          <MonthByPerson month={month} gridStart={gridStart} gridEnd={gridEnd} today={today} events={ev} people={peopleOpts} multi={who !== "me" && !byId.has(who)} />
+          <p className="note">Bars: the stage you hold the ball on (started → target), production stages you own. Dots: R0 due, next action, hold review. Meetings in bronze. Overlaps stack on the same days. <Link href="/meetings">Meetings diary</Link> · <Link href="/drawings">All drawings</Link></p>
+        </div>
+      </main>
+    </Shell>
+  );
+}
+
+export default async function SchedulePage(props: Parameters<typeof Inner_SchedulePage>[0]) {
+  try { return await Inner_SchedulePage(props); }
+  catch (e) {
+    if (e && typeof e === "object" && "digest" in e && String((e as { digest?: string }).digest).startsWith("NEXT_")) throw e;
+    return <Shell><Failed what="the schedule" error={e} /></Shell>;
+  }
+}

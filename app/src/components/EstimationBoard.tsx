@@ -1,11 +1,13 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useWheelSideways } from "@/lib/useWheelSideways";
+import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { QUOTE_STAGES, WAITING_ON, aedS, fmtDShort, title, ini, dueTone, type Project, type QuoteStage } from "@/lib/model";
 import { saveWaitingOn } from "@/app/actions";
-import { setQuoteStage, markWon, markLost } from "@/app/actions";
+import { setQuoteStage, markWon, markLost, createQualifying, qualify } from "@/app/actions";
 
-export default function EstimationBoard({ projects, canEdit }: { projects: Project[]; canEdit: boolean }) {
+/** The Estimation tab: Rev 3 stage 0 (Qualifying, decision 3) on the left, then the four pricing columns of stages 1–2. */
+export default function EstimationBoard({ projects, canEdit, canQualify, qualifying }: { projects: Project[]; canEdit: boolean; canQualify: boolean; qualifying: Project[] }) {
   const router = useRouter();
   const [rows, setRows] = useState(projects);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -34,10 +36,14 @@ export default function EstimationBoard({ projects, canEdit }: { projects: Proje
     });
   }
 
+  const boardRef = useWheelSideways<HTMLDivElement>();
   return (
     <>
       {err && <div className="msg err" style={{ padding: "0 24px" }}>Couldn’t save that change: {err}</div>}
-      <div className="board" aria-busy={pending}>
+      <div className="board" aria-busy={pending} ref={boardRef}>
+        <QualifyingColumn projects={qualifying} canQualify={canQualify} canAdd={canQualify || canEdit} onDecide={(p, ok) => {
+          start(async () => { const res = await qualify(p.id, ok); if (res?.error) setErr(res.error); else { setErr(null); router.refresh(); } });
+        }} />
         {QUOTE_STAGES.map(([k, l]) => {
           const items = rows.filter((p) => p.quote_stage === k).sort((a, b) => (b.days_since_enquiry ?? 0) - (a.days_since_enquiry ?? 0));
           return (
@@ -71,7 +77,7 @@ export default function EstimationBoard({ projects, canEdit }: { projects: Proje
                         : <div className="waiting-ro">{p.waiting_on ? `Waiting on ${p.waiting_on.toLowerCase()}` : "Waiting on…"}</div>)}
                       {k === "SUBMITTED" && canEdit && (
                         <div className="decide" onClick={(e) => e.stopPropagation()}>
-                          <button className="btn sm" onClick={() => decide(p, true)}>{p.parent_project_id ? "Won → add VO" : "Won → Design"}</button>
+                          <button className="btn sm" onClick={() => decide(p, true)}>{p.parent_project_id ? "Won → add VO" : "Won → Award / contract"}</button>
                           <button className="btn sm danger" onClick={() => decide(p, false)}>Lost</button>
                         </div>
                       )}
@@ -84,5 +90,46 @@ export default function EstimationBoard({ projects, canEdit }: { projects: Proje
         })}
       </div>
     </>
+  );
+}
+
+/** Stage 0 — Enquiry qualification. Anyone with estimation rights can put an opportunity here; only Tom and Aftab (Sales) decide. */
+function QualifyingColumn({ projects, canQualify, canAdd, onDecide }: { projects: Project[]; canQualify: boolean; canAdd: boolean; onDecide: (p: Project, proceed: boolean) => void }) {
+  const router = useRouter();
+  const [adding, setAdding] = useState(false);
+  const [state, action, pending] = useActionState(async (prev: unknown, fd: FormData) => { const r = await createQualifying(prev, fd); if (r.ok) { setAdding(false); router.refresh(); } return r; }, null as { error?: string; ok?: boolean } | null);
+  return (
+    <section className="col qualifying">
+      <header><b className="stage-no">0</b><h2>Qualifying</h2><span className="count">{projects.length}</span>
+        {canAdd && <button type="button" className="linkbtn" style={{ marginLeft: "auto" }} onClick={() => setAdding((a) => !a)}>{adding ? "Close" : "+ Opportunity"}</button>}</header>
+      <div className="cards">
+        {adding && (
+          <form action={action} className="card addq" onClick={(e) => e.stopPropagation()}>
+            <input name="name" required placeholder="Location / address" autoFocus />
+            <input name="client" placeholder="Client" />
+            <input name="raised_by" placeholder="Who sent it in" />
+            <textarea name="notes" rows={2} placeholder="Outline scope, constraints, anything known" />
+            {state?.error && <div className="msg err">{state.error}</div>}
+            <div className="actions"><button className="btn sm" disabled={pending}>Add to qualifying</button><small className="note">Tom or Aftab say proceed; Ramus then registers it.</small></div>
+          </form>
+        )}
+        {projects.length === 0 && !adding && <div className="empty">Nothing waiting for a proceed / decline</div>}
+        {projects.map((p) => (
+          <article key={p.id} className="card ok" tabIndex={0} role="link" onClick={() => router.push(`/projects/${p.id}`)} onKeyDown={(e) => e.key === "Enter" && router.push(`/projects/${p.id}`)}>
+            <div className="card-top"><span className="enq">no number yet</span><span className="pill">{p.days_since_enquiry ?? 0}d waiting</span></div>
+            <h3>{title(p.name)}</h3>
+            <div className="client">{title(p.client)}{p.raised_by ? ` · from ${title(p.raised_by)}` : ""}</div>
+            {p.notes && <p className="qnotes">{p.notes}</p>}
+            <div className="card-foot"><span className="who"><b className="av">{ini(p.ball_holder)}</b>{p.ball_holder ? title(p.ball_holder) : "Sales"}</span><span className="ball-pos">decides</span></div>
+            {canQualify && (
+              <div className="decide" onClick={(e) => e.stopPropagation()}>
+                <button className="btn sm" onClick={() => onDecide(p, true)}>Proceed → Ramus</button>
+                <button className="btn sm danger" onClick={() => onDecide(p, false)}>Decline</button>
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }

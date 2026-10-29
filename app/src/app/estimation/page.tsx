@@ -11,7 +11,10 @@ export const dynamic = "force-dynamic";
 async function Inner_EstimationPage() {
   const supabase = await createClient();
   const [all, people, contractors, me, { data: nextNo }] = await Promise.all([getProjects(), getPeople(), getContractors(), getMe(), supabase.rpc("next_enquiry_no")]);
-  const quotes = all.filter((p) => p.status === "QUOTE");
+  const quotes = all.filter((p) => p.status === "QUOTE" && p.stage !== 0);
+  const qualifying = all.filter((p) => p.status === "QUOTE" && p.stage === 0);
+  // Stage 0 decisions belong to Sales — Tom and Aftab (and the other admins); names stay in the database
+  const canQualify = me.isAdmin || me.role === "SALES";
   const live = all.filter((p) => !["QUOTE", "LOST", "COMPLETED", "MERGED"].includes(p.status)).sort(byEnq).map((p) => ({ id: p.id, name: p.name, enquiry_no: p.enquiry_no, client: p.client }));
   const open = quotes.filter((p) => p.quote_stage !== "SUBMITTED");
   const submitted = quotes.filter((p) => p.quote_stage === "SUBMITTED");
@@ -21,6 +24,7 @@ async function Inner_EstimationPage() {
     <Shell active="estimation">
       <section className="summary">
         <div className="stats">
+          {qualifying.length > 0 && <div className="stat bronze"><b>{qualifying.length}</b><span>qualifying</span></div>}
           <div className="stat"><b>{open.length}</b><span>being priced</span></div>
           <div className="stat"><b>{submitted.length}</b><span>submitted, awaiting decision</span></div>
           <div className={`stat${oldest > 21 ? " crit" : ""}`}><b>{oldest}d</b><span>oldest open enquiry</span></div>
@@ -28,7 +32,7 @@ async function Inner_EstimationPage() {
         </div>
         {me.canEstimation && <EnquiryForm nextNo={(nextNo as string) ?? ""} people={people} contractors={contractors} liveProjects={live} />}
       </section>
-      <main className="fill"><EstimationBoard key={all.map((p) => p.updated_at).join()} projects={quotes} canEdit={me.canEstimation} /></main>
+      <main className="fill"><EstimationBoard key={all.map((p) => p.updated_at).join()} projects={quotes} canEdit={me.canEstimation} canQualify={canQualify} qualifying={qualifying} /></main>
     </Shell>
   );
 }

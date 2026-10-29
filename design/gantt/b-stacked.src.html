@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schedule — direction B "Stacked"</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+:root { --navy:#102C52; --bronze:#917764; --bg:#F7F6F3; --bg2:#FFF; --bg3:#EEEBE5; --line:#E2DED6; --line2:#C9C3B8; --fg:#102C52; --fg2:#4A5A74; --fg3:#8591A6;
+  --ok:#2E9E6F; --soon:#C9A227; --warn:#D9822B; --crit:#D1433B; --done:#3B7FC4; --font:"Manrope",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace; --r:10px;
+  --day:30px; --left:360px; }
+* { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 var(--font); -webkit-font-smoothing:antialiased }
+.top { display:flex; align-items:center; gap:18px; padding:12px 24px; border-bottom:1px solid var(--line); background:var(--bg2) }
+.brand { display:flex; align-items:center; gap:10px; font-weight:800; font-size:16px; color:var(--navy) } .brand em { color:var(--bronze); font-style:normal } .brand .sub { font:700 10px var(--font); letter-spacing:.14em; text-transform:uppercase; color:var(--fg3); margin-left:4px }
+.tabs { display:flex; gap:2px; margin-left:10px } .tab { padding:8px 12px; border-radius:8px; font-weight:700; color:var(--fg2) } .tab.on { background:var(--bg3); color:var(--navy) }
+.tools { margin-left:auto; display:flex; gap:8px; align-items:center }
+.btn { border:1px solid var(--line2); background:var(--bg2); border-radius:8px; padding:6px 11px; font:700 12px var(--font); color:var(--navy); cursor:pointer } .btn.on { background:var(--navy); color:#fff; border-color:var(--navy) }
+.seg { display:inline-flex; border:1px solid var(--line2); border-radius:8px; overflow:hidden } .seg .btn { border:0; border-radius:0 } .seg .btn+.btn { border-left:1px solid var(--line2) }
+.sample { font-size:11px; color:var(--fg3); padding:10px 24px 8px } .sample b { color:var(--bronze) }
+
+.wrap { display:grid; grid-template-columns: var(--left) 1fr; margin:0 24px 24px; background:var(--bg2); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; height:calc(100vh - 140px) }
+.left { border-right:1px solid var(--line); overflow:hidden; display:flex; flex-direction:column }
+.left .hd { height:64px; border-bottom:1px solid var(--line); display:flex; align-items:flex-end; padding:0 16px 10px; font:700 10px var(--font); letter-spacing:.1em; text-transform:uppercase; color:var(--fg3); gap:10px }
+.left .hd .n { margin-left:auto; font:800 20px/1 var(--font); color:var(--navy); letter-spacing:-.02em; text-transform:none }
+.rows { overflow:hidden; flex:1 }
+.right { overflow:auto; position:relative; scrollbar-gutter:stable }
+.right::-webkit-scrollbar { height:10px; width:10px } .right::-webkit-scrollbar-thumb { background:var(--line2); border-radius:999px; border:2px solid var(--bg2) }
+.cal { position:sticky; top:0; z-index:5; background:var(--bg2); height:64px; border-bottom:1px solid var(--line) }
+.months, .daysrow { display:flex; height:32px } .mo { font:800 12px var(--font); color:var(--navy); padding:8px 0 0 10px; border-left:1px solid var(--line2); white-space:nowrap; overflow:hidden }
+.dy { width:var(--day); min-width:var(--day); text-align:center; font:600 10px var(--mono); color:var(--fg3); padding-top:8px; border-left:1px solid #f1eee8 } .dy.we { background:var(--bg3) } .dy.today { background:var(--bronze); color:#fff; border-radius:6px; margin:4px 1px 0; padding-top:4px; font-weight:600 } .dy b { display:block; font:700 9px var(--font); color:inherit; opacity:.7 }
+.grid { position:relative } .gridbg { position:absolute; inset:0; display:flex; pointer-events:none } .gridbg i { width:var(--day); min-width:var(--day); border-left:1px solid #f1eee8 } .gridbg i.we { background:#F4F2EE }
+.todayline { position:absolute; top:0; bottom:0; width:2px; background:var(--bronze); z-index:2; pointer-events:none }
+/* rows — identical heights on both sides so they line up */
+.r { height:36px; border-top:1px solid var(--line); display:flex; align-items:center }
+.r.proj { height:44px; background:linear-gradient(90deg, var(--bg3), #f6f3ee); cursor:pointer } .r.proj.first { border-top:0 }
+.r.item { height:40px } .r.stage { height:30px; background:#FCFBF9 }
+.left .r { padding:0 16px; gap:10px; white-space:nowrap; overflow:hidden }
+.left .proj { font-weight:800; color:var(--navy); gap:8px } .proj .tri { font-size:10px; color:var(--fg3); width:12px; transition:transform .15s } .proj.closed .tri { transform:rotate(-90deg) } .proj .enq { font:600 12px var(--mono); color:var(--bronze) } .proj .meta { margin-left:auto; font:600 11px var(--font); color:var(--fg3) }
+.left .item { padding-left:34px; gap:8px } .item .code { font:600 11px var(--mono); color:var(--fg3) } .item .nm { font-weight:700; overflow:hidden; text-overflow:ellipsis } .item .tri { font-size:10px; color:var(--fg3); margin-left:auto; transition:transform .15s } .item.closed .tri { transform:rotate(-90deg) }
+.prog { display:flex; gap:2px; margin-left:auto } .prog i { width:9px; height:9px; border-radius:2px; background:var(--line) } .prog i.COMPLETE { background:var(--ok) } .prog i.IN_PROGRESS { background:var(--navy) } .prog i.DELAYED { background:var(--crit) } .prog i.ON_HOLD { background:var(--warn) } .prog i.na { opacity:.25 }
+.left .stage { padding-left:56px; font-size:12px; color:var(--fg2); gap:8px } .stage .av { width:20px; height:20px; border-radius:50%; background:var(--navy); color:#fff; font:800 9px var(--font); display:grid; place-items:center } .stage .av.pm { background:var(--bronze) } .stage .st { margin-left:auto; font:700 10px var(--font); letter-spacing:.06em; text-transform:uppercase; color:var(--fg3) } .stage .st.DELAYED { color:var(--crit) } .stage .st.ON_HOLD { color:var(--warn) } .stage .st.COMPLETE { color:var(--ok) } .stage .st.IN_PROGRESS { color:var(--navy) }
+.right .r { position:relative }
+/* bars */
+.sum { position:absolute; top:17px; height:8px; border-radius:4px; background:var(--line2) } .sum i { position:absolute; left:0; top:0; height:100%; border-radius:4px; background:var(--navy) }
+.ibar { position:absolute; top:12px; height:16px; border-radius:4px; background:#E7E3DC; overflow:hidden; display:flex } .ibar i { height:100%; flex:none } .ibar i.COMPLETE { background:var(--ok) } .ibar i.IN_PROGRESS { background:var(--navy) } .ibar i.DELAYED { background:var(--crit) } .ibar i.ON_HOLD { background:var(--warn) } .ibar i.NOT_STARTED { background:transparent }
+.bar { position:absolute; top:5px; height:20px; border-radius:5px; display:flex; align-items:center; padding:0 8px 0 10px; font:700 11px var(--font); color:#fff; white-space:nowrap; overflow:hidden; cursor:grab; user-select:none; box-shadow:0 1px 1px rgba(16,44,82,.15) }
+.bar::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:rgba(0,0,0,.25) }
+.bar .pct { position:absolute; inset:0; background:rgba(255,255,255,.25); pointer-events:none } .bar span { position:relative } .bar .h { position:absolute; right:0; top:0; width:8px; height:100%; cursor:ew-resize }
+.bar.NOT_STARTED { background:#fff; color:var(--fg2); border:1.5px solid var(--line2); box-shadow:none } .bar.NOT_STARTED::before { background:var(--line2) }
+.bar.IN_PROGRESS { background:var(--navy) } .bar.site.IN_PROGRESS { background:#2F5A8F } .bar.DELAYED { background:var(--crit) } .bar.ON_HOLD { background:var(--warn) } .bar.COMPLETE { background:var(--ok) }
+.bar .av { width:14px; height:14px; border-radius:50%; background:rgba(255,255,255,.3); font:800 8px var(--font); display:grid; place-items:center; margin-left:6px; position:relative }
+.link { position:absolute; height:1px; border-top:1.5px dotted var(--line2); top:24px; pointer-events:none }
+.tip { position:fixed; z-index:20; background:var(--navy); color:#fff; padding:8px 10px; border-radius:8px; font-size:12px; pointer-events:none; display:none; max-width:260px; box-shadow:0 6px 20px rgba(16,44,82,.25) } .tip b { display:block; font-size:13px } .tip small { color:#B9C3D6 }
+.toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--navy); color:#fff; padding:10px 16px; border-radius:999px; font-weight:700; font-size:13px; opacity:0; transition:opacity .2s } .toast.on { opacity:1 }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><svg width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="12" fill="none" stroke="#917764" stroke-width="2"/><text x="13" y="17.5" text-anchor="middle" font-family="Manrope" font-weight="800" font-size="12" fill="#102C52">C5</text></svg>Concept <em>5</em><span class="sub">Projects 2026</span></div>
+  <nav class="tabs"><a class="tab">Estimation</a><a class="tab">Board</a><a class="tab">List</a><a class="tab">Drawings</a><a class="tab">Designers</a><a class="tab on">Schedule</a><a class="tab">Meetings</a><a class="tab">Team</a></nav>
+  <div class="tools">
+    <span class="seg"><button class="btn on" data-f="all">Everything</button><button class="btn" data-f="factory">Factory</button><button class="btn" data-f="site">Site</button></span>
+    <button class="btn" id="expand">Expand all</button><button class="btn" id="collapse">Collapse all</button>
+    <button class="btn" id="today">Today</button>
+  </div>
+</header>
+<div class="sample">Direction B — <b>Stacked</b>. Projects → items → stages, each on its own row with the owner on the bar and a summary bar on the rows above; dotted links show the hand-off from one stage to the next. Drag a bar to move it, drag its right edge to stretch it. 26-051 is the real test card; 26-011 and 26-032 are sample items.</div>
+<div class="wrap">
+  <div class="left"><div class="hd"><span>Project · item · stage</span><span class="n" id="n"></span></div><div class="rows" id="rows"></div></div>
+  <div class="right" id="right"><div class="cal"><div class="months" id="months"></div><div class="daysrow" id="daysrow"></div></div><div class="grid" id="grid"><div class="gridbg" id="gridbg"></div><div class="todayline" id="tl"></div><div id="lanes"></div></div></div>
+</div>
+<div class="tip" id="tip"></div><div class="toast" id="toast"></div>
+<script>/*DATA*/</script>
+<script>
+const D = (s) => new Date(s + "T00:00:00Z"); const iso = (d) => d.toISOString().slice(0, 10); const days = (a, b) => Math.round((D(b) - D(a)) / 86400000);
+const fmt = (s) => D(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const W = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--day"));
+let filter = "all"; const closed = new Set(); const itemClosed = new Set(PROJECTS.flatMap((p) => p.items.filter((i) => i.stages.every((s) => s.na || s.st === "COMPLETE" || s.st === "NOT_STARTED" && !i.stages.some((x) => x.st !== "NOT_STARTED" && !x.na))).map((i) => i.code)));
+const all = PROJECTS.flatMap((p) => p.items.flatMap((i) => i.stages.filter((s) => !s.na).map((s) => ({ ...s, p, i }))));
+const minD = iso(new Date(Math.min(...all.map((s) => D(s.ps))) - 5 * 86400000)), maxD = iso(new Date(Math.max(...all.map((s) => D(s.pe))) + 10 * 86400000));
+const N = days(minD, maxD) + 1; const dates = Array.from({ length: N }, (_, k) => iso(new Date(D(minD).getTime() + k * 86400000)));
+const show = (s) => !s.na && (filter === "all" || (filter === "factory") === (OWNER[s.s] === "GAJU"));
+const x = (d) => days(minD, d) * W(); const wd = (a, b) => (days(a, b) + 1) * W() - 3;
+function calendar() {
+  const w = W(); let mh = "", k = 0; while (k < N) { const d = D(dates[k]); const mEnd = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)); const span = Math.min(N - k, days(dates[k], iso(mEnd)) + 1); mh += `<div class="mo" style="width:${span * w}px;min-width:${span * w}px">${d.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" })}</div>`; k += span; }
+  document.getElementById("months").innerHTML = mh;
+  document.getElementById("daysrow").innerHTML = dates.map((s) => { const d = D(s).getUTCDay(); return `<div class="dy${d === 5 || d === 6 ? " we" : ""}${s === TODAY ? " today" : ""}"><b>${"SMTWTFS"[d]}</b>${D(s).getUTCDate()}</div>`; }).join("");
+  document.getElementById("gridbg").innerHTML = dates.map((s) => { const d = D(s).getUTCDay(); return `<i class="${d === 5 || d === 6 ? "we" : ""}"></i>`; }).join("");
+  document.getElementById("grid").style.width = N * w + "px";
+  document.getElementById("tl").style.left = x(TODAY) + w / 2 + "px";
+}
+function render() {
+  let L = "", R = ""; let n = 0; let first = true;
+  for (const p of PROJECTS) {
+    const items = p.items.filter((i) => i.stages.some(show)); if (!items.length) continue;
+    const ps = items.flatMap((i) => i.stages.filter(show)); const a = ps.reduce((m, s) => s.ps < m ? s.ps : m, ps[0].ps), b = ps.reduce((m, s) => s.pe > m ? s.pe : m, ps[0].pe);
+    const done = ps.filter((s) => s.st === "COMPLETE").length / ps.length;
+    L += `<div class="r proj${closed.has(p.enq) ? " closed" : ""}${first ? " first" : ""}" data-p="${p.enq}"><span class="tri">▼</span><span class="enq">${p.enq}</span><span>${p.name}</span><span class="meta">${items.length} items · ${p.pm}</span></div>`;
+    R += `<div class="r proj${first ? " first" : ""}" data-p="${p.enq}"><div class="sum" style="left:${x(a)}px;width:${wd(a, b)}px"><i style="width:${Math.round(done * 100)}%"></i></div></div>`; first = false;
+    if (closed.has(p.enq)) continue;
+    for (const i of items) {
+      n++; const ss = i.stages.filter(show); const ia = ss[0].ps, ib = ss[ss.length - 1].pe; const total = days(ia, ib) + 1;
+      L += `<div class="r item${itemClosed.has(i.code) ? " closed" : ""}" data-i="${i.code}"><span class="code">${i.code}</span><span class="nm">${i.name}</span><span class="prog">${i.stages.map((s) => `<i class="${s.na ? "na" : s.st}" title="${STAGE_LABEL[s.s]}"></i>`).join("")}</span><span class="tri">▼</span></div>`;
+      R += `<div class="r item" data-i="${i.code}"><div class="ibar" style="left:${x(ia)}px;width:${wd(ia, ib)}px">${ss.map((s) => `<i class="${s.st}" style="width:${(days(s.ps, s.pe) + 1) / total * 100}%"></i>`).join("")}</div></div>`;
+      if (itemClosed.has(i.code)) continue;
+      let prev = null;
+      for (const s of ss) {
+        const owner = OWNER[s.s] === "GAJU" ? "GJ" : "PM";
+        L += `<div class="r stage"><span class="av${owner === "PM" ? " pm" : ""}">${owner}</span><span>${STAGE_LABEL[s.s]}</span><span class="st ${s.st}">${s.st.replace("_", " ").toLowerCase()}</span></div>`;
+        R += `<div class="r stage">${prev ? `<div class="link" style="left:${x(prev.pe) + W() - 3}px;width:${Math.max(4, x(s.ps) - x(prev.pe) - W() + 3)}px;top:-4px"></div>` : ""}<div class="bar ${s.st}${owner === "PM" ? " site" : ""}" style="left:${x(s.ps)}px;width:${wd(s.ps, s.pe)}px" data-s="${s.s}" data-i="${i.code}" data-p="${p.enq}">${s.pct ? `<i class="pct" style="width:${s.pct}%"></i>` : ""}<span>${wd(s.ps, s.pe) > 70 ? `${STAGE_LABEL[s.s]} · ${days(s.ps, s.pe) + 1}d` : ""}</span>${wd(s.ps, s.pe) > 40 ? `<span class="av">${owner}</span>` : ""}<i class="h"></i></div></div>`;
+        prev = s;
+      }
+    }
+  }
+  document.getElementById("rows").innerHTML = L; document.getElementById("lanes").innerHTML = R; document.getElementById("n").textContent = n + " items";
+}
+calendar(); render();
+const right = document.getElementById("right"), rows = document.getElementById("rows");
+right.addEventListener("scroll", () => { rows.scrollTop = right.scrollTop; });
+const goToday = () => right.scrollTo({ left: Math.max(0, x(TODAY) - 300), behavior: "smooth" }); goToday();
+document.getElementById("today").onclick = goToday;
+document.getElementById("expand").onclick = () => { closed.clear(); itemClosed.clear(); render(); };
+document.getElementById("collapse").onclick = () => { PROJECTS.forEach((p) => p.items.forEach((i) => itemClosed.add(i.code))); render(); };
+document.querySelectorAll("[data-f]").forEach((b) => b.onclick = () => { filter = b.dataset.f; document.querySelectorAll("[data-f]").forEach((x) => x.classList.toggle("on", x === b)); render(); });
+document.addEventListener("click", (e) => { const pr = e.target.closest(".r.proj"); if (pr) { const k = pr.dataset.p; closed.has(k) ? closed.delete(k) : closed.add(k); render(); return; } const it = e.target.closest(".r.item"); if (it && !e.target.closest(".bar")) { const k = it.dataset.i; itemClosed.has(k) ? itemClosed.delete(k) : itemClosed.add(k); render(); } });
+const tip = document.getElementById("tip");
+function findStage(b) { const p = PROJECTS.find((x) => x.enq === b.dataset.p); const i = p.items.find((x) => x.code === b.dataset.i); const s = i.stages.find((x) => x.s === b.dataset.s); return { ...s, p, i }; }
+document.addEventListener("mousemove", (e) => { const b = e.target.closest(".bar"); if (!b || drag) { tip.style.display = "none"; return; } const s = findStage(b); tip.style.display = "block"; tip.style.left = e.clientX + 14 + "px"; tip.style.top = e.clientY + 14 + "px";
+  tip.innerHTML = `<b>${STAGE_LABEL[s.s]} — ${s.i.name}</b>${fmt(s.ps)} → ${fmt(s.pe)} · ${days(s.ps, s.pe) + 1}d · ${OWNER[s.s] === "GAJU" ? "Gajanand" : "PM " + s.p.pm}<br><small>${s.st.replace("_", " ").toLowerCase()}${s.pct ? ` · ${s.pct}%` : ""}${s.as ? ` · started ${fmt(s.as)}` : ""}${s.ae ? ` · done ${fmt(s.ae)}` : ""}${s.note ? ` · ${s.note}` : ""}</small>`; });
+let drag = null;
+document.getElementById("lanes").addEventListener("mousedown", (e) => { const b = e.target.closest(".bar"); if (!b) return; e.preventDefault(); drag = { b, s: findStage(b), x0: e.clientX, resize: e.target.classList.contains("h"), left: parseFloat(b.style.left), width: parseFloat(b.style.width), dd: 0 }; });
+document.addEventListener("mousemove", (e) => { if (!drag) return; const dd = Math.round((e.clientX - drag.x0) / W()); if (drag.resize) drag.b.style.width = Math.max(W() - 3, drag.width + dd * W()) + "px"; else drag.b.style.left = drag.left + dd * W() + "px"; drag.dd = dd; });
+document.addEventListener("mouseup", () => { if (!drag) return; const { s, dd, resize } = drag; if (dd) { const st = PROJECTS.find((x) => x.enq === s.p.enq).items.find((x) => x.code === s.i.code).stages.find((x) => x.s === s.s); if (resize) st.pe = iso(new Date(D(st.pe).getTime() + Math.max(dd, -days(st.ps, st.pe)) * 86400000)); else { st.ps = iso(new Date(D(st.ps).getTime() + dd * 86400000)); st.pe = iso(new Date(D(st.pe).getTime() + dd * 86400000)); } toast(`${STAGE_LABEL[st.s]} on ${s.i.name} → ${fmt(st.ps)} – ${fmt(st.pe)} (would save and tell ${OWNER[st.s] === "GAJU" ? "Gajanand" : s.p.pm})`); } drag = null; render(); });
+function toast(m) { const t = document.getElementById("toast"); t.textContent = m; t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 2600); }
+</script>
+</body>
+</html>

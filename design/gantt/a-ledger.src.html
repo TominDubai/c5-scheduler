@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schedule — direction A "Ledger"</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+:root { --navy:#102C52; --bronze:#917764; --bg:#F7F6F3; --bg2:#FFF; --bg3:#EEEBE5; --line:#E2DED6; --line2:#C9C3B8; --fg:#102C52; --fg2:#4A5A74; --fg3:#8591A6;
+  --ok:#2E9E6F; --soon:#C9A227; --warn:#D9822B; --crit:#D1433B; --done:#3B7FC4; --font:"Manrope",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace; --r:10px;
+  --day:26px; --row:40px; --left:420px; }
+* { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 var(--font); -webkit-font-smoothing:antialiased }
+.top { display:flex; align-items:center; gap:18px; padding:12px 24px; border-bottom:1px solid var(--line); background:var(--bg2) }
+.brand { display:flex; align-items:center; gap:10px; font-weight:800; font-size:16px; color:var(--navy) } .brand em { color:var(--bronze); font-style:normal } .brand .sub { font:700 10px var(--font); letter-spacing:.14em; text-transform:uppercase; color:var(--fg3); margin-left:4px }
+.tabs { display:flex; gap:2px; margin-left:10px } .tab { padding:8px 12px; border-radius:8px; font-weight:700; color:var(--fg2) } .tab.on { background:var(--bg3); color:var(--navy) }
+.tools { margin-left:auto; display:flex; gap:8px; align-items:center }
+.btn { border:1px solid var(--line2); background:var(--bg2); border-radius:8px; padding:6px 11px; font:700 12px var(--font); color:var(--navy); cursor:pointer } .btn.on { background:var(--navy); color:#fff; border-color:var(--navy) } .btn.bronze { background:var(--bronze); color:#fff; border-color:var(--bronze) }
+.seg { display:inline-flex; border:1px solid var(--line2); border-radius:8px; overflow:hidden } .seg .btn { border:0; border-radius:0 } .seg .btn+.btn { border-left:1px solid var(--line2) }
+.summary { display:flex; gap:28px; align-items:center; padding:14px 24px 8px; flex-wrap:wrap }
+.stat { display:flex; flex-direction:column } .stat b { font:800 26px/1 var(--font); letter-spacing:-.02em; color:var(--navy); font-variant-numeric:tabular-nums } .stat span { color:var(--fg3); font-size:12px; font-weight:600; margin-top:4px } .stat.crit b { color:var(--crit) }
+.legend { margin-left:auto; display:flex; gap:12px; font-size:12px; color:var(--fg2); font-weight:600 } .legend i { display:inline-block; width:14px; height:10px; border-radius:3px; vertical-align:-1px; margin-right:5px }
+.sample { font-size:11px; color:var(--fg3); padding:0 24px 8px } .sample b { color:var(--bronze) }
+
+.gantt { margin:0 24px 24px; background:var(--bg2); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; position:relative }
+.scroll { overflow:auto; max-height:calc(100vh - 190px); scrollbar-gutter:stable }
+.scroll::-webkit-scrollbar { height:10px; width:10px } .scroll::-webkit-scrollbar-thumb { background:var(--line2); border-radius:999px; border:2px solid var(--bg2) }
+table { border-collapse:collapse; table-layout:fixed }
+th, td { padding:0; vertical-align:middle }
+thead th { position:sticky; top:0; z-index:5; background:var(--bg2); border-bottom:1px solid var(--line) }
+thead tr:first-child th { height:26px } thead tr:last-child th { height:28px; top:26px }
+.lcol { position:sticky; left:0; z-index:4; background:var(--bg2); width:var(--left); min-width:var(--left); border-right:1px solid var(--line) }
+thead .lcol { z-index:6 }
+.lhead { display:grid; grid-template-columns:112px 1fr 64px 60px; padding:0 14px; align-items:center; font:700 10px var(--font); letter-spacing:.1em; text-transform:uppercase; color:var(--fg3); height:54px; }
+.m { text-align:left; font:800 12px var(--font); color:var(--navy); padding-left:8px; border-left:1px solid var(--line2) }
+.d { width:var(--day); min-width:var(--day); font:600 10px var(--mono); color:var(--fg3); text-align:center; border-left:1px solid #f1eee8 } .d.wk { color:var(--navy) } .d.we { background:var(--bg3) } .d.today { color:#fff; background:var(--bronze); border-radius:6px 6px 0 0 }
+tbody tr { height:var(--row) } tbody td { border-top:1px solid var(--line) }
+tbody td.day { border-left:1px solid #f1eee8 } tbody td.day.we { background:#F4F2EE } tbody td.day.today { background:rgba(145,119,100,.10) }
+tr.proj td { background:var(--bg3); height:36px; cursor:pointer } tr.proj .lcol { background:var(--bg3) }
+.phead { display:flex; align-items:center; gap:10px; padding:0 14px; font-weight:800; color:var(--navy); white-space:nowrap; overflow:hidden } .phead > span:nth-child(3) { overflow:hidden; text-overflow:ellipsis } .phead .enq { font:600 12px var(--mono); color:var(--bronze) } .phead .tri { font-size:10px; color:var(--fg3); transition:transform .15s } tr.proj.closed .tri { transform:rotate(-90deg) }
+.phead .count { margin-left:auto; font:700 11px var(--font); color:var(--fg3); background:var(--bg2); padding:1px 8px; border-radius:999px }
+.item { display:grid; grid-template-columns:112px 1fr 64px 60px; align-items:center; padding:0 14px; height:var(--row) }
+.item .code { font:600 12px var(--mono); color:var(--navy) } .item .nm { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis } .item .nm small { color:var(--fg3); font-weight:500 }
+.chip { font:700 11px var(--font); padding:2px 8px; border-radius:999px; background:var(--bg3); color:var(--fg2); justify-self:start; white-space:nowrap } .chip.crit { background:#FBE3E1; color:#9E2B25 } .chip.warn { background:#FCEBD9; color:#9A5410 } .chip.ok { background:#DDF3E8; color:#1E6B49 } .chip.done { background:#DCEBF9; color:#255A8E }
+.av { width:24px; height:24px; border-radius:50%; background:var(--navy); color:#fff; font:800 10px var(--font); display:grid; place-items:center; justify-self:end }
+.av.pm { background:var(--bronze) }
+.lane { position:relative; height:var(--row) }
+.bar { position:absolute; top:9px; height:22px; border-radius:6px; display:flex; align-items:center; padding:0 8px; font:700 11px var(--font); color:#fff; white-space:nowrap; overflow:hidden; cursor:grab; user-select:none; box-shadow:0 1px 1px rgba(16,44,82,.15) }
+.bar:active { cursor:grabbing } .bar .pct { position:absolute; inset:0; background:rgba(255,255,255,.22); pointer-events:none }
+.bar span { position:relative } .bar .h { position:absolute; right:0; top:0; width:8px; height:100%; cursor:ew-resize }
+.bar.NOT_STARTED { background:#fff; color:var(--fg2); border:1.5px dashed var(--line2); box-shadow:none }
+.bar.IN_PROGRESS { background:var(--navy) } .bar.DELAYED { background:var(--crit) } .bar.ON_HOLD { background:var(--warn) } .bar.COMPLETE { background:var(--ok) }
+.bar.site.IN_PROGRESS { background:#2F5A8F }
+.todayline { position:absolute; top:54px; bottom:0; width:2px; background:var(--bronze); z-index:3; pointer-events:none } .todayline::before { content:"Today"; position:absolute; top:-18px; left:-18px; font:700 9px var(--font); letter-spacing:.1em; text-transform:uppercase; color:var(--bronze) }
+.tip { position:fixed; z-index:20; background:var(--navy); color:#fff; padding:8px 10px; border-radius:8px; font-size:12px; pointer-events:none; display:none; max-width:260px; box-shadow:0 6px 20px rgba(16,44,82,.25) } .tip b { display:block; font-size:13px } .tip small { color:#B9C3D6 }
+.toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--navy); color:#fff; padding:10px 16px; border-radius:999px; font-weight:700; font-size:13px; opacity:0; transition:opacity .2s } .toast.on { opacity:1 }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><svg width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="12" fill="none" stroke="#917764" stroke-width="2"/><text x="13" y="17.5" text-anchor="middle" font-family="Manrope" font-weight="800" font-size="12" fill="#102C52">C5</text></svg>Concept <em>5</em><span class="sub">Projects 2026</span></div>
+  <nav class="tabs"><a class="tab">Estimation</a><a class="tab">Board</a><a class="tab">List</a><a class="tab">Drawings</a><a class="tab">Designers</a><a class="tab on">Schedule</a><a class="tab">Meetings</a><a class="tab">Team</a></nav>
+  <div class="tools">
+    <span class="seg"><button class="btn on" data-f="all">Everything</button><button class="btn" data-f="factory">Factory</button><button class="btn" data-f="site">Site</button></span>
+    <span class="seg"><button class="btn on" data-z="26">Days</button><button class="btn" data-z="12">Weeks</button></span>
+    <button class="btn" id="today">Today</button>
+  </div>
+</header>
+<section class="summary" id="summary"></section>
+<div class="sample">Direction A — <b>Ledger</b>. One row per item, its six stages laid along the row. Drag a bar to move it, drag its right edge to stretch it. 26-051 is the real test card; 26-011 and 26-032 are sample items so the page has something to show.</div>
+<div class="gantt"><div class="scroll" id="scroll"><table id="t"></table></div><div class="todayline" id="tl"></div></div>
+<div class="tip" id="tip"></div><div class="toast" id="toast"></div>
+<script>/*DATA*/</script>
+<script>
+const D = (s) => new Date(s + "T00:00:00Z"); const iso = (d) => d.toISOString().slice(0, 10); const days = (a, b) => Math.round((D(b) - D(a)) / 86400000);
+const fmt = (s) => D(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+let filter = "all"; const closed = new Set();
+const all = PROJECTS.flatMap((p) => p.items.flatMap((i) => i.stages.filter((s) => !s.na).map((s) => ({ ...s, p, i }))));
+const minD = iso(new Date(Math.min(...all.map((s) => D(s.ps))) - 5 * 86400000)), maxD = iso(new Date(Math.max(...all.map((s) => D(s.pe))) + 10 * 86400000));
+const N = days(minD, maxD) + 1; const dates = Array.from({ length: N }, (_, k) => iso(new Date(D(minD).getTime() + k * 86400000)));
+const dayW = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--day"));
+const itemTone = (i) => { const st = i.stages.map((s) => s.st); if (st.includes("DELAYED")) return ["crit", "Delayed"]; if (st.includes("ON_HOLD")) return ["warn", "On hold"]; if (st.every((s) => s === "COMPLETE" || s === undefined)) return ["done", "Complete"]; const cur = i.stages.find((s) => !s.na && s.st !== "COMPLETE"); return ["ok", cur ? STAGE_LABEL[cur.s] : "—"]; };
+function render() {
+  const t = document.getElementById("t"); const w = dayW();
+  let h = `<thead><tr><th class="lcol" rowspan="2"><div class="lhead"><span>Code</span><span>Item</span><span>Now</span><span></span></div></th>`;
+  let k = 0; while (k < N) { const d = D(dates[k]); const mEnd = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)); const span = Math.min(N - k, days(dates[k], iso(mEnd)) + 1); h += `<th class="m" colspan="${span}">${d.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" })}</th>`; k += span; }
+  h += `</tr><tr>`; for (const s of dates) { const d = D(s).getUTCDay(); h += `<th class="d${d === 5 || d === 6 ? " we" : ""}${s === TODAY ? " today" : ""}${d === 0 ? " wk" : ""}">${w >= 20 ? D(s).getUTCDate() : (d === 0 ? D(s).getUTCDate() : "")}</th>`; } h += `</tr></thead><tbody>`;
+  for (const p of PROJECTS) {
+    const items = p.items.filter((i) => filter === "all" || i.stages.some((s) => !s.na && ((filter === "factory") === (OWNER[s.s] === "GAJU"))));
+    h += `<tr class="proj${closed.has(p.enq) ? " closed" : ""}" data-p="${p.enq}"><td class="lcol"><div class="phead"><span class="tri">▼</span><span class="enq">${p.enq}</span>${p.name}<span class="count">${p.items.length} items · PM ${p.pm}</span></div></td><td class="lane" colspan="${N}"></td></tr>`;
+    if (closed.has(p.enq)) continue;
+    for (const i of items) {
+      const [tone, label] = itemTone(i);
+      h += `<tr><td class="lcol"><div class="item"><span class="code">${i.code}</span><span class="nm">${i.name}<small> · ${i.area}</small></span><span class="chip ${tone}">${label}</span><span class="av">${i.stages.some((s)=>!s.na&&s.st!=="COMPLETE"&&OWNER[s.s]==="GAJU")?"GJ":"PM"}</span></div></td>`;
+      h += `<td class="lane" colspan="${N}" data-item="${i.code}">`;
+      for (const s of i.stages) { if (s.na) continue; if (filter !== "all" && ((filter === "factory") !== (OWNER[s.s] === "GAJU"))) continue;
+        const x = days(minD, s.ps) * w, wd = (days(s.ps, s.pe) + 1) * w - 3;
+        h += `<div class="bar ${s.st}${OWNER[s.s] === "PM" ? " site" : ""}" style="left:${x}px;width:${wd}px" data-s="${s.s}" data-item="${i.code}" data-p="${p.enq}">${s.pct ? `<i class="pct" style="width:${s.pct}%"></i>` : ""}<span>${wd > 46 ? STAGE_LABEL[s.s] : ""}</span><i class="h"></i></div>`; }
+      h += `</td></tr>`;
+    }
+  }
+  t.innerHTML = h + "</tbody>";
+  document.getElementById("tl").style.left = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--left")) + days(minD, TODAY) * w + w / 2 - document.getElementById("scroll").scrollLeft) + "px";
+  summary();
+}
+function summary() {
+  const live = all.filter((s) => s.st !== "COMPLETE"); const late = live.filter((s) => s.pe < TODAY); const wk = live.filter((s) => s.ps <= iso(new Date(D(TODAY).getTime() + 6 * 86400000)) && s.pe >= TODAY);
+  document.getElementById("summary").innerHTML = `<div class="stat"><b>${PROJECTS.reduce((n, p) => n + p.items.length, 0)}</b><span>items in production or on site</span></div><div class="stat${late.length ? " crit" : ""}"><b>${late.length}</b><span>stages past their date</span></div><div class="stat"><b>${wk.filter((s) => OWNER[s.s] === "GAJU").length}</b><span>in the factory this week</span></div><div class="stat"><b>${wk.filter((s) => OWNER[s.s] === "PM").length}</b><span>on site this week</span></div>
+  <div class="legend"><span><i style="background:var(--navy)"></i>Factory, in progress</span><span><i style="background:#2F5A8F"></i>Site, in progress</span><span><i style="background:var(--crit)"></i>Delayed</span><span><i style="background:var(--warn)"></i>On hold</span><span><i style="background:var(--ok)"></i>Complete</span><span><i style="background:#fff;border:1.5px dashed var(--line2)"></i>Planned</span></div>`;
+}
+render();
+const scroll = document.getElementById("scroll");
+const goToday = () => scroll.scrollTo({ left: Math.max(0, days(minD, TODAY) * dayW() - 260), behavior: "smooth" }); goToday();
+scroll.addEventListener("scroll", () => { document.getElementById("tl").style.left = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--left")) + days(minD, TODAY) * dayW() + dayW() / 2 - scroll.scrollLeft) + "px"; });
+document.getElementById("today").onclick = goToday;
+document.querySelectorAll("[data-f]").forEach((b) => b.onclick = () => { filter = b.dataset.f; document.querySelectorAll("[data-f]").forEach((x) => x.classList.toggle("on", x === b)); render(); });
+document.querySelectorAll("[data-z]").forEach((b) => b.onclick = () => { document.documentElement.style.setProperty("--day", b.dataset.z + "px"); document.querySelectorAll("[data-z]").forEach((x) => x.classList.toggle("on", x === b)); render(); goToday(); });
+document.getElementById("t").addEventListener("click", (e) => { const r = e.target.closest("tr.proj"); if (r && !e.target.closest(".bar")) { const k = r.dataset.p; closed.has(k) ? closed.delete(k) : closed.add(k); render(); } });
+// tooltip
+const tip = document.getElementById("tip");
+document.addEventListener("mousemove", (e) => { const b = e.target.closest(".bar"); if (!b || drag) { tip.style.display = "none"; return; } const s = findStage(b); tip.style.display = "block"; tip.style.left = e.clientX + 14 + "px"; tip.style.top = e.clientY + 14 + "px";
+  tip.innerHTML = `<b>${STAGE_LABEL[s.s]} — ${s.i.name}</b>${fmt(s.ps)} → ${fmt(s.pe)} · ${days(s.ps, s.pe) + 1}d · ${OWNER[s.s] === "GAJU" ? "Gajanand" : "PM " + s.p.pm}<br><small>${s.st.replace("_", " ").toLowerCase()}${s.pct ? ` · ${s.pct}%` : ""}${s.as ? ` · started ${fmt(s.as)}` : ""}${s.ae ? ` · done ${fmt(s.ae)}` : ""}${s.note ? ` · ${s.note}` : ""}</small>`; });
+function findStage(b) { const p = PROJECTS.find((x) => x.enq === b.dataset.p); const i = p.items.find((x) => x.code === b.dataset.item); const s = i.stages.find((x) => x.s === b.dataset.s); return { ...s, p, i }; }
+// drag to move, drag right edge to stretch
+let drag = null;
+document.getElementById("t").addEventListener("mousedown", (e) => { const b = e.target.closest(".bar"); if (!b) return; e.preventDefault(); const s = findStage(b); drag = { b, s, x0: e.clientX, ps: s.ps, pe: s.pe, resize: e.target.classList.contains("h"), left: parseFloat(b.style.left), width: parseFloat(b.style.width) }; });
+document.addEventListener("mousemove", (e) => { if (!drag) return; const dd = Math.round((e.clientX - drag.x0) / dayW()); if (drag.resize) { drag.b.style.width = Math.max(dayW() - 3, drag.width + dd * dayW()) + "px"; } else { drag.b.style.left = drag.left + dd * dayW() + "px"; } drag.dd = dd; });
+document.addEventListener("mouseup", () => { if (!drag) return; const { s, dd = 0, resize } = drag; if (dd) { const st = PROJECTS.find((x) => x.enq === s.p.enq).items.find((x) => x.code === s.i.code).stages.find((x) => x.s === s.s); if (resize) st.pe = iso(new Date(D(st.pe).getTime() + Math.max(dd, days(st.ps, st.pe) * -1) * 86400000)); else { st.ps = iso(new Date(D(st.ps).getTime() + dd * 86400000)); st.pe = iso(new Date(D(st.pe).getTime() + dd * 86400000)); } toast(`${STAGE_LABEL[st.s]} on ${s.i.name} → ${fmt(st.ps)} – ${fmt(st.pe)} (would save and tell ${OWNER[st.s] === "GAJU" ? "Gajanand" : s.p.pm})`); } drag = null; render(); });
+function toast(m) { const t = document.getElementById("toast"); t.textContent = m; t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 2600); }
+</script>
+</body>
+</html>
