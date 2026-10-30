@@ -41,5 +41,18 @@ t('quote-stage change is not an award', isAward(ch({ field:'quote_stage', old_va
 // 6. Tagging someone reads properly in the digest
 t('watcher added wording', describe(ch({ kind:'watcher_added', field:'watcher', new_value:'GAJANAND' })), 'Gajanand is now kept updated on this project');
 
+// 7. Payment events (db/023): Installation -> the 45% list; Completed -> the final-invoice list (incl. Veronica)
+const pay = new Map([...people, ['jean', { id:'jean', name:'JEAN', full_name:'Jean', email:'jean@concept-5.com', is_active:true, notify_on_award:false, notify_progress_invoice:true, notify_final_invoice:true }],
+                                ['vero', { id:'vero', name:'VERONICA', full_name:'Veronica', email:'veronica@concept-5.com', is_active:true, notify_on_award:false, notify_progress_invoice:false, notify_final_invoice:true }]]);
+for (const n of ['tom','aftab','jinky','darren','basim']) { pay.get(n).notify_progress_invoice = true; pay.get(n).notify_final_invoice = true; }
+const installed = { ...live, status:'INSTALLATION', stage:14, project_value:1150000, vo_count:2, pm:'RICHARD' };
+const prog = [ch({ kind:'payment_progress', field:'stage', old_value:'Dispatch', new_value:'Installation', changed_by:'gaj' })];
+t('installation -> Jean + CC list + team, not Veronica', names(recipients(installed, prog, pay, new Set())), 'AFTAB, ANKITA, BASIM, DARREN, JEAN, JINKY, TOM');
+t('progress wording', describe(prog[0], installed), 'PAYMENT — reached Installation: progress invoice (45%) due to the client. Project value AED 1,150,000 incl. 2 VOs. PM Richard.');
+const done = { ...installed, status:'COMPLETED', stage:17 };
+const fin = [ch({ kind:'payment_final', field:'stage', old_value:'Snagging and client handover', new_value:'Completed', changed_by:'basim' })];
+t('completed -> Jean + Veronica + CC list, not Basim who moved it', names(recipients(done, fin, pay, new Set())), 'AFTAB, ANKITA, DARREN, JEAN, JINKY, TOM, VERONICA');
+t('an ordinary edit does not reach Jean or Veronica', recipients(installed, edit, pay, new Set()).some(r => r.name === 'JEAN' || r.name === 'VERONICA'), false);
+
 console.log(fail ? `\n${fail} FAILED` : '\nall passed');
 process.exit(fail ? 1 : 0);

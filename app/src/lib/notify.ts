@@ -10,8 +10,8 @@ const QUIET_MS = 3 * 60 * 1000;        // skip a project edited in the last 3 mi
 const MAX_AGE_MS = 7 * 24 * 3600 * 1000; // never email about something older than a week (e.g. a backlog after an outage)
 
 type Change = { id: number; project_id: string | null; meeting_id: string | null; kind: string; field: string | null; old_value: string | null; new_value: string | null; changed_by: string | null; changed_at: string };
-type Proj = { id: string; enquiry_no: string | null; name: string; client: string | null; status: Status; pm_id: string | null; pm2_id: string | null; designer_id: string | null; estimator_id: string | null; signed_quote: number | null; ball_holder_id?: string | null; stage?: number | null };
-type Person = { id: string; name: string; full_name: string | null; email: string | null; is_active: boolean; notify_on_award: boolean };
+type Proj = { id: string; enquiry_no: string | null; name: string; client: string | null; status: Status; pm_id: string | null; pm2_id: string | null; designer_id: string | null; estimator_id: string | null; signed_quote: number | null; ball_holder_id?: string | null; stage?: number | null; project_value?: number | null; vo_count?: number | null; pm?: string | null; target_date?: string | null };
+type Person = { id: string; name: string; full_name: string | null; email: string | null; is_active: boolean; notify_on_award: boolean; notify_progress_invoice?: boolean; notify_final_invoice?: boolean };
 type Meet = { id: string; title: string; project_id: string | null; project_name: string | null; location: "ROOM" | "SITE" | "ONLINE"; meeting_date: string; start_time: string; end_time: string; notes: string | null; cancelled: boolean; created_by: string | null; attendee_ids: string[]; attendees: string[] };
 const LOC: Record<string, string> = { ROOM: "Meeting room", SITE: "On site", ONLINE: "Online" };
 const hm = (t: string) => t.slice(0, 5);
@@ -77,6 +77,9 @@ export function describe(c: Change, p?: Proj): string {
     case "checkpoint": return `Checkpoint recorded — now at ${c.field}, same owner${c.new_value ? ` — ${c.new_value}` : ""}`;
     case "handover_cancelled": return `Handover request withdrawn (${c.field})`;
     case "handover_override": return `Moved to ${c.field} without acceptance — ${c.new_value ?? ""}`;
+    // payment events (db/023) — Jean raises the invoice; Veronica closes out suppliers on completion
+    case "payment_progress": return `PAYMENT — reached Installation: progress invoice (45%) due to the client. Project value ${fmtAed(String(p?.project_value ?? p?.signed_quote ?? ""))}${p?.vo_count ? ` incl. ${p.vo_count} VO${p.vo_count === 1 ? "" : "s"}` : ""}. PM ${tc(p?.pm ?? "not named")}.`;
+    case "payment_final": return `PAYMENT — project COMPLETED: raise the final invoice to the client and close out supplier, contractor and client balances. Project value ${fmtAed(String(p?.project_value ?? p?.signed_quote ?? ""))}${p?.vo_count ? ` incl. ${p.vo_count} VO${p.vo_count === 1 ? "" : "s"}` : ""}. PM ${tc(p?.pm ?? "not named")}.`;
     case "reopened": return `Back on the board — ${c.new_value ?? "reopened for a VO"} Now at ${c.field} with ${tc(c.old_value ?? "Jean")}.`;
     case "hold": return `On hold${c.field ? ` — waiting on ${tc(c.field)}` : ""}: ${c.new_value ?? ""}`;
     case "hold_released": return `Hold released${c.new_value ? ` — ${c.new_value}` : ""}`;
@@ -142,6 +145,9 @@ export function recipients(p: Proj, changes: Change[], people: Map<string, Perso
   // a completed card reopened for a VO (db/022) is an award for the people who hear about signings
   const wonOrNew = changes.some((c) => (c.kind === "created" && p.status !== "QUOTE") || isAward(c) || c.kind === "reopened");
   if (wonOrNew) for (const person of people.values()) if (person.notify_on_award) ids.add(person.id);
+  // payment events (db/023): the people flagged on the Team page under "Also emailed about"
+  if (changes.some((c) => c.kind === "payment_progress")) for (const person of people.values()) if (person.notify_progress_invoice) ids.add(person.id);
+  if (changes.some((c) => c.kind === "payment_final")) for (const person of people.values()) if (person.notify_final_invoice) ids.add(person.id);
   const actors = new Set(changes.map((c) => c.changed_by).filter(Boolean));
   // if every change in this batch came from one person, don't tell them about their own edits
   const soleActor = actors.size === 1 ? [...actors][0] : null;
@@ -162,7 +168,7 @@ function renderEmail(to: Person, groups: Group[], people: Map<string, Person>): 
       ${p ? `<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a7a5c">${esc(p.enquiry_no ?? "")}${p.client ? ` · ${esc(p.client)}` : ""}</div>
       <div style="font-size:17px;font-weight:600;color:#14213d;margin:2px 0 10px"><a href="${APP_URL}/projects/${p.id}" style="color:#14213d;text-decoration:none">${esc(p.name)}</a></div>` : meetingCard(m!)}
       <ul style="margin:0;padding:0 0 0 18px;color:#2b2b2b;font-size:14px;line-height:1.55">
-        ${changes.filter((c) => describe(c, p)).map((c) => `<li>${esc(describe(c, p))} <span style="color:#8a8a8a;font-size:12px">— ${esc(who(c.changed_by))}, ${fmtTime(c.changed_at)}</span></li>`).join("")}
+        ${changes.filter((c) => describe(c, p)).map((c) => `<li>${c.kind.startsWith("payment_") ? `<b style="color:#917764">${esc(describe(c, p))}</b>` : esc(describe(c, p))} <span style="color:#8a8a8a;font-size:12px">— ${esc(who(c.changed_by))}, ${fmtTime(c.changed_at)}</span></li>`).join("")}
       </ul>
       <div style="margin-top:10px"><a href="${p ? `${APP_URL}/projects/${p.id}` : `${APP_URL}/meetings?w=${m!.meeting_date}`}" style="font-size:13px;color:#8a7a5c">${p ? "Open project" : "Open the diary"} →</a></div>
     </div>`).join("");
@@ -214,9 +220,9 @@ export async function runNotifications(opts: { dryRun?: boolean } = {}) {
   const pIds = ready.filter(([k]) => k.startsWith("p:")).map(([k]) => k.slice(2));
   const mIds = ready.filter(([k]) => k.startsWith("m:")).map(([k]) => k.slice(2));
   const [{ data: projs }, { data: meets }, { data: ppl }] = await Promise.all([
-    pIds.length ? db.from("projects").select("id, enquiry_no, name, client, status, pm_id, pm2_id, designer_id, estimator_id, signed_quote, ball_holder_id, stage").in("id", pIds) : { data: [] },
+    pIds.length ? db.from("projects_live").select("id, enquiry_no, name, client, status, pm_id, pm2_id, designer_id, estimator_id, signed_quote, ball_holder_id, stage, project_value, vo_count, pm, target_date").in("id", pIds) : { data: [] },
     mIds.length ? db.from("meetings_live").select("id, title, project_id, project_name, location, meeting_date, start_time, end_time, notes, cancelled, created_by, attendee_ids, attendees").in("id", mIds) : { data: [] },
-    db.from("people").select("id, name, full_name, email, is_active, notify_on_award"),
+    db.from("people").select("id, name, full_name, email, is_active, notify_on_award, notify_progress_invoice, notify_final_invoice"),
   ]);
   const people = new Map(((ppl ?? []) as Person[]).map((p) => [p.id, p]));
   const { data: ws } = pIds.length
@@ -260,7 +266,7 @@ export async function runMeetingsToday(opts: { dryRun?: boolean; date?: string }
   const date = opts.date ?? todayDubai();
   const [{ data: meets, error }, { data: ppl }] = await Promise.all([
     db.from("meetings_live").select("id, title, project_id, project_name, location, meeting_date, start_time, end_time, notes, cancelled, created_by, attendee_ids, attendees").eq("meeting_date", date).eq("cancelled", false).order("start_time"),
-    db.from("people").select("id, name, full_name, email, is_active, notify_on_award"),
+    db.from("people").select("id, name, full_name, email, is_active, notify_on_award, notify_progress_invoice, notify_final_invoice"),
   ]);
   if (error) throw new Error(error.message);
   const all = (meets ?? []) as Meet[];
