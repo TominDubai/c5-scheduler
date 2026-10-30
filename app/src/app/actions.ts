@@ -393,16 +393,6 @@ export async function saveStage(projectId: string, stageId: string, _prev: unkno
   return { ok: true, at: new Date().toISOString() };
 }
 
-/** Schedule drag-to-move: shift or stretch a production stage's planned dates. */
-export async function moveProductionStage(projectId: string, stageId: string, plannedStart: string, plannedEnd: string): Promise<R> {
-  const supabase = await createClient();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(plannedStart) || !/^\d{4}-\d{2}-\d{2}$/.test(plannedEnd) || plannedEnd < plannedStart) return { error: "Bad dates." };
-  const { error } = await supabase.from("item_production_stages").update({ planned_start: plannedStart, planned_end: plannedEnd }).eq("id", stageId);
-  if (error) return { error: error.message };
-  bustItems(projectId); revalidatePath("/schedule");
-  return { ok: true };
-}
-
 /** Quick status change from the stage strip / schedule lists */
 export async function setStageStatus(projectId: string, stageId: string, status: StageStatus): Promise<R> {
   const supabase = await createClient();
