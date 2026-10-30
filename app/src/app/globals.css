@@ -613,3 +613,14 @@ tr.changed td { background: #FBF6EC; }
   main.fill .cards { overflow-y: visible; padding-right: 0; }
   main.fill .tablewrap { flex: none; }
 }
+
+/* project form: pricing block collapses to history once a card is past Quotation */
+.qhist { border-top: 1px solid var(--line); padding-top: 6px; }
+.qhist summary { display: flex; align-items: baseline; gap: 12px; cursor: pointer; list-style: none; flex-wrap: wrap; }
+.qhist summary::-webkit-details-marker { display: none; }
+.qhist summary::before { content: "▸"; color: var(--bronze); font-size: 12px; }
+.qhist[open] summary::before { content: "▾"; }
+.qhist summary small { color: var(--fg3); font-size: 12px; font-weight: 600; }
+.qhist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin-top: 14px; opacity: .85; }
+.field.money input { border-color: var(--bronze); font-weight: 700; }
+@media (max-width: 760px) { .qhist-grid { grid-template-columns: 1fr; } }
