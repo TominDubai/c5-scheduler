@@ -56,7 +56,8 @@ export default function EstimationBoard({ projects, canEdit, canQualify, qualify
 
   const boardRef = useWheelSideways<HTMLDivElement>();
   return (
-    <>
+    <div className="boardwrap">
+      {/* Stacked, not side by side: an error line as a flex sibling of the board pushed its horizontal scrollbar off screen (Tom, 30 Oct) */}
       {err && <div className="msg err" style={{ padding: "0 24px" }}>Couldn’t save that change: {err}</div>}
       <div className="board" aria-busy={pending} ref={boardRef}>
         <QualifyingColumn projects={qualifying} canQualify={canQualify} canAdd={canQualify || canEdit} onDecide={(p, ok) => {
@@ -113,7 +114,7 @@ export default function EstimationBoard({ projects, canEdit, canQualify, qualify
           );
         })}
       </div>
-    </>
+    </div>
   );
 }
 
