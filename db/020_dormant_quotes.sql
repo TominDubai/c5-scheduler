@@ -2,8 +2,8 @@
 -- A submitted quote is ACTIVE by default — we are chasing it and expect a decision. Ramus / Jinky mark it DORMANT when
 -- it is too small to chase or the client has gone quiet. Dormant quotes stay winnable; they just drop out of the
 -- "awaiting decision" count so the active number is the one that means something.
--- Part 1 (this file) via the migration tool. Part 2: re-run db/016c_projects_live.sql via execute_sql so the view
--- picks up the two new columns (p.* is expanded when the view is created).
+-- Applied live 30 Oct 2026 via the migration tool (without the drop-trigger lines). projects_live was NOT rebuilt: data.ts
+-- stitches the two columns on from the projects table (same as parent_project_id), so no view change is needed.
 set search_path = scheduler, public;
 
 alter table projects
