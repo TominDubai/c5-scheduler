@@ -382,8 +382,9 @@ export async function runDailyReminders(opts: { dryRun?: boolean; date?: string 
     if (W3.on && p.next_action && p.next_action_due && days(p.next_action_due) > W3.n) {
       add(p.next_action_owner_id ?? p.ball_holder_id, { p, kind: "action", text: `Next action overdue — ${p.next_action} (due ${fmtDate(p.next_action_due)})` });
     }
-    // W4: stage sat longer than its target (only once stage_targets has numbers)
-    if (W4.on && p.stage_overdue && p.stage_target_days != null && (p.stage_age_days ?? 0) - p.stage_target_days > W4.n) {
+    // W4: stage sat longer than its target (only once stage_targets has numbers). Awarded work only — a quotation
+    // sitting past its target is what the dormant flag is for, not a daily list of 60 enquiries to Ramus (Tom, 30 Oct).
+    if (W4.on && (p.stage ?? 0) >= 3 && p.stage_overdue && p.stage_target_days != null && (p.stage_age_days ?? 0) - p.stage_target_days > W4.n) {
       add(p.ball_holder_id, { p, kind: "stage", text: `In ${p.stage_name ?? "this stage"} for ${p.stage_age_days} days — target is ${p.stage_target_days}` });
     }
   }
