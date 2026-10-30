@@ -32,7 +32,8 @@ export type Project = TargetInfo & {
   parent_project_id: string | null; parent_name: string | null; parent_enquiry_no: string | null;
   /** submitted quotes only: true = parked (too small / client gone quiet), still winnable but out of the active count */
   quote_dormant: boolean; quote_dormant_since: string | null;
-  reopened_vo_no: number | null;            // db/022 — set while a completed card is back on the board for a VO
+  reopened_vo_no: number | null;
+  charged_to: string | null;                // VO enquiry: who pays (free text, db/024)            // db/022 — set while a completed card is back on the board for a VO
   // soft delete (filled in by getProjects from the projects table): removed projects stay in the database but leave every screen
   deleted_at: string | null; deleted_reason: string | null; deleted_by: string | null;
   project_value: number; vo_count: number; days_to_completion: number | null; duration_days: number | null; days_delayed: number | null; status_since: string | null;
@@ -103,7 +104,7 @@ export function itemRights(me: Me) {
   };
 }
 export type Contractor = { id: string; name: string };
-export type Variation = { id: string; project_id: string; vo_no: number; description: string | null; value: number; approved_on: string | null; source_enquiry_id?: string | null };
+export type Variation = { id: string; project_id: string; vo_no: number; description: string | null; value: number; approved_on: string | null; source_enquiry_id?: string | null; charged_to?: string | null };
 // stitched on by the app from target_revisions (projects_live is not rebuilt)
 export type TargetInfo = { target_rev?: number | null; target_rev0_date?: string | null; items?: ItemCounts | null };
 /** Anyone tagged to be kept updated on a project, on top of the PM, second PM and designer (db/015). */

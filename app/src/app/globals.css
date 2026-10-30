@@ -285,7 +285,13 @@ dt { color: var(--fg3); font-size: 12px; font-weight: 700; padding-top: 2px; } d
 }
 
 /* VO enquiries */
-.vofor { margin: 4px 0 2px; font: 600 12px var(--font); color: var(--bronze); } .vofor b { color: var(--navy); }
+.vofor { margin: 4px 0 2px; font: 600 12px var(--font); color: var(--bronze); } .vofor b { color: var(--navy); } .vofor .charged { color: var(--fg3); font-weight: 500; }
+.votag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 4px; background: var(--bronze); color: #fff; font: 700 10px var(--font); letter-spacing: .04em; vertical-align: 1px; }
+.vo .charged { color: var(--fg3); }
+.enqkind { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; } .enqkind h2 { margin: 0; } .enqkind .hint { color: var(--fg3); font-size: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line2); border-radius: 999px; overflow: hidden; background: var(--bg); }
+.seg button { font: 600 13px var(--font); padding: 6px 14px; border: 0; background: none; color: var(--fg2); cursor: pointer; }
+.seg button.on { background: var(--navy); color: #fff; }
 .vobanner { padding: 10px 14px; border-radius: 8px; background: #FBF4EC; border: 1px solid #E8D9C8; font-size: 13px; color: var(--fg2); } .vobanner a { color: var(--bronze); font-weight: 700; } .vobanner b { color: var(--navy); }
 .vobanner.done { background: #DDF3E8; border-color: #BFE3D0; color: #1E6B49; }
 select.vo-on { border-color: var(--bronze); background: #FBF4EC; font-weight: 700; }

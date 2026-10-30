@@ -16,7 +16,7 @@ export default function Variations({ projectId, signedQuote, vos, canEdit }: { p
         <div className="vo"><b>Quote</b><span>Signed quote</span><span className="amt">{aed(signedQuote)}</span><span /></div>
         {vos.map((v) => (
           <div className="vo" key={v.id}>
-            <b>VO{v.vo_no}</b><span>{v.description || <i style={{ color: "var(--fg3)" }}>no description</i>}</span>
+            <b>VO{v.vo_no}</b><span>{v.description || <i style={{ color: "var(--fg3)" }}>no description</i>}{v.charged_to ? <small className="charged"> · charged to {v.charged_to}</small> : null}</span>
             <span className="amt">{aed(v.value)}</span>
             {canEdit ? <button className="x" aria-label={`Remove VO${v.vo_no}`} onClick={() => start(async () => { await deleteVariation(projectId, v.id); router.refresh(); })}>×</button> : <span />}
           </div>

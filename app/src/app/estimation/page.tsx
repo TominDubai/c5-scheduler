@@ -21,7 +21,11 @@ async function Inner_EstimationPage() {
   const submitted = quotes.filter((p) => p.quote_stage === "SUBMITTED");
   const active = submitted.filter((p) => !p.quote_dormant);
   const dormant = submitted.filter((p) => p.quote_dormant);
-  const activeValue = active.reduce((t, p) => t + (p.quoted_value ?? 0), 0);
+  // Jinky, 30 Oct: count project quotes and VOs separately so "58 submitted" says how many jobs we're really chasing
+  const activeProjects = active.filter((p) => !p.parent_project_id);
+  const activeVos = active.filter((p) => !!p.parent_project_id);
+  const activeValue = activeProjects.reduce((t, p) => t + (p.quoted_value ?? 0), 0);
+  const voValue = activeVos.reduce((t, p) => t + (p.quoted_value ?? 0), 0);
   const oldest = open.reduce((m, p) => Math.max(m, p.days_since_enquiry ?? 0), 0);
   const wonThisYear = all.filter((p) => p.status !== "QUOTE" && p.status !== "LOST" && (p.received_date ?? "") >= `${new Date().getFullYear()}-01-01`).length;
   return (
@@ -30,7 +34,8 @@ async function Inner_EstimationPage() {
         <div className="stats">
           {qualifying.length > 0 && <div className="stat bronze"><b>{qualifying.length}</b><span>qualifying</span></div>}
           <div className="stat"><b>{open.length}</b><span>being priced</span></div>
-          <div className="stat"><b>{active.length}</b><span>active, awaiting decision{activeValue > 0 ? ` · ${aedS(activeValue)}` : ""}</span></div>
+          <div className="stat"><b>{activeProjects.length}</b><span>project quotes awaiting decision{activeValue > 0 ? ` · ${aedS(activeValue)}` : ""}</span></div>
+          <div className="stat"><b>{activeVos.length}</b><span>VOs awaiting decision{voValue > 0 ? ` · ${aedS(voValue)}` : ""}</span></div>
           {dormant.length > 0 && <div className="stat"><b>{dormant.length}</b><span>dormant</span></div>}
           <div className={`stat${oldest > 21 ? " crit" : ""}`}><b>{oldest}d</b><span>oldest open enquiry</span></div>
           <div className="stat"><b>{wonThisYear}</b><span>won this year</span></div>

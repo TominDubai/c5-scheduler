@@ -31,6 +31,9 @@ export default function ProjectForm({ project, people, contractors, estimationOn
         <div className="field"><label htmlFor="parent_project_id">This is a VO for</label>
           <select id="parent_project_id" name="parent_project_id" defaultValue={v("parent_project_id")}><option value="">— not a VO —</option><ParentOptions projects={liveProjects.filter((p) => p.id !== project?.id)} /></select></div>
       )}
+      {project?.status === "QUOTE" && project?.parent_project_id && (
+        <div className="field"><label htmlFor="charged_to">This VO is charged to</label><input id="charged_to" name="charged_to" defaultValue={v("charged_to")} placeholder="CLIENT / MACS / GTS …" /></div>
+      )}
       <div className="field"><label>Scope</label><div className="checks">{SCOPES.map((s) => <label key={s}><input type="checkbox" name="scope" value={s} defaultChecked={(project?.scope ?? "").split(", ").includes(s)} /> {s}</label>)}</div></div>
       <div className="field"><label htmlFor="waiting_on">Waiting on</label>
         <select id="waiting_on" name="waiting_on" defaultValue={v("waiting_on")}><option value="">—</option>{WAITING_ON.map((w) => <option key={w} value={w}>{w}</option>)}</select></div>

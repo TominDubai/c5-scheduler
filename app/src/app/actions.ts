@@ -53,6 +53,7 @@ function projectFields(fd: FormData) {
   if (has("waiting_on")) out.waiting_on = nz(fd.get("waiting_on"));
   if (has("raised_by")) out.raised_by = nz(fd.get("raised_by"))?.toUpperCase() ?? null;
   if (has("parent_project_id")) out.parent_project_id = nz(fd.get("parent_project_id"));
+  if (has("charged_to")) out.charged_to = nz(fd.get("charged_to"))?.toUpperCase() ?? null;
   return out as { name?: string } & Record<string, unknown>;
 }
 
@@ -113,18 +114,30 @@ export async function markLost(id: string) {
 
 export async function createEnquiry(_prev: unknown, fd: FormData) {
   const supabase = await createClient();
-  const name = (nz(fd.get("name")) ?? "").toUpperCase();
+  const isVo = fd.get("kind") === "VO";
+  const parent_project_id = nz(fd.get("parent_project_id"));
+  let name = (nz(fd.get("name")) ?? "").toUpperCase();
+  let client = nz(fd.get("client"))?.toUpperCase() ?? null;
+  let contractor_id = nz(fd.get("contractor_id"));
+  if (isVo) {
+    // a variation order inherits name, client and contractor from the project it belongs to
+    if (!parent_project_id) return { error: "Pick which project this VO is for." };
+    const { data: par } = await supabase.from("projects").select("name, client, contractor_id").eq("id", parent_project_id).single();
+    if (!par) return { error: "That project could not be found." };
+    name = par.name; client = par.client; contractor_id = par.contractor_id;
+  }
   if (!name) return { error: "Project name (location / address) is required." };
   let enquiry_no = nz(fd.get("enquiry_no"));
   if (!enquiry_no) { const { data } = await supabase.rpc("next_enquiry_no"); enquiry_no = data as string; }
   const { data, error } = await supabase.from("projects").insert({
-    enquiry_no, name, client: nz(fd.get("client"))?.toUpperCase() ?? null,
-    contractor_id: nz(fd.get("contractor_id")), estimator_id: nz(fd.get("estimator_id")),
+    enquiry_no, name, client,
+    contractor_id, estimator_id: nz(fd.get("estimator_id")),
+    charged_to: isVo ? nz(fd.get("charged_to"))?.toUpperCase() ?? null : null,
     received_date: nz(fd.get("received_date")) ?? new Date().toISOString().slice(0, 10),
     quote_due_date: nz(fd.get("quote_due_date")), folder_path: nz(fd.get("folder_path")), notes: nz(fd.get("notes")),
     quote_type: nz(fd.get("quote_type"))?.toUpperCase() ?? null, scope: fd.getAll("scope").map(String).filter(Boolean).join(", ") || null,
     raised_by: nz(fd.get("raised_by"))?.toUpperCase() ?? null,
-    parent_project_id: nz(fd.get("parent_project_id")),
+    parent_project_id,
     status: "QUOTE", quote_stage: "QUEUED",
   }).select("id, enquiry_no").single();
   if (error) return { error: error.message };

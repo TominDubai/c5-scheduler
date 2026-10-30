@@ -81,10 +81,10 @@ export default function EstimationBoard({ projects, canEdit, canQualify, qualify
                     <article key={p.id} className={`card ${t}${dragId === p.id ? " dragging" : ""}`} draggable={canEdit}
                       onDragStart={() => setDragId(p.id)} onDragEnd={() => { setDragId(null); setOver(null); }}
                       tabIndex={0} role="link" onClick={() => router.push(`/projects/${p.id}`)} onKeyDown={(e) => e.key === "Enter" && router.push(`/projects/${p.id}`)}>
-                      <div className="card-top"><span className="enq">{p.enquiry_no ?? "—"}</span>
+                      <div className="card-top"><span className="enq">{p.enquiry_no ?? "—"}{p.parent_project_id && <span className="votag">VO</span>}</span>
                         <span className={`pill ${t}`}>{col.dormant ? `Dormant${p.quote_dormant_since ? ` since ${fmtDShort(p.quote_dormant_since)}` : ""}` : k === "SUBMITTED" ? `Sent ${fmtDShort(p.quote_submitted_date)}` : `${age}d in`}</span></div>
                       <h3>{title(p.name)}{p.quote_type && <span className="qtype">{p.quote_type}</span>}</h3>
-                      {p.parent_name && <div className="vofor">VO for <b>{title(p.parent_name)}</b>{p.parent_enquiry_no ? ` (${p.parent_enquiry_no})` : ""}</div>}
+                      {p.parent_name && <div className="vofor">VO for <b>{title(p.parent_name)}</b>{p.parent_enquiry_no ? ` (${p.parent_enquiry_no})` : ""}{p.charged_to ? <span className="charged"> · charged to {title(p.charged_to)}</span> : null}</div>}
                       <div className="client">{title(p.client)}{p.contractor ? ` · ${p.contractor}` : ""}</div>
                       <div className="card-foot">
                         <span className="who"><b className="av">{ini(p.estimator)}</b>{p.estimator ? title(p.estimator) : "No estimator"}</span>
