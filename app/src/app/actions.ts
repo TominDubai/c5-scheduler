@@ -235,6 +235,16 @@ export async function savePerson(id: string, _prev: unknown, fd: FormData) {
   return { ok: true, at: new Date().toISOString() };
 }
 
+/** Remove a person outright (db/025). The database refuses when they are on any record — then the answer
+ *  is to untick Active ("Left"), which keeps the history pointing at a real name. */
+export async function removePerson(id: string): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("remove_person", { target: id });
+  if (error) return { error: error.message };
+  revalidatePath("/team");
+  return { ok: true };
+}
+
 export async function addPerson(_prev: unknown, fd: FormData) {
   const supabase = await createClient();
   const name = (nz(fd.get("name")) ?? "").toUpperCase();

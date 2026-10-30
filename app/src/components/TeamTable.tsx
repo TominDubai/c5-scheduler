@@ -1,7 +1,8 @@
 "use client";
-import { Fragment, useActionState, useState } from "react";
+import { Fragment, useActionState, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { title, type Person } from "@/lib/model";
-import { savePerson, addPerson } from "@/app/actions";
+import { savePerson, addPerson, removePerson } from "@/app/actions";
 
 const ROLE_LABEL: Record<string, string> = { MANAGEMENT: "Management", SALES: "Sales", PM: "Project manager", PROJECT_COORDINATOR: "Project coordinator", DESIGNER: "Designer", TECHNICAL_DESIGNER: "Technical designer", ESTIMATOR: "Estimator", PROCUREMENT: "Procurement", PRODUCTION: "Production", STORE: "Store / dispatch", ACCOUNTS: "Accounts", ADMIN: "Office / admin" };
 const ROLE_ORDER = Object.keys(ROLE_LABEL);
@@ -10,6 +11,10 @@ type State = { error?: string; ok?: boolean; at?: string } | null;
 function Row({ p, canEdit }: { p: Person; canEdit: boolean }) {
   const [state, action, pending] = useActionState(savePerson.bind(null, p.id), null as State);
   const [dirty, setDirty] = useState(false);
+  const [sure, setSure] = useState(false);
+  const [removeErr, setRemoveErr] = useState<string | null>(null);
+  const [removing, startRemove] = useTransition();
+  const router = useRouter();
   const flags = [p.can_edit_projects && "projects", p.can_edit_estimation && "estimation", p.can_manage_team && "team"].filter(Boolean).join(" + ");
   if (!canEdit) return (
     <tr className={p.is_active ? "" : "off"}>
@@ -32,6 +37,11 @@ function Row({ p, canEdit }: { p: Person; canEdit: boolean }) {
           {state?.error && <span className="msg err">{state.error}</span>}
           {state?.ok && !dirty && <span className="msg">Saved</span>}
         </form>
+        {/* two clicks, no browser dialog: Remove → "Remove {name}?" */}
+        {sure
+          ? <span className="remove"><span>Remove {title(p.name)}?</span><button type="button" className="btn sm danger" disabled={removing} onClick={() => startRemove(async () => { const r = await removePerson(p.id); if (r?.error) { setRemoveErr(r.error); setSure(false); } else router.refresh(); })}>{removing ? "Removing…" : "Yes, remove"}</button><button type="button" className="linkbtn" onClick={() => setSure(false)}>Keep</button></span>
+          : <button type="button" className="linkbtn remove" onClick={() => { setRemoveErr(null); setSure(true); }} title="Delete this person. Only possible when nothing in the app refers to them — otherwise untick Active.">Remove</button>}
+        {removeErr && <span className="msg err">{removeErr}</span>}
       </td>
     </tr>
   );
