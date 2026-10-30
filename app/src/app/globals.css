@@ -378,7 +378,7 @@ td.draw b { font-family: var(--mono); font-weight: 600; } td.flags { white-space
 .stage-save { display: flex; align-items: center; gap: 6px; justify-self: end; }
 .stage-late { grid-column: 1 / -1; color: var(--crit); font-size: 12px; font-weight: 600; }
 /* board card */
-.card-items { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; } .card-items small { font-size: 11px; color: var(--fg3); font-weight: 600; } .card-items .crit { color: var(--crit); }
+.card-items { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; } .card-items small { font-size: 11px; color: var(--fg3); font-weight: 600; } .card-items .crit { color: var(--crit); } .card-items .bronze { color: var(--bronze); }
 /* drawings tab */
 .drawings table { min-width: 1080px; }
 .drawings tr.group td { padding: 14px 14px 6px; font: 800 13px var(--font); color: var(--navy); border-bottom: 0; background: var(--bg); } .drawings tr.group .enq { margin-right: 6px; } .drawings tr.group .status { margin-left: 8px; } .drawings tr.group small { color: var(--fg3); font-weight: 600; }

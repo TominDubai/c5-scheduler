@@ -378,7 +378,13 @@ function RequestDrawer({ project: p, stages, owners, people, me, checklistMissin
   const defaultOwner = target?.owner_rule === "ALLOCATED_PM" ? p.pm_id : target?.owner_rule === "NONE" ? null : owners.find((o) => o.stage_no === toStage)?.person_id ?? null;
   const [owner, setOwner] = useState<string>(defaultOwner ?? "");
   const [state, action, pending] = useActionState(async (prev: unknown, fd: FormData) => { const r = await requestHandover(p.id, prev, fd); if (r.ok) { onClose(); router.refresh(); } return r; }, null as S);
-  const strict = checklistMissing.length > 0 && !me.isAdmin;
+  // Batches (Tom, 30 Oct): the project may move past Production drawings once the first batch is issued;
+  // items still in drawings stay visible on the Items panel. With items but none issued, non-admins wait.
+  const ic = p.items ?? null;
+  const notIssued = ic ? Math.max(ic.items_total - ic.items_in_production - ic.items_on_site, 0) : 0;
+  const leavingDrawings = (p.stage ?? 0) <= 9 && toStage >= 10 && toStage <= 16;
+  const noneIssued = leavingDrawings && !!ic && ic.items_total > 0 && notIssued === ic.items_total;
+  const strict = (checklistMissing.length > 0 || noneIssued) && !me.isAdmin;
   const retains = owner !== "" && owner === p.ball_holder_id;   // same person carries on: a checkpoint, no acceptance needed
   const who = people.find((x) => x.id === owner);
   return (
@@ -407,11 +413,19 @@ function RequestDrawer({ project: p, stages, owners, people, me, checklistMissin
           )}
           <div className="field"><label htmlFor="note">Note to {who ? (who.full_name ?? title(who.name)).split(" ")[0] : "the next owner"}</label><textarea id="note" name="note" rows={3} placeholder="What they're receiving, where the files are, anything open" /></div>
         </div>
+        {leavingDrawings && ic && ic.items_total > 0 && notIssued > 0 && (
+          <div className={`dsec ${noneIssued ? "warn" : ""}`}>
+            <h3>{noneIssued ? "Nothing issued to production yet" : `${notIssued} of ${ic.items_total} items still in drawings`}</h3>
+            <small className="note">{noneIssued
+              ? "Issue the first batch on the Items panel before handing over — the project moves on with the first batch, not before it."
+              : "That's fine for a first batch: the project moves on and the open items stay on the Items panel and the Drawings tab until they're issued."}</small>
+          </div>
+        )}
         {checklistMissing.length > 0 && (
           <div className={`dsec ${strict ? "warn" : ""}`}>
             <h3>Checklist not complete</h3>
             <ul className="missing">{checklistMissing.map((m) => <li key={m}>{m}</li>)}</ul>
-            <small className="note">{strict ? "Tick the stage checklist (and attach the evidence) before requesting the handover — Rev 3 step 1." : "You’re an admin, so this can go anyway; the gaps stay visible on the card."}</small>
+            <small className="note">{checklistMissing.length > 0 && !me.isAdmin ? "Tick the stage checklist (and attach the evidence) before requesting the handover — Rev 3 step 1." : "You’re an admin, so this can go anyway; the gaps stay visible on the card."}</small>
           </div>
         )}
         <div className="actions">

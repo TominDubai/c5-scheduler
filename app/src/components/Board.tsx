@@ -191,7 +191,7 @@ function Card({ p, canDrag, dragging, mine, onDragStart, onDragEnd }: { p: Proje
         <span className="who sm" title="Lead project manager">PM&nbsp;<b>{p.pm ? title(p.pm) : "—"}</b>{p.pm2 ? <small> + {title(p.pm2)}</small> : null}</span>
         <span className="val">{p.project_value ? aedS(p.project_value) : "—"}</span>
       </div>
-      {p.items && p.items.items_total > 0 && <ItemsStrip c={p.items} />}
+      {p.items && p.items.items_total > 0 && <ItemsStrip c={p.items} stage={p.stage} />}
       <div className="dates"><span>Start {fmtDShort(p.start_date)}</span><span>Target {fmtDShort(p.target_date)}{p.target_rev ? <span className="rev" title={`Target revised ${p.target_rev} time${p.target_rev === 1 ? "" : "s"}`}>R{p.target_rev}</span> : null}</span></div>
     </article>
   );
@@ -213,13 +213,16 @@ function OverrideDialog({ p, stage, onCancel, onConfirm }: { p: Project; stage?:
 }
 
 /** Tiny progress strip on the card: items complete / on site / in production / approved / still in drawings. */
-function ItemsStrip({ c }: { c: ItemCounts }) {
+function ItemsStrip({ c, stage }: { c: ItemCounts; stage?: number | null }) {
   const appr = c.items_approved - c.items_in_production - c.items_on_site;
   const todo = c.items_total - c.items_approved;
+  // past Production drawings with items not yet issued: a later batch is still in the drawing office (Tom, 30 Oct)
+  const notIssued = Math.max(c.items_total - c.items_in_production - c.items_on_site, 0);
+  const laterBatch = stage != null && stage >= 10 && stage <= 16 && notIssued > 0;
   return (
     <div className="card-items" title={`${c.items_total} items: ${c.items_complete} complete, ${c.items_on_site - c.items_complete} on site, ${c.items_in_production} in production, ${Math.max(appr, 0)} approved, ${todo} in drawings${c.items_attention ? ` · ${c.items_attention} need attention` : ""}`}>
       <Progress done={c.items_complete} site={c.items_on_site - c.items_complete} prod={c.items_in_production} appr={Math.max(appr, 0)} todo={todo} />
-      <small>{c.items_approved}/{c.items_total} approved{c.items_in_production ? ` · ${c.items_in_production} in production` : ""}{c.items_attention ? <b className="crit"> · {c.items_attention} ⚠</b> : null}</small>
+      <small>{c.items_approved}/{c.items_total} approved{c.items_in_production ? ` · ${c.items_in_production} in production` : ""}{laterBatch ? <b className="bronze" title="Items not yet issued to production — a later batch is still in drawings"> · {notIssued} still in drawings</b> : null}{c.items_attention ? <b className="crit"> · {c.items_attention} ⚠</b> : null}</small>
     </div>
   );
 }
