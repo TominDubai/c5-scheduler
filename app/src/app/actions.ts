@@ -70,6 +70,14 @@ export async function setQuoteStage(id: string, quote_stage: QuoteStage) {
   bust(id); return { ok: true };
 }
 
+/** Active ↔ Dormant on a submitted quote (Jinky, 30 Oct). The DB clears the flag itself if the quote leaves Submitted. */
+export async function setQuoteDormant(id: string, dormant: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("projects").update({ quote_dormant: dormant }).eq("id", id);
+  if (error) return { error: error.message };
+  bust(id); return { ok: true };
+}
+
 export async function saveWaitingOn(id: string, waiting_on: string | null) {
   const supabase = await createClient();
   const { error } = await supabase.from("projects").update({ waiting_on }).eq("id", id);

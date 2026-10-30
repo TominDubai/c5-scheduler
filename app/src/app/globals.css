@@ -624,3 +624,11 @@ tr.changed td { background: #FBF6EC; }
 .qhist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin-top: 14px; opacity: .85; }
 .field.money input { border-color: var(--bronze); font-weight: 700; }
 @media (max-width: 760px) { .qhist-grid { grid-template-columns: 1fr; } }
+
+/* estimation: Submitted split into active / dormant (30 Oct) */
+.col h2 .colsub { display: block; font: 600 11px var(--font); color: var(--fg3); letter-spacing: 0; margin-top: 2px; }
+.col.dormant { opacity: .8; } .col.dormant .card { background: var(--bg3); }
+.card.dormant::after { background: var(--line2); } .pill.dormant { background: var(--bg3); color: var(--fg3); }
+.quiet { margin-top: 8px; font: 700 12px var(--font); color: #9A5410; background: #FCEBD9; padding: 4px 8px; border-radius: 6px; }
+.quiet.act { cursor: pointer; } .quiet.act:hover { text-decoration: underline; }
+.decide .park { margin-left: auto; align-self: center; }
