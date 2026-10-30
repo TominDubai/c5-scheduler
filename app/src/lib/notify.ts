@@ -77,6 +77,7 @@ export function describe(c: Change, p?: Proj): string {
     case "checkpoint": return `Checkpoint recorded — now at ${c.field}, same owner${c.new_value ? ` — ${c.new_value}` : ""}`;
     case "handover_cancelled": return `Handover request withdrawn (${c.field})`;
     case "handover_override": return `Moved to ${c.field} without acceptance — ${c.new_value ?? ""}`;
+    case "reopened": return `Back on the board — ${c.new_value ?? "reopened for a VO"} Now at ${c.field} with ${tc(c.old_value ?? "Jean")}.`;
     case "hold": return `On hold${c.field ? ` — waiting on ${tc(c.field)}` : ""}: ${c.new_value ?? ""}`;
     case "hold_released": return `Hold released${c.new_value ? ` — ${c.new_value}` : ""}`;
     case "removed": return `Project removed from the board — ${c.new_value ?? "no reason given"}`;
@@ -138,7 +139,8 @@ export function recipients(p: Proj, changes: Change[], people: Map<string, Perso
     if ((c.kind === "handover_accepted" || c.kind === "handover_returned" || c.kind === "handover_override") && c.old_value) for (const person of people.values()) if (person.name === c.old_value) ids.add(person.id);
   }
   for (const id of watchers) ids.add(id);
-  const wonOrNew = changes.some((c) => (c.kind === "created" && p.status !== "QUOTE") || isAward(c));
+  // a completed card reopened for a VO (db/022) is an award for the people who hear about signings
+  const wonOrNew = changes.some((c) => (c.kind === "created" && p.status !== "QUOTE") || isAward(c) || c.kind === "reopened");
   if (wonOrNew) for (const person of people.values()) if (person.notify_on_award) ids.add(person.id);
   const actors = new Set(changes.map((c) => c.changed_by).filter(Boolean));
   // if every change in this batch came from one person, don't tell them about their own edits

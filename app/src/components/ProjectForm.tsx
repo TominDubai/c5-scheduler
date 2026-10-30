@@ -1,9 +1,10 @@
 "use client";
 import { useActionState, useState } from "react";
-import { ALL, QUOTE_STAGES, WAITING_ON, SCOPES, title, fmtD, type Project, type Person, type Contractor } from "@/lib/model";
+import { ALL, QUOTE_STAGES, WAITING_ON, SCOPES, title, fmtD, type Project, type Person, type Contractor, type ParentOption } from "@/lib/model";
+import ParentOptions from "@/components/ParentOptions";
 import { saveProject, createProject } from "@/app/actions";
 
-type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean; liveProjects?: Pick<Project, "id" | "name" | "enquiry_no">[]; watchers?: string[]; isAdmin?: boolean };
+type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean; liveProjects?: ParentOption[]; watchers?: string[]; isAdmin?: boolean };
 
 export default function ProjectForm({ project, people, contractors, estimationOnly = false, liveProjects, watchers = [], isAdmin = false }: Props) {
   const lock = estimationOnly; // estimators: pricing fields only
@@ -28,7 +29,7 @@ export default function ProjectForm({ project, people, contractors, estimationOn
       <div className="field"><label htmlFor="quote_type">Quote type</label><input id="quote_type" name="quote_type" defaultValue={v("quote_type")} placeholder="FULL QUOTE / KITCHEN / VO1 …" /></div>
       {liveProjects && project?.status === "QUOTE" && (
         <div className="field"><label htmlFor="parent_project_id">This is a VO for</label>
-          <select id="parent_project_id" name="parent_project_id" defaultValue={v("parent_project_id")}><option value="">— not a VO —</option>{liveProjects.filter((p) => p.id !== project?.id).map((p) => <option key={p.id} value={p.id}>{p.enquiry_no ? `${p.enquiry_no} · ` : ""}{title(p.name)}</option>)}</select></div>
+          <select id="parent_project_id" name="parent_project_id" defaultValue={v("parent_project_id")}><option value="">— not a VO —</option><ParentOptions projects={liveProjects.filter((p) => p.id !== project?.id)} /></select></div>
       )}
       <div className="field"><label>Scope</label><div className="checks">{SCOPES.map((s) => <label key={s}><input type="checkbox" name="scope" value={s} defaultChecked={(project?.scope ?? "").split(", ").includes(s)} /> {s}</label>)}</div></div>
       <div className="field"><label htmlFor="waiting_on">Waiting on</label>

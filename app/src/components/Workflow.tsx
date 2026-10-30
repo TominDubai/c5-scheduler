@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { FLOW_LABEL, COMPLETED_STAGE, fmtD, fmtDShort, title, ini, stageAge, type Project, type Stage, type Person, type Me, type Handover, type Hold, type StageEvidence, type ProjectTask, type StageOwner, type Meeting } from "@/lib/model";
-import { requestHandover, acceptHandover, recordAcceptance, returnHandover, cancelHandover, overrideAccept, putOnHold, releaseHold, saveNextAction, tickChecklist, addEvidence, removeEvidence, evidenceUrl, addTask, setTaskDone, reassignBall } from "@/app/actions";
+import { requestHandover, acceptHandover, recordAcceptance, returnHandover, cancelHandover, overrideAccept, putOnHold, releaseHold, saveNextAction, tickChecklist, addEvidence, removeEvidence, evidenceUrl, addTask, setTaskDone, reassignBall, setTeamRole } from "@/app/actions";
 
 type Props = {
   project: Project; stages: Stage[]; owners: StageOwner[]; people: Person[]; me: Me;
@@ -90,6 +90,7 @@ export default function Workflow({ project: p, stages, owners, people, me, hando
           {openHold && (me.isAdmin || coord || iHold || openHold.created_by === me.id) && <ReleaseHold projectId={p.id} hold={openHold} />}
           {(me.isAdmin || me.canTeam) && p.stage !== COMPLETED_STAGE && p.stage != null && <button type="button" className="btn ghost" onClick={() => setDrawer("reassign")}>Reassign ball…</button>}
         </div>
+        <TeamStrip p={p} people={people} canEdit={!locked && (me.isAdmin || me.canProjects || iHold)} onSave={(field, id) => run(() => setTeamRole(p.id, field, id))} />
         {stage?.description && <p className="stage-desc">{stage.description}</p>}
         {(loopList.length > 0 || supporting.length > 0) && (
           <div className="loop">
@@ -170,7 +171,7 @@ export default function Workflow({ project: p, stages, owners, people, me, hando
             {handovers.map((h) => { const to = stages.find((s) => s.stage_no === h.to_stage); const from = stages.find((s) => s.stage_no === h.from_stage); return (
               <li key={h.id} className={h.status.toLowerCase()}>
                 <time>{fmtDShort(h.accepted_at ?? h.returned_at ?? h.requested_at)}</time>
-                <span className={`flowtag ${h.status === "ACCEPTED" ? "ok" : h.status === "RETURNED" ? "crit" : h.status === "PENDING" ? "bronze" : h.status === "OVERRIDE" ? "warn" : "grey"}`}>{h.status === "MIGRATED" ? "Migrated" : h.status === "OVERRIDE" ? "Moved by admin" : h.status === "CHECKPOINT" ? "Checkpoint" : title(h.status)}</span>
+                <span className={`flowtag ${h.status === "ACCEPTED" ? "ok" : h.status === "RETURNED" ? "crit" : h.status === "PENDING" ? "bronze" : h.status === "OVERRIDE" || h.status === "REOPENED" ? "warn" : "grey"}`}>{h.status === "MIGRATED" ? "Migrated" : h.status === "REOPENED" ? "Reopened for a VO" : h.status === "OVERRIDE" ? "Moved by admin" : h.status === "CHECKPOINT" ? "Checkpoint" : title(h.status)}</span>
                 <span>{from ? <>{from.stage_no} {from.short_name} <span className="arrow">→</span> </> : null}<b>{to ? `${to.stage_no} ${to.short_name}` : h.to_stage}</b></span>
                 <span className="by">{h.from_person_id ? `${name(h.from_person_id)} → ` : ""}{name(h.to_person_id)}{h.recorded_by ? ` · recorded by ${name(h.recorded_by)}` : ""}{h.authorised_by ? ` · authorised by ${name(h.authorised_by)}` : ""}</span>
                 {(h.note || h.return_reason || h.override_reason || h.acceptance_evidence) && <span className="hist-note">{h.return_reason ? `Returned: ${h.return_reason}` : h.override_reason ? h.override_reason : h.acceptance_evidence ? `“${h.acceptance_evidence}”${h.evidence_time ? ` — ${fmtWhen(h.evidence_time)}` : ""}` : h.note}</span>}
@@ -462,6 +463,45 @@ function ReassignDrawer({ project: p, people, onClose }: { project: Project; peo
         </div>
         <div className="actions"><button className="btn" disabled={pending}>Reassign and record</button><button type="button" className="btn ghost" onClick={onClose}>Cancel</button>{state?.error && <span className="msg err">{state.error}</span>}</div>
       </form>
+    </div>
+  );
+}
+
+/** The project team in one line under the ball: lead PM, supporting PM, coordinator, designer, technical designer.
+ *  Rev 3 names them at stage 4; the technical designer is what stage 9 (Alyssa) needs and couldn't find — it was
+ *  only in the edit form below the fold. Admins, project editors and the ball holder change a name in place. */
+const TEAM_SLOTS: { field: string; label: string; nameKey: keyof Project; idKey: keyof Project; roles: string[]; neededFrom: number }[] = [
+  { field: "pm_id", label: "Lead PM", nameKey: "pm", idKey: "pm_id", roles: ["PM", "MANAGEMENT"], neededFrom: 4 },
+  { field: "pm2_id", label: "Supporting PM", nameKey: "pm2", idKey: "pm2_id", roles: ["PM", "MANAGEMENT"], neededFrom: 99 },
+  { field: "coordinator_id", label: "Coordinator", nameKey: "coordinator", idKey: "coordinator_id", roles: ["PROJECT_COORDINATOR", "ADMIN", "MANAGEMENT"], neededFrom: 4 },
+  { field: "designer_id", label: "Designer", nameKey: "designer", idKey: "designer_id", roles: ["DESIGNER", "TECHNICAL_DESIGNER"], neededFrom: 4 },
+  { field: "technical_designer_id", label: "Technical designer", nameKey: "technical_designer", idKey: "technical_designer_id", roles: ["TECHNICAL_DESIGNER", "DESIGNER"], neededFrom: 9 },
+];
+function TeamStrip({ p, people, canEdit, onSave }: { p: Project; people: Person[]; canEdit: boolean; onSave: (field: string, id: string | null) => void }) {
+  const [editing, setEditing] = useState<string | null>(null);
+  if (p.stage == null || p.stage < 3) return null;
+  return (
+    <div className="teamstrip">
+      {TEAM_SLOTS.map((s) => {
+        const id = (p[s.idKey] as string | null) ?? null;
+        const nm = (p[s.nameKey] as string | null) ?? null;
+        const missing = !id && p.stage != null && p.stage >= s.neededFrom && p.stage !== COMPLETED_STAGE;
+        const options = people.filter((x) => x.is_active && s.roles.includes(x.role));
+        return (
+          <div key={s.field} className={`teamslot${missing ? " missing" : ""}`}>
+            <span className="loop-k">{s.label}</span>
+            {editing === s.field ? (
+              <select autoFocus defaultValue={id ?? ""} onBlur={() => setEditing(null)} onChange={(e) => { onSave(s.field, e.target.value || null); setEditing(null); }}>
+                <option value="">—</option>{options.map((x) => <option key={x.id} value={x.id}>{x.full_name ?? title(x.name)}</option>)}
+              </select>
+            ) : (
+              <button type="button" className={`teamname${canEdit ? " editable" : ""}`} disabled={!canEdit} onClick={() => setEditing(s.field)} title={canEdit ? "Change" : undefined}>
+                {nm ? title(nm) : <em>{missing ? "not named" : "—"}</em>}
+              </button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -2,11 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { cache } from "react";
 import type { Project, Person, Contractor, Me, TargetRevision } from "@/lib/model";
 
-type Extra = { id: string; parent_project_id: string | null; deleted_at: string | null; deleted_reason: string | null; deleted_by: string | null; quote_dormant: boolean; quote_dormant_since: string | null };
+type Extra = { id: string; parent_project_id: string | null; deleted_at: string | null; deleted_reason: string | null; deleted_by: string | null; quote_dormant: boolean; quote_dormant_since: string | null; reopened_vo_no: number | null };
 /** parent links and removal stamps live on the projects table (the view predates those columns); stitch them on here */
 async function withParents(rows: Project[]): Promise<Project[]> {
   const supabase = await createClient();
-  const { data: ex } = await supabase.from("projects").select("id, parent_project_id, deleted_at, deleted_reason, quote_dormant, quote_dormant_since, deleted_by:people!projects_deleted_by_fkey(name)").in("id", rows.map((r) => r.id));
+  const { data: ex } = await supabase.from("projects").select("id, parent_project_id, deleted_at, deleted_reason, quote_dormant, quote_dormant_since, reopened_vo_no, deleted_by:people!projects_deleted_by_fkey(name)").in("id", rows.map((r) => r.id));
   const extras = new Map(((ex ?? []) as unknown as (Omit<Extra, "deleted_by"> & { deleted_by: { name: string } | null })[]).map((e) => [e.id, { ...e, deleted_by: e.deleted_by?.name ?? null } as Extra]));
   const parentOf = new Map([...extras.values()].filter((e) => e.parent_project_id).map((e) => [e.id, e.parent_project_id as string]));
   // target revisions: highest rev_no = current, rev 0 = original programme
@@ -21,7 +21,7 @@ async function withParents(rows: Project[]): Promise<Project[]> {
   const missing = [...new Set([...parentOf.values()])].filter((id) => !byId.has(id));
   const extra = missing.length ? (await supabase.from("projects").select("id, name, enquiry_no").in("id", missing)).data ?? [] : [];
   const names = new Map<string, { name: string; enquiry_no: string | null }>([...rows.map((p) => [p.id, { name: p.name, enquiry_no: p.enquiry_no }] as const), ...extra.map((e) => [e.id as string, { name: e.name as string, enquiry_no: e.enquiry_no as string | null }] as const)]);
-  return rows.map((p) => { const pid = parentOf.get(p.id) ?? null; const par = pid ? names.get(pid) : null; const e = extras.get(p.id); return { ...p, parent_project_id: pid, parent_name: par?.name ?? null, parent_enquiry_no: par?.enquiry_no ?? null, deleted_at: e?.deleted_at ?? null, deleted_reason: e?.deleted_reason ?? null, deleted_by: e?.deleted_by ?? null, quote_dormant: e?.quote_dormant ?? false, quote_dormant_since: e?.quote_dormant_since ?? null, target_rev: rev.get(p.id)?.target_rev ?? null, target_rev0_date: rev.get(p.id)?.target_rev0_date ?? null, items: counts.get(p.id) ?? null }; });
+  return rows.map((p) => { const pid = parentOf.get(p.id) ?? null; const par = pid ? names.get(pid) : null; const e = extras.get(p.id); return { ...p, parent_project_id: pid, parent_name: par?.name ?? null, parent_enquiry_no: par?.enquiry_no ?? null, deleted_at: e?.deleted_at ?? null, deleted_reason: e?.deleted_reason ?? null, deleted_by: e?.deleted_by ?? null, quote_dormant: e?.quote_dormant ?? false, quote_dormant_since: e?.quote_dormant_since ?? null, reopened_vo_no: e?.reopened_vo_no ?? null, target_rev: rev.get(p.id)?.target_rev ?? null, target_rev0_date: rev.get(p.id)?.target_rev0_date ?? null, items: counts.get(p.id) ?? null }; });
 }
 async function allProjects(): Promise<Project[]> {
   const supabase = await createClient();

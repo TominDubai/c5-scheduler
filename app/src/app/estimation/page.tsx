@@ -15,7 +15,8 @@ async function Inner_EstimationPage() {
   const qualifying = all.filter((p) => p.status === "QUOTE" && p.stage === 0);
   // Stage 0 decisions belong to Sales — Tom and Aftab (and the other admins); names stay in the database
   const canQualify = me.isAdmin || me.role === "SALES";
-  const live = all.filter((p) => !["QUOTE", "LOST", "COMPLETED", "MERGED"].includes(p.status)).sort(byEnq).map((p) => ({ id: p.id, name: p.name, enquiry_no: p.enquiry_no, client: p.client }));
+  // VO parents: live projects first, then completed ones — a VO on a finished job reopens its card (db/022), never a new project
+  const live = all.filter((p) => !["QUOTE", "LOST", "MERGED"].includes(p.status) && !p.deleted_at).sort(byEnq).map((p) => ({ id: p.id, name: p.name, enquiry_no: p.enquiry_no, client: p.client, completed: p.status === "COMPLETED" }));
   const open = quotes.filter((p) => p.quote_stage !== "SUBMITTED");
   const submitted = quotes.filter((p) => p.quote_stage === "SUBMITTED");
   const active = submitted.filter((p) => !p.quote_dormant);

@@ -577,6 +577,18 @@ export async function setTaskDone(projectId: string, taskId: string, done: boole
   bustWorkflow(projectId);
   return { ok: true };
 }
+/** Team strip on the project page (team comments round 1, 30 Oct): name one of the five roles without opening
+ *  the edit form. The database decides who may (RLS: project editors, admins, the ball holder); the change_log
+ *  trigger already logs these fields, so the new person hears in the next digest. */
+const TEAM_FIELDS = ["pm_id", "pm2_id", "coordinator_id", "designer_id", "technical_designer_id"] as const;
+export async function setTeamRole(projectId: string, field: string, personId: string | null): Promise<R> {
+  if (!(TEAM_FIELDS as readonly string[]).includes(field)) return { error: "Unknown role" };
+  const supabase = await createClient();
+  const { error } = await supabase.from("projects").update({ [field]: personId || null }).eq("id", projectId);
+  if (error) return { error: error.message };
+  bust(projectId); bustWorkflow(projectId);
+  return { ok: true, at: new Date().toISOString() };
+}
 /** Reassignment for leave or capacity: one replacement, who authorised it, why (Rev 3). Team managers and admins. */
 export async function reassignBall(projectId: string, _prev: unknown, fd: FormData): Promise<R> {
   const supabase = await createClient();

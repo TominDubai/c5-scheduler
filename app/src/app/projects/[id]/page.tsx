@@ -28,7 +28,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
   const t = tone(p);
   const canEdit = !p.deleted_at && (me.canProjects || (me.canEstimation && p.status === "QUOTE"));
   const history = (hist ?? []) as (History & { who: { name: string } | null })[];
-  const live = all.filter((x) => !["QUOTE", "LOST", "COMPLETED", "MERGED"].includes(x.status)).sort(byEnq).map((x) => ({ id: x.id, name: x.name, enquiry_no: x.enquiry_no }));
+  const live = all.filter((x) => !["QUOTE", "LOST", "MERGED"].includes(x.status) && !x.deleted_at).sort(byEnq).map((x) => ({ id: x.id, name: x.name, enquiry_no: x.enquiry_no, client: x.client, completed: x.status === "COMPLETED" }));
   const voNo = p.status === "MERGED" ? (await supabase.from("variations").select("vo_no").eq("source_enquiry_id", p.id).maybeSingle()).data?.vo_no ?? null : null;
   return (
     <Shell>
@@ -39,6 +39,9 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>{p.stage != null ? <span className="stagechip big"><b>{p.stage}</b>{p.stage_short}</span> : <span className={`status s-${p.status}`}>{LABEL[p.status]}</span>}<span className={`pill ${t}`}>{delayText(p)}</span></div>
         </div>
         {p.deleted_at && <RemovedBanner project={p} canManage={me.canTeam} />}
+        {p.reopened_vo_no != null && p.stage !== COMPLETED_STAGE && (
+          <div className="vobanner">Completed job, <b>reopened for VO{p.reopened_vo_no}</b> — it runs through Award, allocation and kick-off prep again so the drawing register picks up anything new. Jean can hand it straight to Production if no drawings are needed.</div>
+        )}
         {p.parent_project_id && (
           <div className={`vobanner${p.status === "MERGED" ? " done" : ""}`}>
             {p.status === "MERGED"

@@ -183,6 +183,7 @@ function Card({ p, canDrag, dragging, mine, onDragStart, onDragEnd }: { p: Proje
       ) : (
         <div className="ball none"><b className="av lg">?</b><div className="ball-who"><span className="ball-name">Nobody holds the ball</span><span className="ball-pos">{p.stage == null ? "stage to be set" : "name an owner"}</span></div></div>
       )}
+      {p.reopened_vo_no != null && p.stage !== COMPLETED_STAGE && <div className="flow bronze" title="This project was completed; a won VO brought it back to the board">Reopened · VO{p.reopened_vo_no}</div>}
       {awaiting && <div className="flow bronze">Awaiting acceptance{p.pending_to_person ? <> → <b>{title(p.pending_to_person)}</b></> : null}{p.pending_since ? <small> since {fmtDShort(p.pending_since)}</small> : null}</div>}
       {held && <div className="flow grey">On hold{p.hold_waiting_on ? <> · waiting on <b>{title(p.hold_waiting_on)}</b></> : null}{p.hold_review_date ? <small> · review {fmtDShort(p.hold_review_date)}</small> : null}</div>}
       {p.next_action && <div className="next"><span className="arrow">→</span><span className="next-text">{p.next_action}</span>{p.next_action_owner ? <small>{title(p.next_action_owner)}</small> : null}{p.next_action_due ? <small className={p.next_action_due < new Date().toISOString().slice(0, 10) ? "crit" : ""}>{fmtDShort(p.next_action_due)}</small> : null}</div>}

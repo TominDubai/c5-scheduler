@@ -32,6 +32,7 @@ export type Project = TargetInfo & {
   parent_project_id: string | null; parent_name: string | null; parent_enquiry_no: string | null;
   /** submitted quotes only: true = parked (too small / client gone quiet), still winnable but out of the active count */
   quote_dormant: boolean; quote_dormant_since: string | null;
+  reopened_vo_no: number | null;            // db/022 — set while a completed card is back on the board for a VO
   // soft delete (filled in by getProjects from the projects table): removed projects stay in the database but leave every screen
   deleted_at: string | null; deleted_reason: string | null; deleted_by: string | null;
   project_value: number; vo_count: number; days_to_completion: number | null; duration_days: number | null; days_delayed: number | null; status_since: string | null;
@@ -68,7 +69,7 @@ export type StageOwner = { stage_no: number; person_id: string; set_by: string |
 export type StageTarget = { stage_no: number; target_days: number | null; response_hours: number | null };
 export type Handover = {
   id: string; project_id: string; from_stage: number | null; to_stage: number; from_person_id: string | null; to_person_id: string | null;
-  status: "PENDING" | "ACCEPTED" | "RETURNED" | "CANCELLED" | "OVERRIDE" | "MIGRATED" | "CHECKPOINT";
+  status: "PENDING" | "ACCEPTED" | "RETURNED" | "CANCELLED" | "OVERRIDE" | "MIGRATED" | "CHECKPOINT" | "REOPENED";
   requested_at: string; requested_by: string | null; note: string | null; accepted_at: string | null; returned_at: string | null; return_reason: string | null;
   recorded_by: string | null; acceptance_evidence: string | null; evidence_time: string | null; override: boolean; authorised_by: string | null; override_reason: string | null;
 };
@@ -256,3 +257,6 @@ export function itemTone(i: Pick<Item, "stage" | "cancelled" | "current_status" 
   return "ok";
 }
 export const revLabel = (n: number | null | undefined) => n == null ? "—" : `R${n}`;
+
+/** A project a VO enquiry can point at: live first, then completed (a won VO reopens a completed card — db/022). */
+export type ParentOption = { id: string; name: string; enquiry_no: string | null; client?: string | null; completed?: boolean };

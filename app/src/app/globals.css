@@ -501,6 +501,14 @@ td .stagechip { background: var(--bg3); } td .stagechip.ph-ENQUIRY, td .stagechi
 .pendingbox small { color: var(--fg3); }
 .ball-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .stage-desc { margin: 0; font-size: 13px; color: var(--fg2); line-height: 1.5; }
+.teamstrip { display: flex; flex-wrap: wrap; gap: 6px 22px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.teamslot { display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+.teamslot .teamname { background: none; border: 0; padding: 0; font: inherit; font-size: 14px; font-weight: 600; color: var(--fg); text-align: left; cursor: default; }
+.teamslot .teamname.editable { cursor: pointer; border-bottom: 1px dashed var(--line2, var(--line)); }
+.teamslot .teamname.editable:hover { color: var(--bronze); border-bottom-color: var(--bronze); }
+.teamslot .teamname em { font-style: normal; color: var(--fg3); font-weight: 500; }
+.teamslot.missing .teamname em { color: var(--crit, #b4432f); }
+.teamslot select { font: inherit; font-size: 13px; padding: 2px 4px; }
 .loop { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
 .loop > div { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .loop-k { font: 700 10px var(--font); color: var(--fg3); text-transform: uppercase; letter-spacing: .1em; margin-right: 4px; }

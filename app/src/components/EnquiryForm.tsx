@@ -1,10 +1,11 @@
 "use client";
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { title, SCOPES, type Person, type Contractor, type Project } from "@/lib/model";
+import { title, SCOPES, type Person, type Contractor, type ParentOption } from "@/lib/model";
+import ParentOptions from "@/components/ParentOptions";
 import { createEnquiry } from "@/app/actions";
 
-export default function EnquiryForm({ nextNo, people, contractors, liveProjects }: { nextNo: string; people: Person[]; contractors: Contractor[]; liveProjects: Pick<Project, "id" | "name" | "enquiry_no" | "client">[] }) {
+export default function EnquiryForm({ nextNo, people, contractors, liveProjects }: { nextNo: string; people: Person[]; contractors: Contractor[]; liveProjects: ParentOption[] }) {
   const [parent, setParent] = useState("");
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState<string | null>(null); // last success already acknowledged
@@ -31,9 +32,11 @@ export default function EnquiryForm({ nextNo, people, contractors, liveProjects 
         <div className="field wide"><label htmlFor="parent_project_id">This is a VO for <small>(leave blank for a new project)</small></label>
           <select id="parent_project_id" name="parent_project_id" value={parent} onChange={(e) => setParent(e.target.value)} className={parent ? "vo-on" : ""}>
             <option value="">— not a VO, it's a new project —</option>
-            {liveProjects.map((p) => <option key={p.id} value={p.id}>{p.enquiry_no ? `${p.enquiry_no} · ` : ""}{title(p.name)}{p.client ? ` (${title(p.client)})` : ""}</option>)}
+            <ParentOptions projects={liveProjects} />
           </select>
-          {parent && <small className="hint">When this is won it's added as the next VO on that project — no new project is created.</small>}
+          {parent && (liveProjects.find((p) => p.id === parent)?.completed
+            ? <small className="hint">That project is completed. When this VO is won it goes on as the next VO and the card comes back to the board at Award / contract with Jean — no new project is created.</small>
+            : <small className="hint">When this is won it's added as the next VO on that project — no new project is created.</small>)}
         </div>
         <div className="field"><label>Scope</label><div className="checks">{SCOPES.map((s) => <label key={s}><input type="checkbox" name="scope" value={s} defaultChecked={s === "Joinery"} /> {s}</label>)}</div></div>
         <div className="field"><label htmlFor="raised_by">Raised by <small>(who sent it in)</small></label><input id="raised_by" name="raised_by" placeholder="e.g. AFTAB" /></div>
