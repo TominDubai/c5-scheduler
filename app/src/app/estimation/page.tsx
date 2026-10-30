@@ -4,7 +4,7 @@ import EstimationBoard from "@/components/EstimationBoard";
 import EnquiryForm from "@/components/EnquiryForm";
 import { getProjects, getPeople, getContractors, getMe } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import { byEnq } from "@/lib/model";
+import { byEnq, aedS } from "@/lib/model";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +18,9 @@ async function Inner_EstimationPage() {
   const live = all.filter((p) => !["QUOTE", "LOST", "COMPLETED", "MERGED"].includes(p.status)).sort(byEnq).map((p) => ({ id: p.id, name: p.name, enquiry_no: p.enquiry_no, client: p.client }));
   const open = quotes.filter((p) => p.quote_stage !== "SUBMITTED");
   const submitted = quotes.filter((p) => p.quote_stage === "SUBMITTED");
+  const active = submitted.filter((p) => !p.quote_dormant);
+  const dormant = submitted.filter((p) => p.quote_dormant);
+  const activeValue = active.reduce((t, p) => t + (p.quoted_value ?? 0), 0);
   const oldest = open.reduce((m, p) => Math.max(m, p.days_since_enquiry ?? 0), 0);
   const wonThisYear = all.filter((p) => p.status !== "QUOTE" && p.status !== "LOST" && (p.received_date ?? "") >= `${new Date().getFullYear()}-01-01`).length;
   return (
@@ -26,7 +29,8 @@ async function Inner_EstimationPage() {
         <div className="stats">
           {qualifying.length > 0 && <div className="stat bronze"><b>{qualifying.length}</b><span>qualifying</span></div>}
           <div className="stat"><b>{open.length}</b><span>being priced</span></div>
-          <div className="stat"><b>{submitted.length}</b><span>submitted, awaiting decision</span></div>
+          <div className="stat"><b>{active.length}</b><span>active, awaiting decision{activeValue > 0 ? ` · ${aedS(activeValue)}` : ""}</span></div>
+          {dormant.length > 0 && <div className="stat"><b>{dormant.length}</b><span>dormant</span></div>}
           <div className={`stat${oldest > 21 ? " crit" : ""}`}><b>{oldest}d</b><span>oldest open enquiry</span></div>
           <div className="stat"><b>{wonThisYear}</b><span>won this year</span></div>
         </div>

@@ -27,7 +27,7 @@ export function admin() {
 }
 
 const FIELD: Record<string, string> = {
-  name: "Project name", client: "Client", enquiry_no: "Enquiry no", status: "Status", quote_stage: "Quote stage",
+  name: "Project name", client: "Client", enquiry_no: "Enquiry no", status: "Status", quote_stage: "Quote stage", quote_activity: "Quotation",
   pm_id: "PM", pm2_id: "Second PM", designer_id: "Designer", estimator_id: "Estimator", contractor_id: "Contractor",
   coordinator_id: "Project coordinator", technical_designer_id: "Technical designer",
   start_date: "Start date", target_date: "Target completion", completed_date: "Completed date", quote_due_date: "Quote due",

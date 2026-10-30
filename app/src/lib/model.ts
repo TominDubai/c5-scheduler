@@ -30,6 +30,8 @@ export type Project = TargetInfo & {
   contractor: string | null; pm: string | null; pm2: string | null; designer: string | null; estimator: string | null; days_since_enquiry: number | null;
   // VO enquiries: which live project this quote belongs to (filled in by getProjects from the projects table)
   parent_project_id: string | null; parent_name: string | null; parent_enquiry_no: string | null;
+  /** submitted quotes only: true = parked (too small / client gone quiet), still winnable but out of the active count */
+  quote_dormant: boolean; quote_dormant_since: string | null;
   // soft delete (filled in by getProjects from the projects table): removed projects stay in the database but leave every screen
   deleted_at: string | null; deleted_reason: string | null; deleted_by: string | null;
   project_value: number; vo_count: number; days_to_completion: number | null; duration_days: number | null; days_delayed: number | null; status_since: string | null;
@@ -135,6 +137,8 @@ export function delayText(p: Pick<Project, "status" | "days_delayed">): string {
 }
 
 export const WAITING_ON = ["Client info", "Designer info", "Metal quote", "Stone quote", "Glass quote", "Supplier quote", "Site measure", "Drawings", "Other"];
+/** days a submitted quote can sit unanswered before the board suggests marking it dormant */
+export const DORMANT_AFTER_DAYS = 30;
 export const SCOPES = ["Joinery", "Metalwork", "Stonework", "Glasswork", "Other"];
 /** days until a quote is due: null = no date; amber within 3 days, red when overdue */
 export function dueTone(due: string | null) {

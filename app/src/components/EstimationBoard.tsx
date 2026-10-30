@@ -2,28 +2,46 @@
 import { useWheelSideways } from "@/lib/useWheelSideways";
 import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { QUOTE_STAGES, WAITING_ON, aedS, fmtDShort, title, ini, dueTone, type Project, type QuoteStage } from "@/lib/model";
+import { QUOTE_STAGES, WAITING_ON, DORMANT_AFTER_DAYS, aedS, fmtDShort, title, ini, dueTone, type Project, type QuoteStage } from "@/lib/model";
 import { saveWaitingOn } from "@/app/actions";
-import { setQuoteStage, markWon, markLost, createQualifying, qualify } from "@/app/actions";
+import { setQuoteStage, setQuoteDormant, markWon, markLost, createQualifying, qualify } from "@/app/actions";
+
+/** a board column: the four pricing stages, with Submitted split into active and dormant (Jinky, 30 Oct) */
+type Col = { key: string; stage: QuoteStage; dormant: boolean; label: string; sub?: string };
+const COLS: Col[] = QUOTE_STAGES.flatMap(([k, l]): Col[] => k === "SUBMITTED"
+  ? [{ key: "SUBMITTED", stage: k, dormant: false, label: "Submitted · active", sub: "chasing, expect a decision" }, { key: "DORMANT", stage: k, dormant: true, label: "Submitted · dormant", sub: "too small or client gone quiet" }]
+  : [{ key: k, stage: k, dormant: false, label: l }]);
+const daysSince = (d: string | null) => d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : null;
 
 /** The Estimation tab: Rev 3 stage 0 (Qualifying, decision 3) on the left, then the four pricing columns of stages 1–2. */
 export default function EstimationBoard({ projects, canEdit, canQualify, qualifying }: { projects: Project[]; canEdit: boolean; canQualify: boolean; qualifying: Project[] }) {
   const router = useRouter();
   const [rows, setRows] = useState(projects);
   const [dragId, setDragId] = useState<string | null>(null);
-  const [over, setOver] = useState<QuoteStage | null>(null);
+  const [over, setOver] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
 
-  function drop(stage: QuoteStage) {
+  function drop(col: Col) {
     if (!dragId || !canEdit) return;
     const p = rows.find((r) => r.id === dragId);
     setOver(null); setDragId(null);
-    if (!p || p.quote_stage === stage) return;
+    if (!p || (p.quote_stage === col.stage && !!p.quote_dormant === col.dormant)) return;
     const prev = rows;
-    setRows(rows.map((r) => (r.id === dragId ? { ...r, quote_stage: stage } : r)));
+    setRows(rows.map((r) => (r.id === dragId ? { ...r, quote_stage: col.stage, quote_dormant: col.dormant } : r)));
     start(async () => {
-      const res = await setQuoteStage(p.id, stage);
+      // stage first (the DB clears the dormant flag whenever a quote leaves Submitted), then the flag
+      const res = p.quote_stage !== col.stage ? await setQuoteStage(p.id, col.stage) : null;
+      const res2 = !res?.error && !!p.quote_dormant !== col.dormant ? await setQuoteDormant(p.id, col.dormant) : null;
+      const e = res?.error ?? res2?.error;
+      if (e) { setRows(prev); setErr(e); } else { setErr(null); router.refresh(); }
+    });
+  }
+  function toggleDormant(p: Project) {
+    const prev = rows; const next = !p.quote_dormant;
+    setRows(rows.map((r) => (r.id === p.id ? { ...r, quote_dormant: next } : r)));
+    start(async () => {
+      const res = await setQuoteDormant(p.id, next);
       if (res?.error) { setRows(prev); setErr(res.error); } else { setErr(null); router.refresh(); }
     });
   }
@@ -44,24 +62,27 @@ export default function EstimationBoard({ projects, canEdit, canQualify, qualify
         <QualifyingColumn projects={qualifying} canQualify={canQualify} canAdd={canQualify || canEdit} onDecide={(p, ok) => {
           start(async () => { const res = await qualify(p.id, ok); if (res?.error) setErr(res.error); else { setErr(null); router.refresh(); } });
         }} />
-        {QUOTE_STAGES.map(([k, l]) => {
-          const items = rows.filter((p) => p.quote_stage === k).sort((a, b) => (b.days_since_enquiry ?? 0) - (a.days_since_enquiry ?? 0));
+        {COLS.map((col) => {
+          const k = col.stage;
+          const items = rows.filter((p) => p.quote_stage === k && !!p.quote_dormant === col.dormant).sort((a, b) => (b.days_since_enquiry ?? 0) - (a.days_since_enquiry ?? 0));
           return (
-            <section key={k} className={`col${over === k ? " over" : ""}`}
-              onDragOver={(e) => { e.preventDefault(); if (over !== k) setOver(k); }} onDragLeave={() => setOver(null)} onDrop={() => drop(k)}>
-              <header><h2>{l}</h2><span className="count">{items.length}</span></header>
+            <section key={col.key} className={`col${over === col.key ? " over" : ""}${col.dormant ? " dormant" : ""}`}
+              onDragOver={(e) => { e.preventDefault(); if (over !== col.key) setOver(col.key); }} onDragLeave={() => setOver(null)} onDrop={() => drop(col)}>
+              <header><h2>{col.label}{col.sub && <small className="colsub">{col.sub}</small>}</h2><span className="count">{items.length}</span></header>
               <div className="cards">
                 {items.length === 0 && <div className="empty">{canEdit ? "Drop an enquiry here" : "Nothing here"}</div>}
                 {items.map((p) => {
                   const age = p.days_since_enquiry ?? 0;
-                  const t = k === "SUBMITTED" ? "done" : age > 21 ? "crit" : age > 10 ? "warn" : "ok";
+                  const t = col.dormant ? "dormant" : k === "SUBMITTED" ? "done" : age > 21 ? "crit" : age > 10 ? "warn" : "ok";
                   const dd = dueTone(p.quote_due_date); const due = dd?.d ?? null;
+                  const quiet = k === "SUBMITTED" ? daysSince(p.quote_submitted_date) : null; // days since it went to the client
+                  const nudge = k === "SUBMITTED" && !col.dormant && quiet != null && quiet >= DORMANT_AFTER_DAYS;
                   return (
                     <article key={p.id} className={`card ${t}${dragId === p.id ? " dragging" : ""}`} draggable={canEdit}
                       onDragStart={() => setDragId(p.id)} onDragEnd={() => { setDragId(null); setOver(null); }}
                       tabIndex={0} role="link" onClick={() => router.push(`/projects/${p.id}`)} onKeyDown={(e) => e.key === "Enter" && router.push(`/projects/${p.id}`)}>
                       <div className="card-top"><span className="enq">{p.enquiry_no ?? "—"}</span>
-                        <span className={`pill ${t}`}>{k === "SUBMITTED" ? `Sent ${fmtDShort(p.quote_submitted_date)}` : `${age}d in`}</span></div>
+                        <span className={`pill ${t}`}>{col.dormant ? `Dormant${p.quote_dormant_since ? ` since ${fmtDShort(p.quote_dormant_since)}` : ""}` : k === "SUBMITTED" ? `Sent ${fmtDShort(p.quote_submitted_date)}` : `${age}d in`}</span></div>
                       <h3>{title(p.name)}{p.quote_type && <span className="qtype">{p.quote_type}</span>}</h3>
                       {p.parent_name && <div className="vofor">VO for <b>{title(p.parent_name)}</b>{p.parent_enquiry_no ? ` (${p.parent_enquiry_no})` : ""}</div>}
                       <div className="client">{title(p.client)}{p.contractor ? ` · ${p.contractor}` : ""}</div>
@@ -75,10 +96,13 @@ export default function EstimationBoard({ projects, canEdit, canQualify, qualify
                         ? <select className="waiting" value={p.waiting_on ?? ""} onClick={(e) => e.stopPropagation()} onChange={(e) => { const w = e.target.value || null; setRows((rs) => rs.map((r) => r.id === p.id ? { ...r, waiting_on: w } : r)); start(async () => { await saveWaitingOn(p.id, w); }); }}>
                             <option value="">Waiting on…</option>{WAITING_ON.map((w) => <option key={w} value={w}>{w}</option>)}</select>
                         : <div className="waiting-ro">{p.waiting_on ? `Waiting on ${p.waiting_on.toLowerCase()}` : "Waiting on…"}</div>)}
+                      {nudge && <div className={`quiet${canEdit ? " act" : ""}`} onClick={(e) => { e.stopPropagation(); if (canEdit) toggleDormant(p); }}>
+                        {quiet}d with no answer{canEdit ? " — mark dormant?" : ""}</div>}
                       {k === "SUBMITTED" && canEdit && (
                         <div className="decide" onClick={(e) => e.stopPropagation()}>
                           <button className="btn sm" onClick={() => decide(p, true)}>{p.parent_project_id ? "Won → add VO" : "Won → Award / contract"}</button>
                           <button className="btn sm danger" onClick={() => decide(p, false)}>Lost</button>
+                          <button type="button" className="linkbtn park" onClick={() => toggleDormant(p)}>{col.dormant ? "Reactivate" : "Dormant"}</button>
                         </div>
                       )}
                     </article>
