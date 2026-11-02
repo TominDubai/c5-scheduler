@@ -3,8 +3,9 @@ import Shell from "@/components/Shell";
 import Failed from "@/components/Failed";
 import MonthByPerson, { type CalEvent } from "@/components/MonthByPerson";
 import ScheduleWeek from "@/components/ScheduleWeek";
-import { getProjects, getMe, getPeople, getAllItems, getAllProductionStages, getMeetings, getStageTargets } from "@/lib/data";
-import { title, addDays, todayDubai, PSTAGE_LABEL, ROLE_LABEL, type Project } from "@/lib/model";
+import { getProjects, getMe, getPeople, getAllItems, getAllProductionStages, getMeetings, getStageTargets, getAllMilestones } from "@/lib/data";
+import { title, addDays, todayDubai, timingOf, PSTAGE_LABEL, ROLE_LABEL, type Project, type Milestone } from "@/lib/model";
+import type { CalEvent as Ev } from "@/components/MonthByPerson";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,13 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
   const gridStart = addDays(first, -new Date(first + "T00:00:00Z").getUTCDay());
   const gridEnd = addDays(last, 6 - new Date(last + "T00:00:00Z").getUTCDay());
 
-  const [projects, me, people, items, stages, meetings, targets] = await Promise.all([getProjects(), getMe(), getPeople(), getAllItems(), getAllProductionStages(), getMeetings(gridStart, gridEnd), getStageTargets()]);
+  const [projects, me, people, items, stages, meetings, targets, allMs] = await Promise.all([getProjects(), getMe(), getPeople(), getAllItems(), getAllProductionStages(), getMeetings(gridStart, gridEnd), getStageTargets(), getAllMilestones()]);
+  // milestones per project (db/028) — named flags on the calendar, and the on-time / delayed / extended colour (Anne, 2 Nov)
+  const msOf = new Map<string, Milestone[]>();
+  for (const m of allMs) { const l = msOf.get(m.project_id) ?? []; l.push(m); msOf.set(m.project_id, l); }
+  const barTone = (p: Project): Ev["tone"] => { const t = timingOf(p, msOf.get(p.id) ?? [], today); return t === "delayed" ? "crit" : p.flow_status === "ON_HOLD" ? "warn" : t === "extended" ? "ext" : "navy"; };
+  const flagTone = (m: Milestone): Ev["tone"] => m.actual_date || m.reached ? (m.late ? "crit" : "ok") : m.late ? "crit" : m.revisions > 0 ? "ext" : "bronze";
+  const flagTitle = (m: Milestone, p: Project) => `${m.short_label}${m.actual_date || m.reached ? (m.late ? " — reached late" : " ✓") : " target"}${m.rev_no > 0 ? ` (Rev ${m.rev_no})` : ""}: ${title(p.name)}`;
   const who = sp.who ?? "me";
   const active = people.filter((p) => p.is_active);
   const byId = new Map(people.map((p) => [p.id, p]));
@@ -47,9 +54,9 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
     if (p.ball_holder_id && inScope(p.ball_holder_id) && p.stage_entered_at) {
       const s = p.stage_entered_at.slice(0, 10); const days = p.stage_target_days ?? tgt.get(p.stage ?? -1) ?? 14;
       const e = addDays(s, Math.max(1, days));
-      if (overlaps(s, e)) ev.push({ id: `ball-${p.id}`, kind: "ball", title: `${p.enquiry_no ?? ""} ${title(p.name)} — ${p.stage_short ?? "stage"}`, person: p.ball_holder_id, start: s, end: e, tone: p.stage_overdue ? "crit" : p.flow_status === "ON_HOLD" ? "warn" : "navy", href: `/projects/${p.id}` });
+      if (overlaps(s, e)) ev.push({ id: `ball-${p.id}`, kind: "ball", title: `${p.enquiry_no ?? ""} ${title(p.name)} — ${p.stage_short ?? "stage"}`, person: p.ball_holder_id, start: s, end: e, tone: barTone(p), href: `/projects/${p.id}` });
     }
-    if (p.target_date && overlaps(p.target_date, p.target_date) && [p.pm_id, p.ball_holder_id].some(inScope)) ev.push({ id: `tgt-${p.id}`, kind: "flag", title: `Target: ${title(p.name)}`, person: p.pm_id ?? p.ball_holder_id, start: p.target_date, end: p.target_date, tone: p.target_date < today ? "crit" : "bronze", href: `/projects/${p.id}` });
+    if ([p.pm_id, p.ball_holder_id].some(inScope)) for (const m of msOf.get(p.id) ?? []) if (m.planned_date && overlaps(m.planned_date, m.planned_date)) ev.push({ id: `ms-${p.id}-${m.kind}`, kind: "flag", title: flagTitle(m, p), person: p.pm_id ?? p.ball_holder_id, start: m.planned_date, end: m.planned_date, tone: flagTone(m), href: `/projects/${p.id}` });
     if (p.next_action && p.next_action_due && overlaps(p.next_action_due, p.next_action_due) && inScope(p.next_action_owner_id ?? p.ball_holder_id)) ev.push({ id: `na-${p.id}`, kind: "dot", title: `${p.next_action} — ${title(p.name)}`, person: p.next_action_owner_id ?? p.ball_holder_id, start: p.next_action_due, end: p.next_action_due, tone: p.next_action_due < today ? "crit" : "navy", href: `/projects/${p.id}` });
     if (p.hold_id && p.hold_review_date && overlaps(p.hold_review_date, p.hold_review_date) && inScope(p.ball_holder_id)) ev.push({ id: `hold-${p.id}`, kind: "dot", title: `Hold review — ${title(p.name)}`, person: p.ball_holder_id, start: p.hold_review_date, end: p.hold_review_date, tone: "warn", href: `/projects/${p.id}` });
   }
@@ -90,9 +97,9 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
     if (p.stage_entered_at) {
       const st = p.stage_entered_at.slice(0, 10); const dn = p.stage_target_days ?? tgt.get(p.stage ?? -1) ?? 14;
       const e = addDays(st, Math.max(1, dn));
-      if (overlaps(st, e)) pev.push({ id: `pball-${p.id}`, kind: "ball", title: `${title(p.name)} — ${p.stage_short ?? "stage"}${p.ball_holder ? ` · ${title(p.ball_holder)}` : ""}`, person: p.ball_holder_id, start: st, end: e, tone: p.stage_overdue ? "crit" : p.flow_status === "ON_HOLD" ? "warn" : "navy", href: `/projects/${p.id}`, tag });
+      if (overlaps(st, e)) pev.push({ id: `pball-${p.id}`, kind: "ball", title: `${title(p.name)} — ${p.stage_short ?? "stage"}${p.ball_holder ? ` · ${title(p.ball_holder)}` : ""}`, person: p.ball_holder_id, start: st, end: e, tone: barTone(p), href: `/projects/${p.id}`, tag });
     }
-    if (p.target_date && overlaps(p.target_date, p.target_date)) pev.push({ id: `ptgt-${p.id}`, kind: "flag", title: `Target: ${title(p.name)}`, person: p.pm_id, start: p.target_date, end: p.target_date, tone: p.target_date < today ? "crit" : "bronze", href: `/projects/${p.id}`, tag });
+    for (const m of msOf.get(p.id) ?? []) if (m.planned_date && overlaps(m.planned_date, m.planned_date)) pev.push({ id: `pms-${p.id}-${m.kind}`, kind: "flag", title: flagTitle(m, p), person: p.pm_id, start: m.planned_date, end: m.planned_date, tone: flagTone(m), href: `/projects/${p.id}`, tag });
     if (p.next_action && p.next_action_due && overlaps(p.next_action_due, p.next_action_due)) pev.push({ id: `pna-${p.id}`, kind: "dot", title: `${p.next_action} — ${title(p.name)}${p.next_action_owner ? ` · ${title(p.next_action_owner)}` : ""}`, person: p.next_action_owner_id, start: p.next_action_due, end: p.next_action_due, tone: p.next_action_due < today ? "crit" : "navy", href: `/projects/${p.id}`, tag });
     if (p.hold_id && p.hold_review_date && overlaps(p.hold_review_date, p.hold_review_date)) pev.push({ id: `phold-${p.id}`, kind: "dot", title: `Hold review — ${title(p.name)}`, person: p.ball_holder_id, start: p.hold_review_date, end: p.hold_review_date, tone: "warn", href: `/projects/${p.id}`, tag });
     stageOf.set(p.id, p.stage ?? 0);
@@ -110,6 +117,12 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
   const projOpts = (live as Project[]).filter((p) => awarded(p)).filter((p) => who === "all" || onProject(p).some(inScope) || p.id === proj).sort((a, b) => (a.enquiry_no ?? "").localeCompare(b.enquiry_no ?? ""));
   const nProj = stageOf.size;
   const wkStart = addDays(today, -new Date(today + "T00:00:00Z").getUTCDay()), wkEnd = addDays(wkStart, 6);
+  const legend = (
+    <span className="mlegend key" aria-label="Colour key">
+      <i className="navy" /> On time <i className="crit" /> Delayed <i className="ext" /> Extended (target revised) <i className="warn" /> On hold <i className="plan" /> Planned production stage
+      <span style={{ marginLeft: 10 }}>⚑ milestone target · ✓ milestone reached</span>
+    </span>
+  );
   const tabs = (
     <div className="mnav">
       <span className="segs who">
@@ -141,8 +154,9 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
             </form>
             <span className="mlegend">Showing <b>{proj ? title(projOpts.find((p) => p.id === proj)?.name ?? "") : label === "Just me" ? "my projects" : label}</b> · {nProj} project{nProj === 1 ? "" : "s"} · {pev.length} thing{pev.length === 1 ? "" : "s"} this month</span>
           </div>
+          <div className="mnav">{legend}</div>
           <MonthByPerson month={month} gridStart={gridStart} gridEnd={gridEnd} today={today} events={pev} people={peopleOpts} multi={false} />
-          <p className="note">Each bar is tagged with its enquiry number or drawing code. Solid bar: the stage the project is in now (entered → target) with who holds the ball. Flag: target date. Dashed bars: planned production stages of its items; blue when in progress, red when late. Dots: next action, hold review, R0 due. Quotation-stage enquiries aren’t shown — they live on the Estimation tab. Dates are changed on the project or the item.{nProj === 0 && who === "me" ? " Nothing here because you’re not PM, ball holder, coordinator or designer on an awarded project — try Everyone." : ""}</p>
+          <p className="note">Each bar is tagged with its enquiry number or drawing code. Solid bar: the stage the project is in now (entered → target) with who holds the ball — navy on time, red delayed (stage or a milestone past its date), gold extended (a milestone date has been pushed). Flags: the four planned milestones — drawings to production, delivery, install complete, handover; ✓ once reached. Dashed bars: planned production stages of its items; blue when in progress, red when late. Dots: next action, hold review, R0 due. Quotation-stage enquiries aren’t shown — they live on the Estimation tab. Dates are changed on the project or the item.{nProj === 0 && who === "me" ? " Nothing here because you’re not PM, ball holder, coordinator or designer on an awarded project — try Everyone." : ""}</p>
         </div>
       </main>
     </Shell>
@@ -180,8 +194,9 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
             </form>
             <span className="mlegend">Showing <b>{label}</b> · {ev.length} thing{ev.length === 1 ? "" : "s"} this month</span>
           </div>
+          <div className="mnav">{legend}</div>
           <MonthByPerson month={month} gridStart={gridStart} gridEnd={gridEnd} today={today} events={ev} people={peopleOpts} multi={who !== "me" && !byId.has(who)} />
-          <p className="note">Bars: the stage you hold the ball on (started → target), production stages you own. Dots: R0 due, next action, hold review. Meetings in bronze. Overlaps stack on the same days. <Link href="/meetings">Meetings diary</Link> · <Link href="/drawings">All drawings</Link></p>
+          <p className="note">Bars: the stage you hold the ball on (started → target), production stages you own. Flags: your projects’ milestone targets. Dots: R0 due, next action, hold review. Meetings in bronze. Overlaps stack on the same days. <Link href="/meetings">Meetings diary</Link> · <Link href="/drawings">All drawings</Link></p>
         </div>
       </main>
     </Shell>

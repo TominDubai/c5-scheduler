@@ -1,12 +1,14 @@
 "use client";
 import { useActionState, useState } from "react";
-import { ALL, QUOTE_STAGES, WAITING_ON, SCOPES, title, fmtD, type Project, type Person, type Contractor, type ParentOption } from "@/lib/model";
+import { ALL, QUOTE_STAGES, WAITING_ON, SCOPES, MILESTONE_LABEL, title, fmtD, type Project, type Person, type Contractor, type ParentOption, type Milestone, type MilestoneKind } from "@/lib/model";
 import ParentOptions from "@/components/ParentOptions";
 import { saveProject, createProject } from "@/app/actions";
 
-type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean; liveProjects?: ParentOption[]; watchers?: string[]; isAdmin?: boolean };
+type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean; liveProjects?: ParentOption[]; watchers?: string[]; isAdmin?: boolean; milestones?: Milestone[] };
+const PLANNED: MilestoneKind[] = ["DRAWINGS_RELEASED", "DELIVERY", "INSTALL_COMPLETE"];
+const HINT: Record<string, string> = { DRAWINGS_RELEASED: "all drawings approved and issued to the factory", DELIVERY: "joinery on site", INSTALL_COMPLETE: "installation done, snagging starts" };
 
-export default function ProjectForm({ project, people, contractors, estimationOnly = false, liveProjects, watchers = [], isAdmin = false }: Props) {
+export default function ProjectForm({ project, people, contractors, estimationOnly = false, liveProjects, watchers = [], isAdmin = false, milestones = [] }: Props) {
   const lock = estimationOnly; // estimators: pricing fields only
   const action = project ? saveProject.bind(null, project.id) : createProject;
   const [state, formAction, pending] = useActionState(action, null as { error?: string; ok?: boolean; at?: string } | null);
@@ -20,6 +22,10 @@ export default function ProjectForm({ project, people, contractors, estimationOn
   const [tagged, setTagged] = useState<Set<string>>(new Set(watchers));
   const targetChanged = !!project && target !== v("target_date");
   const nextRev = (project?.target_rev ?? -1) + 1;
+  // the three planned milestones (db/028) — same Rev 0 / Rev 1 … treatment as the target completion
+  const msOf = (k: MilestoneKind) => milestones.find((m) => m.kind === k);
+  const [ms, setMs] = useState<Record<string, string>>(Object.fromEntries(PLANNED.map((k) => [k, msOf(k)?.planned_date ?? ""])));
+  const msChanged = (k: MilestoneKind) => !!project && ms[k] !== (msOf(k)?.planned_date ?? "");
   const won = !!project && project.status !== "QUOTE"; // past Quotation: the pricing block is history, not something to maintain
   const pricing = (<>
       <div className="field"><label htmlFor="quote_stage">Pricing stage</label>
@@ -83,12 +89,24 @@ export default function ProjectForm({ project, people, contractors, estimationOn
       <div className={"field" + (won ? " money" : "")}><label htmlFor="signed_quote">Signed quote (AED inc. VAT){won && <small> — the project value; correct the price here</small>}</label><input id="signed_quote" name="signed_quote" disabled={lock} inputMode="decimal" defaultValue={project?.signed_quote ?? ""} /></div>
       <div className="field"><label htmlFor="received_date">Enquiry received</label><input id="received_date" name="received_date" type="date" defaultValue={v("received_date")} /></div>
       <div className="field"><label htmlFor="start_date">Project start <small>(date payment received)</small></label><input id="start_date" name="start_date" disabled={lock} type="date" defaultValue={v("start_date")} /></div>
-      <div className="field"><label htmlFor="target_date">Target completion <small>(contractor’s programme, joinery only)</small></label><input id="target_date" name="target_date" disabled={lock} type="date" value={target} onChange={(e) => setTarget(e.target.value)} />
+      <div className="field"><label htmlFor="target_date">Target completion <small>(= handover milestone — contractor’s programme, joinery only)</small></label><input id="target_date" name="target_date" disabled={lock} type="date" value={target} onChange={(e) => setTarget(e.target.value)} />
         {project?.target_rev != null && project.target_rev > 0 && !targetChanged && <small className="revnote">Rev {project.target_rev} · originally {fmtD(project.target_rev0_date)}</small>}</div>
       {targetChanged && (
         <div className="field wide revreason"><label htmlFor="target_change_reason">Why is the target changing? <small>(becomes Rev {nextRev})</small></label>
           <input id="target_change_reason" name="target_change_reason" placeholder="e.g. client added bedroom wardrobes, site not ready until Feb" /></div>
       )}
+      {project && !lock && won && (<>
+        <div className="field wide sep"><span className="sectionlabel">Planned milestones</span><small className="note">Set against the handover date and the client’s programme. Change a date and say why — every change is kept as a revision, like the target completion.</small></div>
+        {PLANNED.map((k) => { const m = msOf(k); const changed = msChanged(k); return (
+          <div key={k} className="field msfield">
+            <label htmlFor={`ms_${k}`}>{MILESTONE_LABEL[k]} <small>({HINT[k]})</small></label>
+            <input id={`ms_${k}`} name={`ms_${k}`} type="date" value={ms[k]} onChange={(e) => setMs((s2) => ({ ...s2, [k]: e.target.value }))} />
+            {m && m.rev_no > 0 && !changed && <small className="revnote">Rev {m.rev_no} · originally {fmtD(m.rev0_date)}</small>}
+            {m?.actual_date && <small className="revnote">Reached {fmtD(m.actual_date)}{m.late ? " — late" : " — on time"}</small>}
+            {changed && <input name={`ms_${k}_reason`} className="msreason" placeholder={m?.planned_date ? `Why is it changing? (becomes Rev ${(m.rev_no ?? 0) + 1})` : "Note for Rev 0 (optional)"} />}
+          </div>
+        ); })}
+      </>)}
       <div className="field"><label htmlFor="completed_date">Date completed</label><input id="completed_date" name="completed_date" disabled={lock} type="date" defaultValue={v("completed_date")} /></div>
       {won ? (
         <details className="field wide qhist">

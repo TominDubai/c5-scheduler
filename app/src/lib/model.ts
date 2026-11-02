@@ -109,7 +109,29 @@ export type Variation = { id: string; project_id: string; vo_no: number; descrip
 export type TargetInfo = { target_rev?: number | null; target_rev0_date?: string | null; items?: ItemCounts | null };
 /** Anyone tagged to be kept updated on a project, on top of the PM, second PM and designer (db/015). */
 export type Watcher = { project_id: string; person_id: string; added_by: string | null; added_at: string };
-export type TargetRevision = { id: number; project_id: string; rev_no: number; target_date: string | null; prev_date: string | null; reason: string | null; set_by: string | null; set_at: string; who?: { name: string } | null };
+// ---------- milestones (db/028) ----------
+/** The four planned milestones, in order. HANDOVER is projects.target_date; the other three live in project_milestones. */
+export const MILESTONE_KINDS = ["DRAWINGS_RELEASED", "DELIVERY", "INSTALL_COMPLETE", "HANDOVER"] as const;
+export type MilestoneKind = typeof MILESTONE_KINDS[number];
+export const MILESTONE_LABEL: Record<MilestoneKind, string> = { DRAWINGS_RELEASED: "Drawings released to production", DELIVERY: "Delivery to site", INSTALL_COMPLETE: "Installation complete", HANDOVER: "Handover (target completion)" };
+export const MILESTONE_SHORT: Record<MilestoneKind, string> = { DRAWINGS_RELEASED: "Drawings → production", DELIVERY: "Delivery", INSTALL_COMPLETE: "Install complete", HANDOVER: "Handover" };
+/** one row per project per kind from milestones_live */
+export type Milestone = { project_id: string; kind: MilestoneKind; label: string; short_label: string; sort_order: number; reached_at_stage: number; planned_date: string | null; rev_no: number; revisions: number; rev0_date: string | null; actual_date: string | null; reached: boolean; late: boolean | null };
+/** every date a milestone has ever had — Rev 0 is the original programme; withdrawn rows stay visible but don't count */
+export type MilestoneRevision = { id: number; project_id: string; kind: MilestoneKind; rev_no: number; planned_date: string | null; prev_date: string | null; reason: string | null; set_by: string | null; set_at: string; edited_at: string | null; withdrawn_at: string | null; withdrawn_by: string | null; withdrawn_reason: string | null; who?: { name: string } | null; withdrawer?: { name: string } | null };
+/** a dated update / issue on a project (project_log) — Anne, 2 Nov */
+export type LogEntry = { id: string; project_id: string; body: string; file_path: string | null; file_name: string | null; link_url: string | null; created_by: string | null; created_at: string; edited_at: string | null; deleted_at: string | null; deleted_by: string | null; who?: { name: string } | null };
+/** on time / delayed / extended — the schedule's colour (Anne, 2 Nov). Extended = the handover target has been revised. */
+export type Timing = "ontime" | "delayed" | "extended";
+/** Delayed: the stage is past its target, the project is past its target completion, or any milestone was reached late / is overdue.
+ *  Extended: not delayed, but a milestone date has been pushed (revised) at least once. Otherwise on time. */
+export function timingOf(p: { stage_overdue?: boolean | null; target_date: string | null; status: Status; flow_status?: string | null }, ms: Milestone[], today: string): Timing {
+  if (p.status === "COMPLETED") return ms.some((m) => m.late) ? "delayed" : "ontime";
+  if (p.stage_overdue || (p.target_date && p.target_date < today) || ms.some((m) => m.late)) return "delayed";
+  if (ms.some((m) => m.revisions > 0)) return "extended";
+  return "ontime";
+}
+export const TIMING_LABEL: Record<Timing, string> = { ontime: "On time", delayed: "Delayed", extended: "Extended" };
 export type History = { id: string; from_status: Status | null; to_status: Status; changed_at: string; note: string | null; changed_by: string | null; who?: string | null };
 
 export const aed = (v: number | null | undefined) => v ? "AED " + Math.round(v).toLocaleString("en-GB") : "—";

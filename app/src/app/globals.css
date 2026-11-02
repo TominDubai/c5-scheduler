@@ -649,3 +649,30 @@ tr.changed td { background: #FBF6EC; }
 .quiet { margin-top: 8px; font: 700 12px var(--font); color: #9A5410; background: #FCEBD9; padding: 4px 8px; border-radius: 6px; }
 .quiet.act { cursor: pointer; } .quiet.act:hover { text-decoration: underline; }
 .decide .park { margin-left: auto; align-self: center; }
+
+/* milestones + project log (db/028, Anne 2 Nov) */
+.mstable { width: 100%; min-width: 0; border-collapse: collapse; font-size: 13px; }
+@media (max-width: 760px) { .mstable th:nth-child(3), .mstable td:nth-child(3) { display: none; } }
+.mstable th { text-align: left; font: 700 10px var(--font); letter-spacing: .1em; text-transform: uppercase; color: var(--fg3); padding: 4px 8px 6px 0; border-bottom: 1px solid var(--line); }
+.mstable td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--line); vertical-align: middle; } .mstable tr:last-child td { border-bottom: 0; }
+.mstable td.name { font-weight: 700; color: var(--navy); } .mstable td i { color: var(--fg3); } .mstable .orig { color: var(--fg3); margin-left: 6px; }
+.msrevs { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.msrevs h3 { margin: 0; font: 800 12px var(--font); color: var(--fg2); }
+.hist.revs li.withdrawn .date, .hist.revs li.withdrawn .why, .hist.revs li.withdrawn .rev { text-decoration: line-through; text-decoration-color: var(--crit); opacity: .6; }
+.hist.revs li.withdrawn .wdnote { text-decoration: none; color: var(--crit); opacity: 1; display: inline-block; }
+.hist.revs .edited { color: var(--fg3); }
+.hist.revs .editwhy { display: flex; gap: 6px; align-items: center; } .hist.revs .editwhy input { flex: 1; font-size: 13px; padding: 5px 9px; }
+.linkbtn.tiny { font-size: 11px; margin-left: 8px; font-weight: 600; } .btn.sm.danger { color: var(--crit); }
+.field.msfield .msreason { margin-top: 6px; font-size: 13px; }
+.field.sep .note { display: block; margin-top: 4px; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.logcompose { display: flex; flex-direction: column; gap: 8px; } .logcompose textarea { width: 100%; }
+.logtools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .logtools .loglink { flex: 1 1 220px; font-size: 13px; padding: 6px 10px; }
+.loglist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.loglist li { padding: 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; gap: 6px; }
+.loghead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--fg3); } .loghead b { color: var(--navy); font-size: 13px; } .loghead time { font-family: var(--mono); }
+.logact { margin-left: auto; display: inline-flex; gap: 8px; align-items: center; } .logact.confirm { color: var(--crit); font-weight: 600; }
+.logbody { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--fg); white-space: pre-wrap; }
+/* schedule: on time / delayed / extended (Anne, 2 Nov) */
+.mev.ext { background: var(--soon); color: #2b2200; } .mev.flag.ext::before { color: var(--soon); } .mev.flag.ok::before { color: var(--ok); content: "✓"; font-weight: 800; }
+.mlegend i.navy { background: var(--navy); } .mlegend i.crit { background: var(--crit); } .mlegend i.ext { background: var(--soon); } .mlegend i.warn { background: var(--warn); } .mlegend i.plan { background: #fff; border: 1.5px dashed var(--line2); }
+.mlegend.key { margin-left: 0; flex-wrap: wrap; row-gap: 4px; }

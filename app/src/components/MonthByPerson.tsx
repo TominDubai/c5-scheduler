@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { addDays } from "@/lib/model";
 
-export type CalEvent = { id: string; kind: "ball" | "bar" | "dot" | "flag" | "meet"; title: string; person: string | null; start: string; end: string; tone: "navy" | "site" | "crit" | "warn" | "plan" | "bronze" | "meet"; href: string; tag?: string };
+export type CalEvent = { id: string; kind: "ball" | "bar" | "dot" | "flag" | "meet"; title: string; person: string | null; start: string; end: string; tone: "navy" | "site" | "crit" | "warn" | "plan" | "bronze" | "meet" | "ext" | "ok"; href: string; tag?: string };
 type PersonLite = { id: string; name: string; role: string };
 
 /** A month grid with spanning bars, Google-calendar style. Server component: no state, links do the navigation. */

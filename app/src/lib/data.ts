@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { cache } from "react";
-import type { Project, Person, Contractor, Me, TargetRevision } from "@/lib/model";
+import type { Project, Person, Contractor, Me, Milestone, MilestoneRevision, LogEntry } from "@/lib/model";
 
 type Extra = { id: string; parent_project_id: string | null; deleted_at: string | null; deleted_reason: string | null; deleted_by: string | null; quote_dormant: boolean; quote_dormant_since: string | null; reopened_vo_no: number | null; charged_to: string | null };
 /** parent links and removal stamps live on the projects table (the view predates those columns); stitch them on here */
@@ -10,7 +10,7 @@ async function withParents(rows: Project[]): Promise<Project[]> {
   const extras = new Map(((ex ?? []) as unknown as (Omit<Extra, "deleted_by"> & { deleted_by: { name: string } | null })[]).map((e) => [e.id, { ...e, deleted_by: e.deleted_by?.name ?? null } as Extra]));
   const parentOf = new Map([...extras.values()].filter((e) => e.parent_project_id).map((e) => [e.id, e.parent_project_id as string]));
   // target revisions: highest rev_no = current, rev 0 = original programme
-  const { data: revs } = await supabase.from("target_revisions").select("project_id, rev_no, target_date").in("project_id", rows.map((r) => r.id)).order("rev_no");
+  const { data: revs } = await supabase.from("milestone_revisions").select("project_id, rev_no, target_date:planned_date").eq("kind", "HANDOVER").is("withdrawn_at", null).in("project_id", rows.map((r) => r.id)).order("rev_no");
   const rev = new Map<string, { target_rev: number; target_rev0_date: string | null }>();
   for (const r of (revs ?? []) as { project_id: string; rev_no: number; target_date: string | null }[]) {
     const cur = rev.get(r.project_id);
@@ -111,10 +111,28 @@ export async function getProjectMeetings(projectId: string): Promise<Meeting[]> 
   return (data ?? []) as Meeting[];
 }
 
-export async function getTargetRevisions(projectId: string): Promise<TargetRevision[]> {
+// ---------- milestones + project log (db/028) ----------
+/** every revision of every milestone on one project, newest first, withdrawn ones included (shown struck through) */
+export async function getMilestoneRevisions(projectId: string): Promise<MilestoneRevision[]> {
   const supabase = await createClient();
-  const { data } = await supabase.from("target_revisions").select("*, who:people(name)").eq("project_id", projectId).order("rev_no", { ascending: false });
-  return (data ?? []) as TargetRevision[];
+  const { data } = await supabase.from("milestone_revisions").select("*, who:people!milestone_revisions_set_by_fkey(name), withdrawer:people!milestone_revisions_withdrawn_by_fkey(name)").eq("project_id", projectId).order("rev_no", { ascending: false });
+  return (data ?? []) as MilestoneRevision[];
+}
+export async function getProjectMilestones(projectId: string): Promise<Milestone[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("milestones_live").select("*").eq("project_id", projectId).order("sort_order");
+  return (data ?? []) as Milestone[];
+}
+/** every live project's four milestones — the schedule's named flags and colours */
+export const getAllMilestones = cache(async function getAllMilestones(): Promise<Milestone[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("milestones_live").select("*").order("sort_order");
+  return (data ?? []) as Milestone[];
+});
+export async function getProjectLog(projectId: string): Promise<LogEntry[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("project_log").select("*, who:people!project_log_created_by_fkey(name)").eq("project_id", projectId).is("deleted_at", null).order("created_at", { ascending: false });
+  return (data ?? []) as LogEntry[];
 }
 
 // ---------- items & production (db/014) ----------

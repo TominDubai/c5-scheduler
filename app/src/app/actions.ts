@@ -167,8 +167,74 @@ export async function saveProject(id: string, _prev: unknown, fd: FormData) {
   const { error } = await supabase.from("projects").update(fields).eq("id", id);
   if (error) return { error: error.message };
   await syncWatchers(id, fd);
-  revalidatePath("/board"); revalidatePath("/list"); revalidatePath(`/projects/${id}`);
+  const ms = await saveMilestones(id, fd);
+  if (ms) return { error: ms };
+  revalidatePath("/board"); revalidatePath("/list"); revalidatePath(`/projects/${id}`); revalidatePath("/schedule");
   return { ok: true, at: new Date().toISOString() };
+}
+
+/** The three planned milestones that aren't the target completion (db/028). The form posts `ms_<KIND>` and
+ *  `ms_<KIND>_reason`; the trigger turns a changed date into the next revision and clears the reason. */
+async function saveMilestones(projectId: string, fd: FormData): Promise<string | null> {
+  const supabase = await createClient();
+  for (const kind of ["DRAWINGS_RELEASED", "DELIVERY", "INSTALL_COMPLETE"]) {
+    if (!fd.has(`ms_${kind}`)) continue;
+    const planned_date = nz(fd.get(`ms_${kind}`));
+    const change_reason = nz(fd.get(`ms_${kind}_reason`));
+    const { data: cur } = await supabase.from("project_milestones").select("planned_date").eq("project_id", projectId).eq("kind", kind).maybeSingle();
+    if (!cur) { if (planned_date) { const { error } = await supabase.from("project_milestones").insert({ project_id: projectId, kind, planned_date, change_reason }); if (error) return error.message; } continue; }
+    if (cur.planned_date === planned_date) continue;
+    const { error } = await supabase.from("project_milestones").update({ planned_date, change_reason }).eq("project_id", projectId).eq("kind", kind);
+    if (error) return error.message;
+  }
+  return null;
+}
+
+/** Strike a revision out of the history (or put it back). Rev 0 can't be withdrawn; the author has 24 h, admins always. */
+export async function withdrawRevision(projectId: string, revId: number, undo: boolean, why?: string | null): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("withdraw_milestone_revision", { rev_id: revId, undo, why: why ?? null });
+  if (error) return { error: error.message };
+  bustWorkflow(projectId); revalidatePath("/schedule");
+  return { ok: true };
+}
+export async function editRevisionReason(projectId: string, revId: number, reason: string): Promise<R> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("edit_milestone_revision_reason", { rev_id: revId, new_reason: reason });
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true };
+}
+
+// ---------- project log (db/028) ----------
+export async function addLogEntry(projectId: string, data: { body: string; file_path?: string | null; file_name?: string | null; link_url?: string | null }): Promise<R> {
+  const supabase = await createClient();
+  const body = data.body.trim();
+  if (!body) return { error: "Write what happened first." };
+  const { data: me } = await supabase.rpc("me");
+  const { error } = await supabase.from("project_log").insert({ project_id: projectId, body, file_path: data.file_path ?? null, file_name: data.file_name ?? null, link_url: data.link_url ?? null, created_by: (me as { id?: string } | null)?.id ?? null });
+  if (error) return { error: error.message };
+  bustWorkflow(projectId);
+  return { ok: true };
+}
+export async function editLogEntry(projectId: string, entryId: string, body: string): Promise<R> {
+  const supabase = await createClient();
+  if (!body.trim()) return { error: "An entry can't be empty — remove it instead." };
+  const { data, error } = await supabase.from("project_log").update({ body: body.trim() }).eq("id", entryId).select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "Only the person who wrote this (within 24 hours) or an admin can change it." };
+  bustWorkflow(projectId);
+  return { ok: true };
+}
+/** Soft delete — the row stays for the audit trail, the file goes. */
+export async function removeLogEntry(projectId: string, entryId: string): Promise<R> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("project_log").update({ deleted_at: new Date().toISOString() }).eq("id", entryId).is("deleted_at", null).select("file_path");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "Only the person who wrote this (within 24 hours) or an admin can remove it." };
+  if (data[0].file_path) await supabase.storage.from("evidence").remove([data[0].file_path as string]);
+  bustWorkflow(projectId);
+  return { ok: true };
 }
 
 export async function createProject(_prev: unknown, fd: FormData) {
