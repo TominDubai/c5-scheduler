@@ -239,13 +239,14 @@ export const ITEM_STAGES: [ItemStage, string][] = [
 export const ITEM_STAGE_LABEL: Record<ItemStage, string> = Object.fromEntries(ITEM_STAGES) as Record<ItemStage, string>;
 export const ITEM_STAGE_ORDER: Record<ItemStage, number> = Object.fromEntries(ITEM_STAGES.map(([k], i) => [k, i])) as Record<ItemStage, number>;
 
-export type ItemType = { id: string; name: string; code_letter: string; sort_order: number; is_active: boolean };
+export type ItemType = { id: string; name: string; code_letter: string; sort_order: number; is_active: boolean; pad: number };
 export type Item = {
   id: string; project_id: string; type_id: string; code_letter: string; seq: number; name: string; area: string | null;
   designer_id: string | null; drawing_started_date: string | null; planned_submission: string | null;
   current_revision: number | null; current_status: DrawingStatus | null; material_approval: MaterialStatus;
   measurements_date: string | null; issued_date: string | null; notes: string | null; cancelled: boolean; sort_order: number;
   created_by: string | null; updated_by: string | null; created_at: string; updated_at: string;
+  location_code: string; boq_ref: string | null; materials: string | null; code_override: string | null;   // db/029
   // from items_live
   item_code: string; drawing_code: string; drawing_code_rev: string; type_name: string;
   project_name: string; enquiry_no: string | null; project_status: Status; client: string | null; project_deleted_at: string | null;

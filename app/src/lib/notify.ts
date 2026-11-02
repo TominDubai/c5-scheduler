@@ -97,6 +97,7 @@ export function describe(c: Change, p?: Proj): string {
       return `${f}: ${v(c.old_value)} → ${v(c.new_value)}`;
     }
     case "item_created": return `Item added — ${c.field}`;
+    case "items_imported": return `Items imported from the drawing log — ${c.new_value ?? ""}`;
     case "item_cancelled": return `Item cancelled — ${c.field}`;
     case "item_drawing": return `${c.field}: drawing ${c.old_value ? `${c.old_value} → ` : ""}${c.new_value ?? "—"}`;
     case "item_issued": return `${c.field}: ${c.new_value ? `issued to production ${fmtDate(c.new_value)}` : "issue to production cleared"}`;
