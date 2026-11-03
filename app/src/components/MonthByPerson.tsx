@@ -11,7 +11,7 @@ export default function MonthByPerson({ month, gridStart, gridEnd, today, events
   for (let d = gridStart; d <= gridEnd; d = addDays(d, 7)) weeks.push(Array.from({ length: 7 }, (_, i) => addDays(d, i)));
   const sorted = [...events].sort((a, b) => a.start.localeCompare(b.start) || b.end.localeCompare(a.end));
   return (
-    <div className="mgrid">
+    <div className="mgrid month">
       <div className="mgrid-head">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <div key={d}>{d}</div>)}</div>
       {weeks.map((wk) => {
         const ws = wk[0], we = wk[6];
