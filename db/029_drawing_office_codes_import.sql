@@ -9,6 +9,10 @@
 -- and import_drawing_log() which upserts items, revisions and dates from the parsed sheet in one transaction.
 set search_path = scheduler, public;
 
+-- the views read items.code_letter, so they go first and are recreated below
+drop view if exists project_item_counts;
+drop view if exists items_live;
+
 -- ---------- types: two-letter codes, sequence width ----------
 alter table item_types alter column code_letter type text;
 alter table items      alter column code_letter type text;
@@ -43,8 +47,6 @@ create or replace function item_label(i items) returns text language sql stable 
 $$;
 
 -- ---------- items_live rebuilt with the new columns ----------
-drop view if exists project_item_counts;
-drop view if exists items_live;
 create view items_live as
 select
   i.*,
