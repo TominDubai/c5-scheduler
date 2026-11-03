@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createItem } from "@/app/actions";
 import { fmtDShort, title, itemFlags, revLabel, type Item, type ItemType, type ItemRevision, type ItemProductionStage, type Me, type Person, itemRights } from "@/lib/model";
 import ItemDrawer from "@/components/ItemDrawer";
+import ItemsImport from "@/components/ItemsImport";
 import StageStrip, { StageChip } from "@/components/StageStrip";
 import Progress from "@/components/Progress";
 
@@ -18,6 +19,7 @@ export default function ItemsPanel({ projectId, projectDesignerId, data, types, 
   const canAdd = rights.items && !locked;
   const [open, setOpen] = useState<string | null>(sp.get("item"));
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
   useEffect(() => { setOpen(sp.get("item")); }, [sp]);
   const openItem = (id: string | null) => {
@@ -45,23 +47,26 @@ export default function ItemsPanel({ projectId, projectDesignerId, data, types, 
             {attention > 0 && <span className="crit"><b>{attention}</b> need attention</span>}
           </div>
         )}
-        {canAdd && <button className="btn sm bronze" onClick={() => setAdding((a) => !a)}>{adding ? "Close" : "+ Item"}</button>}
+        {canAdd && <button className="btn sm ghost" onClick={() => { setImporting((a) => !a); setAdding(false); }}>{importing ? "Close" : "Import from Excel"}</button>}
+        {canAdd && <button className="btn sm bronze" onClick={() => { setAdding((a) => !a); setImporting(false); }}>{adding ? "Close" : "+ Item"}</button>}
       </div>
       {n.total > 0 && (
         <Progress done={n.done} site={n.site} prod={n.prod} appr={n.approved - n.prod - n.site - n.done} todo={n.total - n.approved} title={`${n.done} complete · ${n.site} on site · ${n.prod} in production · ${n.total - n.approved} in drawings`} />
       )}
+      {importing && <ItemsImport projectId={projectId} onDone={() => { setImporting(false); router.refresh(); }} />}
       {adding && <AddItem projectId={projectId} types={types} designers={designers} defaultDesigner={projectDesignerId} onDone={(id) => { setAdding(false); router.refresh(); if (id) openItem(id); }} />}
       {rows.length === 0 ? (
-        <p className="empty-items">{canAdd ? "No items yet. Add every piece of joinery that needs a shop drawing — kitchens, wardrobes, vanities, TV units. Ancillary quote lines (stone supply, appliances, site works) stay off this list." : "No items have been added to this project yet."}</p>
+        <p className="empty-items">{canAdd ? "No items yet. Upload the project’s Shop Drawing Log (Import from Excel) or add every piece of joinery that needs a shop drawing by hand. Ancillary quote lines (stone supply, appliances, site works) stay off this list." : "No items have been added to this project yet."}</p>
       ) : (
         <div className="tablewrap items-table">
           <table>
-            <thead><tr><th>Code</th><th>Item</th><th>Area</th><th>Designer</th><th>Stage</th><th>Drawing</th><th>Due</th><th>Production</th><th></th></tr></thead>
+            <thead><tr><th>Code</th><th>Item</th><th>BOQ ref</th><th>Area</th><th>Designer</th><th>Stage</th><th>Drawing</th><th>Due</th><th>Production</th><th></th></tr></thead>
             <tbody>
               {rows.map((i) => { const flags = itemFlags(i); return (
                 <tr key={i.id} className={`row${i.cancelled ? " off" : ""}${open === i.id ? " open" : ""}`} onClick={() => openItem(i.id)}>
                   <td className="enq code">{i.drawing_code}</td>
                   <td className="name">{i.name}{i.cancelled && <span className="pill none" style={{ marginLeft: 8 }}>cancelled</span>}</td>
+                  <td className="boq">{i.boq_ref ? <span title={i.boq_ref}>{i.boq_ref.replace(" / ", " ")}</span> : "—"}</td>
                   <td>{i.area ?? "—"}</td>
                   <td>{i.designer ? title(i.designer) : <i>none</i>}</td>
                   <td><StageChip i={i} /></td>
@@ -89,11 +94,13 @@ function AddItem({ projectId, types, designers, defaultDesigner, onDone }: { pro
       <div className="field"><label htmlFor="it-type">Type</label>
         <select id="it-type" name="type_id" defaultValue={types[0]?.id} required>{types.map((t) => <option key={t.id} value={t.id}>{t.code_letter} · {t.name}</option>)}</select></div>
       <div className="field wide"><label htmlFor="it-name">Item</label><input id="it-name" name="name" required autoFocus placeholder="e.g. Main kitchen, Master bedroom wardrobe, Guest vanity" /></div>
+      <div className="field"><label htmlFor="it-loc">Room code <small>(3 chars — 101, 204, ZZZ)</small></label><input id="it-loc" name="location_code" maxLength={3} defaultValue="ZZZ" style={{ textTransform: "uppercase" }} /></div>
       <div className="field"><label htmlFor="it-area">Area / room</label><input id="it-area" name="area" placeholder="Ground floor, Master bedroom …" /></div>
+      <div className="field"><label htmlFor="it-boq">BOQ ref</label><input id="it-boq" name="boq_ref" placeholder="J-R7 I.3-4" /></div>
       <div className="field"><label htmlFor="it-designer">Designer</label>
         <select id="it-designer" name="designer_id" defaultValue={defaultDesigner ?? ""}><option value="">— project designer —</option>{designers.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
       <div className="field"><label htmlFor="it-sub">Planned R0 submission</label><input id="it-sub" name="planned_submission" type="date" /></div>
-      <div className="actions"><button className="btn" disabled={pending}>{pending ? "Adding…" : "Add item"}</button><span className="note">The drawing code is assigned automatically — the next free number for that type on this project.</span>{state?.error && <span className="msg err">{state.error}</span>}</div>
+      <div className="actions"><button className="btn" disabled={pending}>{pending ? "Adding…" : "Add item"}</button><span className="note">Drawing number is assigned automatically: project · room · type + next free number, e.g. 26-024-101-B001.</span>{state?.error && <span className="msg err">{state.error}</span>}</div>
     </form>
   );
 }

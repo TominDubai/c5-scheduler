@@ -677,3 +677,11 @@ tr.changed td { background: #FBF6EC; }
 .mev.ext { background: var(--soon); color: #2b2200; } .mev.flag.ext::before { color: var(--soon); } .mev.flag.ok::before { color: var(--ok); content: "✓"; font-weight: 800; }
 .mlegend i.navy { background: var(--navy); } .mlegend i.crit { background: var(--crit); } .mlegend i.ext { background: var(--soon); } .mlegend i.warn { background: var(--warn); } .mlegend i.plan { background: #fff; border: 1.5px dashed var(--line2); }
 .mlegend.key { margin-left: 0; flex-wrap: wrap; row-gap: 4px; }
+/* items: import from Excel (db/029) */
+.importbox { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.importhead { display: flex; gap: 14px; align-items: flex-start; } .importhead > div { flex: 1; display: flex; flex-direction: column; gap: 3px; } .importhead small { color: var(--fg3); font-size: 12px; line-height: 1.45; } .importhead b { color: var(--navy); }
+.importsummary { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--fg2); }
+.importtable table { min-width: 760px; font-size: 12.5px; } .importtable td, .importtable th { padding: 6px 10px; } .importtable td.mat { font-size: 11.5px; line-height: 1.4; color: var(--fg2); } .importtable td.small, .importtable td.boq { font-size: 11.5px; white-space: nowrap; } .importtable td:nth-child(8) { white-space: nowrap; } .importtable tr.off td { opacity: .5; }
+.importtable { max-height: 420px; overflow: auto; }
+.importresult p { margin: 0; font-size: 14px; } .importresult ul { margin: 6px 0 0; padding-left: 18px; }
+.items-table td.boq { font: 600 11.5px var(--mono); color: var(--fg3); white-space: nowrap; }

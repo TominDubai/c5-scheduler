@@ -408,10 +408,37 @@ export async function createItem(projectId: string, _prev: unknown, fd: FormData
   if (!type_id) return { error: "Pick an item type — it sets the letter in the drawing code." };
   const { data, error } = await supabase.from("items").insert({
     project_id: projectId, type_id, name, area: nz(fd.get("area")), designer_id: nz(fd.get("designer_id")), planned_submission: nz(fd.get("planned_submission")),
+    location_code: (nz(fd.get("location_code")) ?? "ZZZ").toUpperCase().slice(0, 3), boq_ref: nz(fd.get("boq_ref")),
   }).select("id").single();
   if (error) return { error: error.message };
   bustItems(projectId);
   return { ok: true, id: data.id as string, at: new Date().toISOString() };
+}
+
+// ---------- import items from the designer's Excel (db/029) ----------
+import { parseDrawingLog, type ImportParse, type ImportRow } from "@/lib/importDrawingLog";
+/** Step 1: read the sheet and show what would happen. Nothing is written. */
+export async function previewItemsImport(projectId: string, fd: FormData): Promise<{ error?: string; parse?: ImportParse; existing?: string[] }> {
+  const f = fd.get("file");
+  if (!(f instanceof File) || f.size === 0) return { error: "Choose the Excel file first." };
+  if (f.size > 15 * 1024 * 1024) return { error: "That file is over 15 MB." };
+  let parse: ImportParse;
+  try { parse = parseDrawingLog(Buffer.from(await f.arrayBuffer())); } catch (e) { return { error: e instanceof Error ? e.message : "Couldn't read that file." }; }
+  const supabase = await createClient();
+  const { data } = await supabase.from("items_live").select("drawing_code, code_letter, seq").eq("project_id", projectId);
+  const keys = new Set<string>();
+  for (const i of (data ?? []) as { drawing_code: string; code_letter: string; seq: number }[]) { keys.add(i.drawing_code); keys.add(`${i.code_letter}#${i.seq}`); }
+  const existing = parse.rows.filter((r) => { const m = r.drawing_no.match(/-([A-Z]{1,2})-?(\d{1,4})$/); return keys.has(r.drawing_no) || (!!m && keys.has(`${m[1]}#${Number(m[2])}`)); }).map((r) => r.drawing_no);
+  return { parse, existing };
+}
+/** Step 2: write it. One transaction in the database; items matched on drawing number, never duplicated. */
+export async function commitItemsImport(projectId: string, rows: ImportRow[]): Promise<R & { created?: number; updated?: number; skipped?: { drawing_no: string; why: string }[] }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("import_drawing_log", { p_project: projectId, rows });
+  if (error) return { error: error.message };
+  bustItems(projectId); revalidatePath("/drawings"); revalidatePath("/designers"); revalidatePath("/schedule");
+  const res = data as { created: number; updated: number; skipped: { drawing_no: string; why: string }[] };
+  return { ok: true, ...res };
 }
 
 export async function saveItem(projectId: string, itemId: string, _prev: unknown, fd: FormData): Promise<R> {
@@ -428,6 +455,9 @@ export async function saveItem(projectId: string, itemId: string, _prev: unknown
   if (has("measurements_date")) patch.measurements_date = nz(fd.get("measurements_date"));
   if (has("issued_date")) patch.issued_date = nz(fd.get("issued_date"));
   if (has("notes")) patch.notes = nz(fd.get("notes"));
+  if (has("boq_ref")) patch.boq_ref = nz(fd.get("boq_ref"));
+  if (has("materials")) patch.materials = nz(fd.get("materials"));
+  if (has("location_code")) patch.location_code = (nz(fd.get("location_code")) ?? "ZZZ").toUpperCase().slice(0, 3);
   const { error } = await supabase.from("items").update(patch).eq("id", itemId);
   if (error) return { error: error.message };
   bustItems(projectId);

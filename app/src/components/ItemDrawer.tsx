@@ -171,12 +171,15 @@ function DetailsForm({ item, types, designers, canEdit, canDrawing }: { item: It
       <div className="field wide"><label htmlFor="d-name">Item</label><input id="d-name" name="name" defaultValue={item.name} disabled={d} required /></div>
       <div className="field"><label htmlFor="d-type">Type <small>(code stays {item.item_code})</small></label>
         <select id="d-type" name="type_id" defaultValue={item.type_id} disabled={d}>{types.map((t) => <option key={t.id} value={t.id}>{t.code_letter} · {t.name}</option>)}</select></div>
+      <div className="field"><label htmlFor="d-loc">Room code <small>(in the drawing number)</small></label><input id="d-loc" name="location_code" maxLength={3} defaultValue={item.location_code ?? "ZZZ"} disabled={d || !!item.code_override} style={{ textTransform: "uppercase" }} /></div>
       <div className="field"><label htmlFor="d-area">Area / room</label><input id="d-area" name="area" defaultValue={item.area ?? ""} disabled={d} /></div>
+      <div className="field"><label htmlFor="d-boq">BOQ ref <small>(quotation line)</small></label><input id="d-boq" name="boq_ref" defaultValue={item.boq_ref ?? ""} disabled={d} placeholder="J-R7 I.3-4" /></div>
       <div className="field"><label htmlFor="d-designer">Designer</label>
         <select id="d-designer" name="designer_id" defaultValue={item.designer_id ?? ""} disabled={d}><option value="">—</option>{designers.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
       <div className="field"><label htmlFor="d-start">Drawing started</label><input id="d-start" name="drawing_started_date" type="date" defaultValue={item.drawing_started_date ?? ""} disabled={dd} /></div>
       <div className="field"><label htmlFor="d-sub">Planned R0 submission</label><input id="d-sub" name="planned_submission" type="date" defaultValue={item.planned_submission ?? ""} disabled={dd} /></div>
       <div className="field wide"><label htmlFor="d-notes">Notes</label><textarea id="d-notes" name="notes" rows={2} defaultValue={item.notes ?? ""} disabled={d && dd} /></div>
+      <div className="field wide"><label htmlFor="d-mat">Materials <small>(from the Material Log — one line per category)</small></label><textarea id="d-mat" name="materials" rows={item.materials ? Math.min(8, item.materials.split("\n").length + 1) : 2} defaultValue={item.materials ?? ""} disabled={d} placeholder="Shutters: LC01 …&#10;Stone: ST02 …" /></div>
       {(canEdit || canDrawing) && <div className="actions"><button className="btn sm" disabled={pending}>{pending ? "Saving…" : "Save details"}</button>{state?.error && <span className="msg err">{state.error}</span>}{state?.ok && <span className="msg">Saved</span>}</div>}
     </form>
   );
