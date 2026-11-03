@@ -160,6 +160,21 @@ async function syncWatchers(projectId: string, fd: FormData) {
   if (drop.length) await supabase.from("project_watchers").delete().eq("project_id", projectId).in("person_id", drop);
 }
 
+/** Supporting technical designers (db/030): same mechanics as the watchers above. The lead stays in
+ *  projects.technical_designer_id; anyone also picked as lead is dropped from the supporting list. */
+async function syncTechDesigners(projectId: string, fd: FormData) {
+  if (!fd.has("tech_designers_present")) return;
+  const supabase = await createClient();
+  const lead = nz(fd.get("technical_designer_id"));
+  const want = [...new Set(fd.getAll("tech_designers").map(String).filter((x) => x && x !== lead))];
+  const { data: cur } = await supabase.from("project_technical_designers").select("person_id").eq("project_id", projectId);
+  const have = new Set(((cur ?? []) as { person_id: string }[]).map((r) => r.person_id));
+  const add = want.filter((id) => !have.has(id));
+  const drop = [...have].filter((id) => !want.includes(id));
+  if (add.length) await supabase.from("project_technical_designers").insert(add.map((person_id) => ({ project_id: projectId, person_id })));
+  if (drop.length) await supabase.from("project_technical_designers").delete().eq("project_id", projectId).in("person_id", drop);
+}
+
 export async function saveProject(id: string, _prev: unknown, fd: FormData) {
   const supabase = await createClient();
   const fields = projectFields(fd);
@@ -167,6 +182,7 @@ export async function saveProject(id: string, _prev: unknown, fd: FormData) {
   const { error } = await supabase.from("projects").update(fields).eq("id", id);
   if (error) return { error: error.message };
   await syncWatchers(id, fd);
+  await syncTechDesigners(id, fd);
   const ms = await saveMilestones(id, fd);
   if (ms) return { error: ms };
   revalidatePath("/board"); revalidatePath("/list"); revalidatePath(`/projects/${id}`); revalidatePath("/schedule");
@@ -712,6 +728,7 @@ export async function setTeamRole(projectId: string, field: string, personId: st
   const supabase = await createClient();
   const { error } = await supabase.from("projects").update({ [field]: personId || null }).eq("id", projectId);
   if (error) return { error: error.message };
+  if (field === "technical_designer_id" && personId) await supabase.from("project_technical_designers").delete().eq("project_id", projectId).eq("person_id", personId);
   bust(projectId); bustWorkflow(projectId);
   return { ok: true, at: new Date().toISOString() };
 }

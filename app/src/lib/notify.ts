@@ -10,7 +10,7 @@ const QUIET_MS = 3 * 60 * 1000;        // skip a project edited in the last 3 mi
 const MAX_AGE_MS = 7 * 24 * 3600 * 1000; // never email about something older than a week (e.g. a backlog after an outage)
 
 type Change = { id: number; project_id: string | null; meeting_id: string | null; kind: string; field: string | null; old_value: string | null; new_value: string | null; changed_by: string | null; changed_at: string };
-type Proj = { id: string; enquiry_no: string | null; name: string; client: string | null; status: Status; pm_id: string | null; pm2_id: string | null; designer_id: string | null; estimator_id: string | null; signed_quote: number | null; ball_holder_id?: string | null; stage?: number | null; project_value?: number | null; vo_count?: number | null; pm?: string | null; target_date?: string | null };
+type Proj = { id: string; enquiry_no: string | null; name: string; client: string | null; status: Status; pm_id: string | null; pm2_id: string | null; designer_id: string | null; technical_designer_id?: string | null; estimator_id: string | null; signed_quote: number | null; ball_holder_id?: string | null; stage?: number | null; project_value?: number | null; vo_count?: number | null; pm?: string | null; target_date?: string | null };
 type Person = { id: string; name: string; full_name: string | null; email: string | null; is_active: boolean; notify_on_award: boolean; notify_progress_invoice?: boolean; notify_final_invoice?: boolean };
 type Meet = { id: string; title: string; project_id: string | null; project_name: string | null; location: "ROOM" | "SITE" | "ONLINE"; meeting_date: string; start_time: string; end_time: string; notes: string | null; cancelled: boolean; created_by: string | null; attendee_ids: string[]; attendees: string[] };
 const LOC: Record<string, string> = { ROOM: "Meeting room", SITE: "On site", ONLINE: "Online" };
@@ -108,6 +108,8 @@ export function describe(c: Change, p?: Proj): string {
     case "milestone": return `Milestone — ${c.field}: ${c.old_value ? `${c.old_value} → ` : "planned "}${c.new_value ?? "—"}`;
     case "milestone_withdrawn": return `Milestone — ${c.field}: ${c.old_value ?? "a revision"} withdrawn${c.new_value ? ` — ${c.new_value}` : ""}`;
     case "log_entry": return `Log: ${c.new_value ?? ""}${c.field ? ` 📎 ${c.field}` : ""}`;
+    case "tech_designer_added": return `${tc(c.new_value ?? "")} added as a technical designer on this project`;
+    case "tech_designer_removed": return `${tc(c.old_value ?? "")} is no longer a technical designer on this project`;
     case "watcher_added": return `${tc(c.new_value ?? "")} is now kept updated on this project`;
     case "watcher_removed": return `${tc(c.old_value ?? "")} is no longer kept updated on this project`;
     case "vo_added": return `${c.field} added — ${vo(c.new_value)}`;
@@ -133,12 +135,12 @@ const meetingCard = (m: Meet) => `
       ${m.notes ? `<div style="font-size:13px;color:#6b6b6b;margin:0 0 8px;white-space:pre-line">${esc(m.notes)}</div>` : ""}`;
 
 /** Who should hear about a change to this project (excluding whoever made it).
- *  The PM, second PM and designer, plus anyone tagged on the project (db/015). When a quote is won,
+ *  The PM, second PM, designer and technical designers (lead + supporting, db/030), plus anyone tagged on the project (db/015). When a quote is won,
  *  everyone flagged notify_on_award hears about it too — at that moment nobody is assigned yet,
  *  so without them the signing would go to an empty list. */
 export function recipients(p: Proj, changes: Change[], people: Map<string, Person>, watchers: Set<string>): Person[] {
   const ids = new Set<string>();
-  for (const id of [p.pm_id, p.pm2_id, p.designer_id, p.ball_holder_id]) if (id) ids.add(id);
+  for (const id of [p.pm_id, p.pm2_id, p.designer_id, p.technical_designer_id, p.ball_holder_id]) if (id) ids.add(id);
   if (p.status === "QUOTE" && p.estimator_id) ids.add(p.estimator_id);
   // Rev 3: the next owner hears the moment a handover is requested; the previous owner hears the outcome
   for (const c of changes) {
@@ -224,7 +226,7 @@ export async function runNotifications(opts: { dryRun?: boolean } = {}) {
   const pIds = ready.filter(([k]) => k.startsWith("p:")).map(([k]) => k.slice(2));
   const mIds = ready.filter(([k]) => k.startsWith("m:")).map(([k]) => k.slice(2));
   const [{ data: projs }, { data: meets }, { data: ppl }] = await Promise.all([
-    pIds.length ? db.from("projects_live").select("id, enquiry_no, name, client, status, pm_id, pm2_id, designer_id, estimator_id, signed_quote, ball_holder_id, stage, project_value, vo_count, pm, target_date").in("id", pIds) : { data: [] },
+    pIds.length ? db.from("projects_live").select("id, enquiry_no, name, client, status, pm_id, pm2_id, designer_id, technical_designer_id, estimator_id, signed_quote, ball_holder_id, stage, project_value, vo_count, pm, target_date").in("id", pIds) : { data: [] },
     mIds.length ? db.from("meetings_live").select("id, title, project_id, project_name, location, meeting_date, start_time, end_time, notes, cancelled, created_by, attendee_ids, attendees").in("id", mIds) : { data: [] },
     db.from("people").select("id, name, full_name, email, is_active, notify_on_award, notify_progress_invoice, notify_final_invoice"),
   ]);
@@ -235,6 +237,12 @@ export async function runNotifications(opts: { dryRun?: boolean } = {}) {
   const watchers = new Map<string, Set<string>>();
   for (const w of (ws ?? []) as { project_id: string; person_id: string }[])
     watchers.set(w.project_id, (watchers.get(w.project_id) ?? new Set()).add(w.person_id));
+  // supporting technical designers (db/030) get the project's emails like the lead does
+  const { data: tds } = pIds.length
+    ? await db.from("project_technical_designers").select("project_id, person_id").in("project_id", pIds)
+    : { data: [] };
+  for (const t of (tds ?? []) as { project_id: string; person_id: string }[])
+    watchers.set(t.project_id, (watchers.get(t.project_id) ?? new Set()).add(t.person_id));
   const projects = new Map(((projs ?? []) as Proj[]).map((p) => [p.id, p]));
   const meetings = new Map(((meets ?? []) as Meet[]).map((m) => [m.id, m]));
 

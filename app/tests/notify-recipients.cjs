@@ -31,6 +31,11 @@ const edit = [ch({ field:'target_date', old_value:'2026-11-01', new_value:'2026-
 t('ordinary change -> team + tagged, not the editor', names(recipients(live, edit, people, new Set(['gaj','darren']))), 'ANKITA, DARREN, GAJANAND');
 t('no award spam on an ordinary change', recipients(live, edit, people, new Set()).some(r => r.name === 'TOM'), false);
 
+// 3b. Technical designers (db/030): the lead is on the project row, supporting ones ride the watcher set
+const drafted = { ...live, technical_designer_id:'darren' };
+t('lead + supporting technical designers hear ordinary changes', names(recipients(drafted, edit, people, new Set(['gaj']))), 'ANKITA, DARREN, GAJANAND');
+t('tech designer added wording', describe(ch({ kind:'tech_designer_added', field:'technical_designer', new_value:'GAJANAND', changed_by:'basim' }), drafted), 'Gajanand added as a technical designer on this project');
+
 // 4. Award once the team is already on it -> no "still needs" tail
 t('award wording when staffed', describe(award[0], live), 'Signed — AED 450,000. Now at Design drawings.');
 

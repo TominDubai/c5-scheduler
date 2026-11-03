@@ -1,7 +1,7 @@
 import Shell from "@/components/Shell";
 import Failed from "@/components/Failed";
 import MeetingsWeek from "@/components/MeetingsWeek";
-import { getMeetings, getPeople, getProjects, getStages } from "@/lib/data";
+import { getMeetings, getPeople, getProjects, getStages, getAllTechDesigners } from "@/lib/data";
 import type { Prefill } from "@/components/MeetingsWeek";
 import { addDays, todayDubai, weekStart, WEEK_DAYS, byEnq } from "@/lib/model";
 
@@ -12,7 +12,7 @@ async function Inner_MeetingsPage({ searchParams }: { searchParams: Promise<{ w?
   const today = todayDubai();
   const start = weekStart(/^\d{4}-\d{2}-\d{2}$/.test(w ?? "") ? (w as string) : today);
   const end = addDays(start, WEEK_DAYS - 1);
-  const [meetings, people, projects, stages] = await Promise.all([getMeetings(start, end), getPeople(), getProjects(), getStages()]);
+  const [meetings, people, projects, stages, techs] = await Promise.all([getMeetings(start, end), getPeople(), getProjects(), getStages(), getAllTechDesigners()]);
   const live = projects.filter((p) => !["COMPLETED", "LOST"].includes(p.status)).sort(byEnq).map((p) => ({ id: p.id, name: p.name, enquiry_no: p.enquiry_no }));
   // Rev 3 meeting stages: any stage with a mandatory-attendance list (Sales handover, Kick-off)
   const meetingStages = stages.filter((s) => s.attendance.length > 0);
@@ -27,7 +27,7 @@ async function Inner_MeetingsPage({ searchParams }: { searchParams: Promise<{ w?
       for (const a of s.attendance) {
         const key = full(a);
         if (key.startsWith("allocated project designer") && p.designer_id) ids.add(p.designer_id);
-        else if (key.startsWith("allocated technical designer") && p.technical_designer_id) ids.add(p.technical_designer_id);
+        else if (key.startsWith("allocated technical designer")) { if (p.technical_designer_id) ids.add(p.technical_designer_id); for (const t of techs.get(p.id) ?? []) ids.add(t); }
         else if (key.startsWith("allocated") && p.pm_id) ids.add(p.pm_id);
         else { const who = people.find((x) => (x.full_name ?? "").toLowerCase() === key || x.name.toLowerCase() === key); if (who) ids.add(who.id); }
       }

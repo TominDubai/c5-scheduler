@@ -3,7 +3,7 @@ import Shell from "@/components/Shell";
 import Failed from "@/components/Failed";
 import MonthByPerson, { type CalEvent } from "@/components/MonthByPerson";
 import ScheduleWeek from "@/components/ScheduleWeek";
-import { getProjects, getMe, getPeople, getAllItems, getAllProductionStages, getMeetings, getStageTargets, getAllMilestones } from "@/lib/data";
+import { getProjects, getMe, getPeople, getAllItems, getAllProductionStages, getMeetings, getStageTargets, getAllMilestones, getAllTechDesigners } from "@/lib/data";
 import { title, addDays, todayDubai, timingOf, PSTAGE_LABEL, ROLE_LABEL, type Project, type Milestone } from "@/lib/model";
 import type { CalEvent as Ev } from "@/components/MonthByPerson";
 
@@ -27,7 +27,7 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
   const gridStart = addDays(first, -new Date(first + "T00:00:00Z").getUTCDay());
   const gridEnd = addDays(last, 6 - new Date(last + "T00:00:00Z").getUTCDay());
 
-  const [projects, me, people, items, stages, meetings, targets, allMs] = await Promise.all([getProjects(), getMe(), getPeople(), getAllItems(), getAllProductionStages(), getMeetings(gridStart, gridEnd), getStageTargets(), getAllMilestones()]);
+  const [projects, me, people, items, stages, meetings, targets, allMs, techs] = await Promise.all([getProjects(), getMe(), getPeople(), getAllItems(), getAllProductionStages(), getMeetings(gridStart, gridEnd), getStageTargets(), getAllMilestones(), getAllTechDesigners()]);
   // milestones per project (db/028) — named flags on the calendar, and the on-time / delayed / extended colour (Anne, 2 Nov)
   const msOf = new Map<string, Milestone[]>();
   for (const m of allMs) { const l = msOf.get(m.project_id) ?? []; l.push(m); msOf.set(m.project_id, l); }
@@ -85,7 +85,7 @@ async function Inner_SchedulePage({ searchParams }: { searchParams: Promise<SP> 
   // long Gantt strip. A project is "mine" if I'm PM, supporting PM, ball holder, coordinator or designer on it,
   // so a PM sees his projects before anyone has typed items in (Darren's D3 Loose Furniture had none).
   const proj = sp.proj ?? "";
-  const onProject = (p: Project) => [p.pm_id, p.pm2_id, p.ball_holder_id, p.coordinator_id, p.designer_id, p.technical_designer_id];
+  const onProject = (p: Project) => [p.pm_id, p.pm2_id, p.ball_holder_id, p.coordinator_id, p.designer_id, p.technical_designer_id, ...(techs.get(p.id) ?? [])];
   // Awarded work only: stages 0–2 (registered / quotation) are the sales pipeline, not a schedule — Tom, 29 Oct.
   const awarded = (p: Project) => p.stage != null && p.stage >= 3;
   const projInScope = (p: Project) => awarded(p) && (proj ? p.id === proj : who === "all" || onProject(p).some(inScope));

@@ -11,7 +11,7 @@ import ProjectLog from "@/components/ProjectLog";
 import ItemsPanel from "@/components/ItemsPanel";
 import Workflow from "@/components/Workflow";
 import { Suspense } from "react";
-import { getProject, getPeople, getContractors, getMe, getProjectMeetings, getProjects, getMilestoneRevisions, getProjectMilestones, getProjectLog, getProjectItems, getItemTypes, getProjectWatchers, getStages, getStageOwners, getProjectWorkflow } from "@/lib/data";
+import { getProject, getPeople, getContractors, getMe, getProjectMeetings, getProjects, getMilestoneRevisions, getProjectMilestones, getProjectLog, getProjectItems, getItemTypes, getProjectWatchers, getProjectTechDesigners, getStages, getStageOwners, getProjectWorkflow } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { PHASES, COMPLETED_STAGE, LABEL, aed, fmtD, title, tone, delayText, hm, fmtDay, todayDubai, LOCATION_LABEL, byEnq, type Variation, type History } from "@/lib/model";
 
@@ -20,8 +20,8 @@ export const dynamic = "force-dynamic";
 async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const [p, people, contractors, me, meetings, all, revisions, milestones, log, itemsData, itemTypes, watchers, stages, owners, wf, { data: vos }, { data: hist }] = await Promise.all([
-    getProject(id), getPeople(), getContractors(), getMe(), getProjectMeetings(id), getProjects(), getMilestoneRevisions(id), getProjectMilestones(id), getProjectLog(id), getProjectItems(id), getItemTypes(), getProjectWatchers(id), getStages(), getStageOwners(), getProjectWorkflow(id),
+  const [p, people, contractors, me, meetings, all, revisions, milestones, log, itemsData, itemTypes, watchers, stages, owners, wf, techDesigners, { data: vos }, { data: hist }] = await Promise.all([
+    getProject(id), getPeople(), getContractors(), getMe(), getProjectMeetings(id), getProjects(), getMilestoneRevisions(id), getProjectMilestones(id), getProjectLog(id), getProjectItems(id), getItemTypes(), getProjectWatchers(id), getStages(), getStageOwners(), getProjectWorkflow(id), getProjectTechDesigners(id),
     supabase.from("variations").select("*").eq("project_id", id).order("vo_no"),
     supabase.from("status_history").select("*, who:people(name)").eq("project_id", id).order("changed_at", { ascending: false }),
   ]);
@@ -62,7 +62,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
           </div>
         )}
         {p.status !== "LOST" && p.status !== "MERGED" && (p.stage == null || p.stage >= 3) && (
-          <Workflow project={p} stages={stages} owners={owners} people={people} me={me} handovers={wf.handovers} holds={wf.holds} evidence={wf.evidence} tasks={wf.tasks} locked={!!p.deleted_at} meetings={meetings} />
+          <Workflow project={p} stages={stages} owners={owners} people={people} me={me} handovers={wf.handovers} holds={wf.holds} evidence={wf.evidence} tasks={wf.tasks} locked={!!p.deleted_at} meetings={meetings} techDesigners={techDesigners} />
         )}
         <div className="grid2">
           <div className="panel">
@@ -96,7 +96,7 @@ async function Inner_ProjectPage({ params }: { params: Promise<{ id: string }> }
         {canEdit ? (
           <div className="panel">
             <h2>Edit project</h2>
-            <ProjectForm project={p} people={people} contractors={contractors} estimationOnly={!me.canProjects} liveProjects={live} watchers={watchers} isAdmin={me.isAdmin} milestones={milestones} />
+            <ProjectForm project={p} people={people} contractors={contractors} estimationOnly={!me.canProjects} liveProjects={live} watchers={watchers} techDesigners={techDesigners} isAdmin={me.isAdmin} milestones={milestones} />
           </div>
         ) : (
           <div className="panel"><h2>Details</h2><dl>

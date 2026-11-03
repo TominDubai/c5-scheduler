@@ -4,11 +4,11 @@ import { ALL, QUOTE_STAGES, WAITING_ON, SCOPES, MILESTONE_LABEL, title, fmtD, ty
 import ParentOptions from "@/components/ParentOptions";
 import { saveProject, createProject } from "@/app/actions";
 
-type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean; liveProjects?: ParentOption[]; watchers?: string[]; isAdmin?: boolean; milestones?: Milestone[] };
+type Props = { project?: Project | null; people: Person[]; contractors: Contractor[]; estimationOnly?: boolean; liveProjects?: ParentOption[]; watchers?: string[]; techDesigners?: string[]; isAdmin?: boolean; milestones?: Milestone[] };
 const PLANNED: MilestoneKind[] = ["DRAWINGS_RELEASED", "DELIVERY", "INSTALL_COMPLETE"];
 const HINT: Record<string, string> = { DRAWINGS_RELEASED: "all drawings approved and issued to the factory", DELIVERY: "joinery on site", INSTALL_COMPLETE: "installation done, snagging starts" };
 
-export default function ProjectForm({ project, people, contractors, estimationOnly = false, liveProjects, watchers = [], isAdmin = false, milestones = [] }: Props) {
+export default function ProjectForm({ project, people, contractors, estimationOnly = false, liveProjects, watchers = [], techDesigners = [], isAdmin = false, milestones = [] }: Props) {
   const lock = estimationOnly; // estimators: pricing fields only
   const action = project ? saveProject.bind(null, project.id) : createProject;
   const [state, formAction, pending] = useActionState(action, null as { error?: string; ok?: boolean; at?: string } | null);
@@ -20,6 +20,7 @@ export default function ProjectForm({ project, people, contractors, estimationOn
   const v = (k: keyof Project) => (project?.[k] ?? "") as string;
   const [target, setTarget] = useState(v("target_date"));
   const [tagged, setTagged] = useState<Set<string>>(new Set(watchers));
+  const [techs, setTechs] = useState<Set<string>>(new Set(techDesigners));
   const targetChanged = !!project && target !== v("target_date");
   const nextRev = (project?.target_rev ?? -1) + 1;
   // the three planned milestones (db/028) — same Rev 0 / Rev 1 … treatment as the target completion
@@ -68,8 +69,23 @@ export default function ProjectForm({ project, people, contractors, estimationOn
         <select id="coordinator_id" name="coordinator_id" disabled={lock} defaultValue={v("coordinator_id")}><option value="">—</option>{coordinators.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
       <div className="field"><label htmlFor="designer_id">Project designer <small>(assigned by Haydee)</small></label>
         <select id="designer_id" name="designer_id" disabled={lock} defaultValue={v("designer_id")}><option value="">—</option>{designers.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
-      <div className="field"><label htmlFor="technical_designer_id">Technical designer <small>(assigned by Alyssa)</small></label>
+      <div className="field"><label htmlFor="technical_designer_id">Lead technical designer <small>(assigned by Alyssa)</small></label>
         <select id="technical_designer_id" name="technical_designer_id" disabled={lock} defaultValue={v("technical_designer_id")}><option value="">—</option>{technical.map((p) => <option key={p.id} value={p.id}>{title(p.name)}</option>)}</select></div>
+      {!lock && (
+        <div className="field wide tagged">
+          <label>Also drafting <small>(the other technical designers on this project — most jobs have one to three)</small></label>
+          <input type="hidden" name="tech_designers_present" value="1" />
+          <div className="chips">
+            {technical.map((p) => (
+              <label key={p.id} className={"chip" + (techs.has(p.id) ? " on" : "")}>
+                <input type="checkbox" name="tech_designers" value={p.id} checked={techs.has(p.id)}
+                  onChange={(e) => setTechs((s2) => { const n = new Set(s2); if (e.target.checked) n.add(p.id); else n.delete(p.id); return n; })} />
+                {title(p.name)}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
       {!lock && (
         <div className="field wide tagged">
           <label>Also keep updated <small>(anyone else who should get this project’s update emails — Jinky tags them)</small></label>

@@ -8,7 +8,7 @@ import { requestHandover, acceptHandover, recordAcceptance, returnHandover, canc
 
 type Props = {
   project: Project; stages: Stage[]; owners: StageOwner[]; people: Person[]; me: Me;
-  handovers: Handover[]; holds: Hold[]; evidence: StageEvidence[]; tasks: ProjectTask[]; locked?: boolean;
+  handovers: Handover[]; holds: Hold[]; evidence: StageEvidence[]; tasks: ProjectTask[]; locked?: boolean; techDesigners?: string[];
   meetings?: Meeting[];   // the project's meetings, for the stage-meeting row (Sales handover, Kick-off)
 };
 type S = { error?: string; ok?: boolean; at?: string } | null;
@@ -19,7 +19,7 @@ const fmtWhen = (iso: string | null | undefined) => iso ? new Date(iso).toLocale
  * (request / accept / return / Anne's record-on-behalf), the hold panel, next action, supporting tasks and the
  * handover history. Rules live in the database triggers; this component only shows the buttons each person can use.
  */
-export default function Workflow({ project: p, stages, owners, people, me, handovers, holds, evidence, tasks, locked, meetings = [] }: Props) {
+export default function Workflow({ project: p, stages, owners, people, me, handovers, holds, evidence, tasks, locked, meetings = [], techDesigners = [] }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -90,7 +90,7 @@ export default function Workflow({ project: p, stages, owners, people, me, hando
           {openHold && (me.isAdmin || coord || iHold || openHold.created_by === me.id) && <ReleaseHold projectId={p.id} hold={openHold} />}
           {(me.isAdmin || me.canTeam) && p.stage !== COMPLETED_STAGE && p.stage != null && <button type="button" className="btn ghost" onClick={() => setDrawer("reassign")}>Reassign ball…</button>}
         </div>
-        <TeamStrip p={p} people={people} canEdit={!locked && (me.isAdmin || me.canProjects || iHold)} onSave={(field, id) => run(() => setTeamRole(p.id, field, id))} />
+        <TeamStrip p={p} people={people} techDesigners={techDesigners} canEdit={!locked && (me.isAdmin || me.canProjects || iHold)} onSave={(field, id) => run(() => setTeamRole(p.id, field, id))} />
         {stage?.description && <p className="stage-desc">{stage.description}</p>}
         {(loopList.length > 0 || supporting.length > 0) && (
           <div className="loop">
@@ -489,11 +489,13 @@ const TEAM_SLOTS: { field: string; label: string; nameKey: keyof Project; idKey:
   { field: "pm2_id", label: "Supporting PM", nameKey: "pm2", idKey: "pm2_id", roles: ["PM", "MANAGEMENT"], neededFrom: 99 },
   { field: "coordinator_id", label: "Coordinator", nameKey: "coordinator", idKey: "coordinator_id", roles: ["PROJECT_COORDINATOR", "ADMIN", "MANAGEMENT"], neededFrom: 4 },
   { field: "designer_id", label: "Designer", nameKey: "designer", idKey: "designer_id", roles: ["DESIGNER", "TECHNICAL_DESIGNER"], neededFrom: 4 },
-  { field: "technical_designer_id", label: "Technical designer", nameKey: "technical_designer", idKey: "technical_designer_id", roles: ["TECHNICAL_DESIGNER", "DESIGNER"], neededFrom: 9 },
+  { field: "technical_designer_id", label: "Lead technical designer", nameKey: "technical_designer", idKey: "technical_designer_id", roles: ["TECHNICAL_DESIGNER", "DESIGNER"], neededFrom: 9 },
 ];
-function TeamStrip({ p, people, canEdit, onSave }: { p: Project; people: Person[]; canEdit: boolean; onSave: (field: string, id: string | null) => void }) {
+function TeamStrip({ p, people, techDesigners = [], canEdit, onSave }: { p: Project; people: Person[]; techDesigners?: string[]; canEdit: boolean; onSave: (field: string, id: string | null) => void }) {
   const [editing, setEditing] = useState<string | null>(null);
   if (p.stage == null || p.stage < 3) return null;
+  const byId = new Map(people.map((x) => [x.id, x]));
+  const alsoDrafting = techDesigners.map((id) => byId.get(id)).filter((x): x is Person => !!x).map((x) => x.full_name ?? title(x.name));
   return (
     <div className="teamstrip">
       {TEAM_SLOTS.map((s) => {
@@ -516,6 +518,9 @@ function TeamStrip({ p, people, canEdit, onSave }: { p: Project; people: Person[
           </div>
         );
       })}
+      {alsoDrafting.length > 0 && (
+        <div className="teamslot"><span className="loop-k">Also drafting</span><span className="teamname">{alsoDrafting.join(", ")}</span></div>
+      )}
     </div>
   );
 }

@@ -176,6 +176,21 @@ export async function getProjectWatchers(projectId: string): Promise<string[]> {
   return ((data ?? []) as { person_id: string }[]).map((r) => r.person_id);
 }
 
+/** Supporting technical designers (db/030) — over and above the lead in projects.technical_designer_id. */
+export async function getProjectTechDesigners(projectId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("project_technical_designers").select("person_id").eq("project_id", projectId).order("added_at");
+  return ((data ?? []) as { person_id: string }[]).map((r) => r.person_id);
+}
+/** project id → supporting technical designer ids, for the schedule and meetings pages */
+export const getAllTechDesigners = cache(async function getAllTechDesigners(): Promise<Map<string, string[]>> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("project_technical_designers").select("project_id, person_id").order("added_at");
+  const out = new Map<string, string[]>();
+  for (const r of (data ?? []) as { project_id: string; person_id: string }[]) out.set(r.project_id, [...(out.get(r.project_id) ?? []), r.person_id]);
+  return out;
+});
+
 // ---------- workflow Rev 3 (db/016) ----------
 import type { Stage, StageOwner, StageTarget, Handover, Hold, StageEvidence, ProjectTask } from "@/lib/model";
 export const getStages = cache(async function getStages(): Promise<Stage[]> {
