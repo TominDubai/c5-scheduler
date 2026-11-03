@@ -620,7 +620,14 @@ export async function saveNextAction(projectId: string, _prev: unknown, fd: Form
 }
 export async function tickChecklist(projectId: string, stageNo: number, itemKey: string, done: boolean, note?: string | null): Promise<R> {
   const supabase = await createClient();
-  const { error } = await supabase.from("stage_evidence").upsert({ project_id: projectId, stage_no: stageNo, item_key: itemKey, done, note: note ?? null }, { onConflict: "project_id,stage_no,item_key" });
+  // The tick index (project_id, stage_no, item_key) is partial — `where item_key is not null` — and
+  // supabase-js can't pass that predicate to ON CONFLICT, so Postgres rejects an upsert outright.
+  // Look the row up and update or insert instead.
+  const { data: existing, error: lookupError } = await supabase.from("stage_evidence").select("id").eq("project_id", projectId).eq("stage_no", stageNo).eq("item_key", itemKey).maybeSingle();
+  if (lookupError) return { error: lookupError.message };
+  const { error } = existing
+    ? await supabase.from("stage_evidence").update({ done, note: note ?? null }).eq("id", existing.id)
+    : await supabase.from("stage_evidence").insert({ project_id: projectId, stage_no: stageNo, item_key: itemKey, done, note: note ?? null });
   if (error) return { error: error.message };
   bustWorkflow(projectId);
   return { ok: true };
